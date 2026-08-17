@@ -1,0 +1,36 @@
+{
+  "name": "@r3alm/ai-mail",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Secure IMAP/SMTP MCP mail gateway for r3alm.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/src/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/express": "2.0.0",
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "express": "5.2.1",
+    "imapflow": "1.6.5",
+    "nodemailer": "9.0.3",
+    "postal-mime": "2.7.5",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/express": "5.0.6",
+    "@types/node": "26.1.2",
+    "@types/nodemailer": "8.0.1",
+    "tsx": "4.22.5",
+    "typescript": "5.8.3",
+    "vitest": "4.1.10"
+  }
+}
