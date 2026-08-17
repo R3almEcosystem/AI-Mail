@@ -38,7 +38,7 @@ The initial release deliberately does **not** expose arbitrary attachment downlo
 2. Server certificates are verified; TLS 1.2+ is required.
 3. Mail credentials stay in environment/secrets, never Git.
 4. `/mcp` requires `Authorization: Bearer <MCP_API_TOKEN>`.
-5. The MCP Express host/origin guard is enabled; configure `MCP_ALLOWED_HOSTS` for the deployed hostname.
+5. The MCP Express host/origin guard is enabled. On Vercel, the active deployment, branch, and production hostnames are automatically added when Vercel System Environment Variables are exposed.
 6. Inbound email content is returned inside an explicit untrusted-data boundary to reduce prompt-injection risk.
 7. Nodemailer file/URL access is disabled; no arbitrary attachment exfiltration tool exists in v0.1.
 8. The From address is fixed server-side to `MAIL_USERNAME`.
@@ -47,7 +47,7 @@ The initial release deliberately does **not** expose arbitrary attachment downlo
 
 ## Local setup
 
-Requirements: Node.js 20+ (Node 22 recommended).
+Requirements: Node.js 20+ (Node 22 or 24 recommended).
 
 ```bash
 cp .env.example .env
@@ -89,23 +89,125 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```
 
-## Production deployment
+## Vercel deployment — recommended
 
-Deploy behind a public HTTPS hostname such as `mail-ai.r3alm.com`, then set:
+The repository is configured as an Express application for the Vercel Node.js runtime. `src/index.ts` default-exports the Express app for Vercel and only opens a standalone TCP listener when running outside Vercel. `vercel.json` selects the `iad1` region and gives the function a 60-second maximum invocation duration.
 
-```dotenv
-NODE_ENV=production
-HOST=0.0.0.0
-PORT=3000
-MCP_ALLOWED_HOSTS=mail-ai.r3alm.com
-MAIL_USERNAME=admin@r3alm.com
-MAIL_PASSWORD=<deployment secret>
-MCP_API_TOKEN=<deployment secret>
+### 1. Import the GitHub repository
+
+Import:
+
+```text
+R3almEcosystem/AI-Mail
 ```
 
-Do **not** expose port 3000 directly to the internet without HTTPS termination and access controls.
+Use the feature branch `agent/initial-mail-gateway` for the first Preview deployment, then merge PR #1 and use `main` for Production after validation.
 
-### Docker
+Vercel should detect the project as **Express**. Do not set a static output directory.
+
+### 2. Add Vercel environment variables
+
+In **Project → Settings → Environment Variables**, add these values. At minimum, set the three secrets/identity values shown first.
+
+```dotenv
+MAIL_USERNAME=admin@r3alm.com
+MAIL_PASSWORD=<secret>
+MCP_API_TOKEN=<32+ character secret>
+
+IMAP_HOST=mail.r3alm.com
+IMAP_PORT=993
+IMAP_SECURE=true
+SMTP_HOST=mail.r3alm.com
+SMTP_PORT=465
+SMTP_SECURE=true
+
+MAX_MESSAGE_BODY_CHARS=50000
+MAX_RAW_MESSAGE_BYTES=10000000
+MAX_SEARCH_RESULTS=50
+MAX_RECIPIENTS=20
+OUTBOUND_ALLOWED_DOMAINS=
+```
+
+`HOST` and `PORT` are not required by Vercel's listener; the application defaults remain for local/Docker use.
+
+Mark `MAIL_PASSWORD` and `MCP_API_TOKEN` as sensitive secrets. Apply them to **Preview** while testing and **Production** before the production deployment.
+
+### 3. Expose Vercel System Environment Variables
+
+Enable **Automatically expose System Environment Variables** in Vercel's Environment Variables settings. The application will then add these Vercel-provided values to its DNS-rebinding allowlist when present:
+
+```text
+VERCEL_URL
+VERCEL_BRANCH_URL
+VERCEL_PROJECT_PRODUCTION_URL
+```
+
+If you do not expose those values, set `MCP_ALLOWED_HOSTS` manually to the exact deployment/custom hostname(s).
+
+For the eventual stable endpoint, add a custom domain such as:
+
+```text
+mail-ai.r3alm.com
+```
+
+Then either rely on `VERCEL_PROJECT_PRODUCTION_URL` or explicitly add:
+
+```dotenv
+MCP_ALLOWED_HOSTS=mail-ai.r3alm.com
+```
+
+### 4. Deploy and test health
+
+After Vercel finishes the Preview deployment:
+
+```bash
+curl https://YOUR-DEPLOYMENT.vercel.app/healthz
+```
+
+Expected response:
+
+```json
+{
+  "service": "r3alm-ai-mail",
+  "status": "ok",
+  "version": "0.1.0",
+  "runtime": "vercel"
+}
+```
+
+### 5. Test MCP discovery
+
+```bash
+curl -s -X POST https://YOUR-DEPLOYMENT.vercel.app/mcp \
+  -H 'Authorization: Bearer YOUR_MCP_API_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+### 6. Test the live mailbox connection
+
+This verifies both authenticated IMAP and SMTP/TLS without sending an email:
+
+```bash
+curl -s -X POST https://YOUR-DEPLOYMENT.vercel.app/mcp \
+  -H 'Authorization: Bearer YOUR_MCP_API_TOKEN' \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"connection_test","arguments":{}}}'
+```
+
+Do not test `send_email` until `connection_test` succeeds.
+
+### Vercel networking notes
+
+- SMTP port **465** is suitable for this deployment; port 25 should not be used on Vercel.
+- IMAP and SMTP operations are awaited before the Function returns, so the sockets are closed inside the invocation rather than left as background work.
+- If `mail.r3alm.com` later restricts access by source IP, ordinary Vercel outbound addresses are dynamic. Use Vercel Static IPs/Secure Compute or update the mail-server firewall policy before enabling such an allowlist.
+
+## Docker deployment
+
+The same repository still supports standalone deployment:
 
 ```bash
 docker build -t r3alm-ai-mail .
@@ -114,7 +216,7 @@ docker run --rm -p 3000:3000 --env-file .env r3alm-ai-mail
 
 ## ChatGPT integration
 
-The endpoint is a remote Streamable HTTP MCP server at:
+The remote Streamable HTTP MCP endpoint is:
 
 ```text
 https://YOUR-HOST/mcp
@@ -122,9 +224,7 @@ https://YOUR-HOST/mcp
 
 For production ChatGPT use, the recommended next authentication step is to place this MCP resource server behind an OAuth/OIDC provider or an approved secure MCP tunnel. The static bearer token implemented here is intended for controlled initial testing and MCP clients that can set an Authorization header.
 
-As of August 2026, OpenAI documents full custom-MCP write/modify actions for ChatGPT Business and Enterprise/Edu workspaces; Pro custom MCP connections are limited to read/fetch permissions. The server itself exposes both read and write tools, so SMTP actions become available when the ChatGPT workspace supports full MCP (or when the same remote MCP server is used through an API client that supports those tools).
-
-When the ChatGPT account/workspace supports the required custom-app permissions, add the remote MCP endpoint in ChatGPT's developer/custom-app settings, review the discovered tools, and keep write tools subject to user confirmation/workspace policy.
+The server itself exposes both read and write tools. Which tools ChatGPT can invoke depends on the custom-app/MCP permissions available in the ChatGPT workspace being used.
 
 ## Configuration reference
 
@@ -132,14 +232,14 @@ When the ChatGPT account/workspace supports the required custom-app permissions,
 |---|---|---|---|
 | `MAIL_USERNAME` | Yes | `admin@r3alm.com` | Authenticated mailbox and fixed From address |
 | `MAIL_PASSWORD` | Yes | secret | IMAP/SMTP password |
-| `IMAP_HOST` | Yes | `mail.r3alm.com` | IMAP host |
-| `IMAP_PORT` | Yes | `993` | IMAP implicit TLS port |
-| `IMAP_SECURE` | Yes | `true` | Implicit TLS |
-| `SMTP_HOST` | Yes | `mail.r3alm.com` | SMTP host |
-| `SMTP_PORT` | Yes | `465` | SMTP implicit TLS port |
-| `SMTP_SECURE` | Yes | `true` | Implicit TLS |
+| `IMAP_HOST` | No | `mail.r3alm.com` | IMAP host |
+| `IMAP_PORT` | No | `993` | IMAP implicit TLS port |
+| `IMAP_SECURE` | No | `true` | Implicit TLS |
+| `SMTP_HOST` | No | `mail.r3alm.com` | SMTP host |
+| `SMTP_PORT` | No | `465` | SMTP implicit TLS port |
+| `SMTP_SECURE` | No | `true` | Implicit TLS |
 | `MCP_API_TOKEN` | Yes | secret | Bearer token protecting `/mcp` |
-| `MCP_ALLOWED_HOSTS` | Yes for public bind | deployed hostname | DNS-rebinding host allowlist |
+| `MCP_ALLOWED_HOSTS` | No on Vercel with system vars | custom hostname | Additional DNS-rebinding host allowlist |
 | `MAX_MESSAGE_BODY_CHARS` | No | `50000` | Body/tool size limit |
 | `MAX_RAW_MESSAGE_BYTES` | No | `10000000` | Reject raw messages larger than this before MIME parsing |
 | `MAX_SEARCH_RESULTS` | No | `50` | Hard cap on returned search results |
@@ -154,12 +254,11 @@ npm test
 npm run build
 ```
 
-CI runs those checks for pull requests and pushes to `main`.
+CI runs those checks for pull requests and pushes to `main`. The repository's current GitHub Actions runner is blocked by the GitHub account billing lock, so keep PR #1 draft until dependency-aware validation can execute or the Vercel Preview build provides equivalent build feedback.
 
 ## Roadmap
 
 - OAuth/OIDC resource-server integration for production ChatGPT app authentication.
-- Secure deployment and DNS/TLS configuration.
 - Auditable outbound-message event logging without storing message bodies.
 - Optional scoped attachment retrieval with strict content/size policies.
 - Per-user authorization scopes (`mail:read`, `mail:send`, `mail:manage`).
