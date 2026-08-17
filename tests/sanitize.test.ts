@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { clampText, stripHeaderNewlines, subjectForReply, wrapUntrustedEmail } from '../src/mail/sanitize.js';
-import { assertRecipientsAllowed, dedupeAddresses } from '../src/mail/address.js';
+import { assertRecipientsAllowed, dedupeAddresses, isSafeEmailAddress } from '../src/mail/address.js';
 
 describe('mail safety helpers', () => {
   it('strips CRLF from header values', () => {
@@ -23,6 +23,12 @@ describe('mail safety helpers', () => {
 
   it('deduplicates recipients case-insensitively', () => {
     expect(dedupeAddresses(['A@Example.com', 'a@example.com'])).toEqual(['a@example.com']);
+  });
+
+  it('rejects control characters and malformed reply addresses', () => {
+    expect(isSafeEmailAddress('user@r3alm.com')).toBe(true);
+    expect(isSafeEmailAddress('user\r\nBcc:attacker@r3alm.com')).toBe(false);
+    expect(isSafeEmailAddress('bad@@r3alm.com')).toBe(false);
   });
 
   it('enforces recipient domain allowlist', () => {
