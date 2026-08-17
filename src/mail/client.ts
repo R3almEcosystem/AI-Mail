@@ -1,5 +1,6 @@
-import { ImapFlow } from 'imapflow';
+import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer, { type Transporter } from 'nodemailer';
+import type SMTPTransport from 'nodemailer/lib/smtp-transport';
 import PostalMime from 'postal-mime';
 import type { AppConfig } from '../config.js';
 import { envelopeAddresses, dedupeAddresses } from './address.js';
@@ -49,10 +50,10 @@ function tlsOptions(host: string) {
 }
 
 export class MailGateway {
-  private readonly transporter: Transporter;
+  private readonly transporter: Transporter<SMTPTransport.SentMessageInfo>;
 
   constructor(private readonly config: AppConfig) {
-    this.transporter = nodemailer.createTransport({
+    const smtpOptions: SMTPTransport.Options = {
       host: config.smtp.host,
       port: config.smtp.port,
       secure: config.smtp.secure,
@@ -66,7 +67,8 @@ export class MailGateway {
       socketTimeout: 30_000,
       disableFileAccess: true,
       disableUrlAccess: true
-    });
+    };
+    this.transporter = nodemailer.createTransport(smtpOptions);
   }
 
   private createImapClient(): ImapFlow {
@@ -82,7 +84,9 @@ export class MailGateway {
       logger: false,
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
-      socketTimeout: 30_000
+      socketTimeout: 30_000,
+      maxLiteralSize: this.config.limits.maxRawMessageBytes,
+      maxResponseSize: this.config.limits.maxRawMessageBytes + 1_000_000
     });
   }
 
@@ -136,7 +140,7 @@ export class MailGateway {
     return this.withImap(async (client) => {
       const lock = await client.getMailboxLock(folder);
       try {
-        const query: Record<string, unknown> = {};
+        const query: SearchObject = {};
         if (criteria.from) query.from = criteria.from;
         if (criteria.to) query.to = criteria.to;
         if (criteria.cc) query.cc = criteria.cc;
