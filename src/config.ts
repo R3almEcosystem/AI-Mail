@@ -28,6 +28,24 @@ const envSchema = z.object({
 
 export type AppConfig = ReturnType<typeof loadConfig>;
 
+function normalizeAllowedHost(value: string | undefined): string | undefined {
+  const raw = value?.trim();
+  if (!raw) return undefined;
+
+  try {
+    if (/^https?:\/\//i.test(raw)) return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return undefined;
+  }
+
+  const withoutPath = raw.split('/')[0] ?? '';
+  if (withoutPath.startsWith('[')) {
+    const end = withoutPath.indexOf(']');
+    return end > 0 ? withoutPath.slice(1, end).toLowerCase() : undefined;
+  }
+  return (withoutPath.split(':')[0] || undefined)?.toLowerCase();
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
@@ -38,9 +56,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   }
 
   const data = parsed.data;
-  const allowedHosts = data.MCP_ALLOWED_HOSTS.split(',')
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const configuredHosts = data.MCP_ALLOWED_HOSTS.split(',');
+  const vercelHosts = [
+    env.VERCEL_URL,
+    env.VERCEL_BRANCH_URL,
+    env.VERCEL_PROJECT_PRODUCTION_URL
+  ];
+  const allowedHosts = [...new Set(
+    [...configuredHosts, ...vercelHosts]
+      .map(normalizeAllowedHost)
+      .filter((value): value is string => Boolean(value))
+  )];
+
   const outboundAllowedDomains = data.OUTBOUND_ALLOWED_DOMAINS.split(',')
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
