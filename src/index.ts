@@ -1,3 +1,4 @@
+import type { ErrorRequestHandler } from 'express';
 import { createMcpExpressApp } from '@modelcontextprotocol/express';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import { createMcpHandler } from '@modelcontextprotocol/server';
@@ -17,23 +18,42 @@ const app = createMcpExpressApp({
 });
 
 app.get('/healthz', (_req, res) => {
-  res.status(200).json({ service: 'r3alm-ai-mail', status: 'ok', version: '0.1.0' });
+  res.status(200).json({
+    service: 'r3alm-ai-mail',
+    status: 'ok',
+    version: '0.1.0',
+    runtime: process.env.VERCEL ? 'vercel' : 'node'
+  });
 });
 
 app.all('/mcp', staticBearerAuth(config), (req, res) => {
   void nodeHandler(req, res, req.body);
 });
 
-const server = app.listen(config.http.port, config.http.host, () => {
-  console.log(`r3alm AI Mail MCP listening on ${config.http.host}:${config.http.port}`);
-});
+const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+  console.error('Unhandled request error', error);
+  if (!res.headersSent) {
+    res.status(500).json({ error: 'internal_error' });
+  }
+};
+app.use(errorHandler);
 
-async function shutdown(signal: string) {
-  console.log(`${signal} received; shutting down`);
-  server.close();
-  await mcpHandler.close();
-  process.exit(0);
+// Vercel detects and deploys the default-exported Express application as one
+// Node.js Function. Local/Docker execution retains the standalone listener.
+export default app;
+
+if (!process.env.VERCEL) {
+  const server = app.listen(config.http.port, config.http.host, () => {
+    console.log(`r3alm AI Mail MCP listening on ${config.http.host}:${config.http.port}`);
+  });
+
+  async function shutdown(signal: string) {
+    console.log(`${signal} received; shutting down`);
+    server.close();
+    await mcpHandler.close();
+    process.exit(0);
+  }
+
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
 }
-
-process.on('SIGINT', () => void shutdown('SIGINT'));
-process.on('SIGTERM', () => void shutdown('SIGTERM'));
