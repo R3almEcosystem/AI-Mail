@@ -10,6 +10,17 @@ const baseEnv: NodeJS.ProcessEnv = {
 };
 
 describe('Vercel-aware configuration', () => {
+  it('always includes canonical AI-Mail deployment hostnames', () => {
+    const config = loadConfig(baseEnv);
+
+    expect(config.http.allowedHosts).toEqual(expect.arrayContaining([
+      'ai-mail-r3alm.vercel.app',
+      'ai-mail-git-main-r3alm.vercel.app',
+      'ai-mail-mauve.vercel.app',
+      'mail-ai.r3alm.com'
+    ]));
+  });
+
   it('adds Vercel deployment hostnames to the MCP allowlist', () => {
     const config = loadConfig({
       ...baseEnv,
