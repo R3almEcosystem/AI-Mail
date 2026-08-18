@@ -23,7 +23,7 @@ function errorResult(error: unknown) {
 export function buildMcpServer(config: AppConfig, gateway: MailGateway): McpServer {
   const server = new McpServer({
     name: 'r3alm-ai-mail',
-    version: '0.1.0'
+    version: '0.2.0'
   });
 
   server.registerTool(
@@ -152,7 +152,7 @@ export function buildMcpServer(config: AppConfig, gateway: MailGateway): McpServ
   server.registerTool(
     'send_email',
     {
-      description: 'Send a plain-text email as the configured r3alm mailbox. The From address is fixed server-side and cannot be spoofed.',
+      description: 'Send a plain-text email as the configured r3alm mailbox. The From address is fixed server-side and cannot be spoofed. After successful SMTP delivery, a copy is archived to the IMAP Sent mailbox.',
       inputSchema: z.object({
         to: z.array(emailSchema).min(1).max(config.limits.maxRecipients),
         cc: z.array(emailSchema).max(config.limits.maxRecipients).optional(),
@@ -185,7 +185,7 @@ export function buildMcpServer(config: AppConfig, gateway: MailGateway): McpServ
   server.registerTool(
     'reply_email',
     {
-      description: 'Reply to a message by IMAP UID. Uses the original Message-ID for threading; reply-all is optional and excludes the configured mailbox.',
+      description: 'Reply to a message by IMAP UID. Uses the original Message-ID for threading; reply-all is optional and excludes the configured mailbox. After successful SMTP delivery, a copy is archived to the IMAP Sent mailbox.',
       inputSchema: z.object({
         folder: folderSchema,
         uid: z.number().int().positive(),
