@@ -1,6 +1,6 @@
 {
   "name": "@r3alm/ai-mail",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Secure IMAP/SMTP MCP mail gateway for r3alm.",
   "type": "module",
