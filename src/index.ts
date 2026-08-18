@@ -21,7 +21,7 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({
     service: 'r3alm-ai-mail',
     status: 'ok',
-    version: '0.1.0',
+    version: '0.2.0',
     runtime: process.env.VERCEL ? 'vercel' : 'node'
   });
 });
