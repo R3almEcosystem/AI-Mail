@@ -5,7 +5,7 @@ function jsValue(value: unknown): string {
 }
 
 export function renderConsentPage(config: AppConfig): string {
-  const allowedEmail = config.oauth.allowedEmails[0] ?? config.mail.username.toLowerCase();
+  const allowedEmail = config.oauth.allowedEmails[0] ?? 'key@r3alm.com';
 
   return `<!doctype html>
 <html lang="en">
@@ -26,12 +26,13 @@ export function renderConsentPage(config: AppConfig): string {
     .row { margin: 10px 0; }
     .label { display: block; color: #7f8998; font-size: 12px; margin-bottom: 4px; }
     .value { word-break: break-word; }
-    input { width: 100%; padding: 13px 14px; border-radius: 10px; border: 1px solid #303744; background: #090d13; color: #fff; font: inherit; margin: 6px 0 14px; }
     button { border: 0; border-radius: 10px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; }
     button.primary { background: #f2f5f7; color: #090b0f; }
     button.secondary { background: #202733; color: #f4f6f8; }
+    button:disabled { opacity: .55; cursor: wait; }
     .actions { display: flex; gap: 10px; flex-wrap: wrap; }
     .error { display: none; margin-top: 16px; padding: 12px; border: 1px solid #68333a; background: #2b1518; border-radius: 10px; color: #ffbbc3; white-space: pre-wrap; }
+    .notice { display: none; margin-top: 16px; padding: 12px; border: 1px solid #34506f; background: #101f31; border-radius: 10px; color: #c7e0ff; white-space: pre-wrap; }
     .muted { font-size: 13px; color: #788291; }
     #consent, #login { display: none; }
     ul { padding-left: 20px; color: #c2c9d2; }
@@ -49,12 +50,8 @@ export function renderConsentPage(config: AppConfig): string {
     <div class="card">
       <div class="row"><span class="label">Approved identity</span><span class="value" id="approved-email"></span></div>
     </div>
-    <form id="login-form">
-      <label class="label" for="password">Supabase account password</label>
-      <input id="password" name="password" type="password" autocomplete="current-password" required />
-      <button class="primary" type="submit">Sign in securely</button>
-    </form>
-    <p class="muted">Credentials are sent directly to Supabase Auth over HTTPS and are not handled by the mail server.</p>
+    <button id="send-link" class="primary" type="button">Email me a secure sign-in link</button>
+    <p class="muted">No Supabase password is required. The sign-in link is sent only to the approved r3alm address.</p>
   </section>
 
   <section id="consent">
@@ -71,6 +68,7 @@ export function renderConsentPage(config: AppConfig): string {
     </div>
   </section>
 
+  <div id="notice" class="notice"></div>
   <div id="error" class="error"></div>
 </main>
 
@@ -80,12 +78,17 @@ export function renderConsentPage(config: AppConfig): string {
   const SUPABASE_URL = ${jsValue(config.oauth.supabaseUrl)};
   const PUBLISHABLE_KEY = ${jsValue(config.oauth.publishableKey)};
   const ALLOWED_EMAIL = ${jsValue(allowedEmail)};
-  const AUTHORIZATION_ID = new URLSearchParams(window.location.search).get('authorization_id');
+  const AUTH_STORAGE_KEY = 'r3alm-ai-mail-authorization-id';
+  const urlAuthorizationId = new URLSearchParams(window.location.search).get('authorization_id');
+  if (urlAuthorizationId) localStorage.setItem(AUTH_STORAGE_KEY, urlAuthorizationId);
+  const AUTHORIZATION_ID = urlAuthorizationId || localStorage.getItem(AUTH_STORAGE_KEY);
 
   const loading = document.getElementById('loading');
   const login = document.getElementById('login');
   const consent = document.getElementById('consent');
   const errorBox = document.getElementById('error');
+  const noticeBox = document.getElementById('notice');
+  const sendLinkButton = document.getElementById('send-link');
   document.getElementById('approved-email').textContent = ALLOWED_EMAIL;
 
   const supabase = createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
@@ -93,24 +96,39 @@ export function renderConsentPage(config: AppConfig): string {
   });
 
   function showError(message) {
+    noticeBox.style.display = 'none';
     errorBox.textContent = String(message || 'Authorization failed');
     errorBox.style.display = 'block';
   }
 
-  function clearError() {
+  function showNotice(message) {
+    errorBox.style.display = 'none';
+    noticeBox.textContent = String(message || '');
+    noticeBox.style.display = 'block';
+  }
+
+  function clearMessages() {
     errorBox.textContent = '';
     errorBox.style.display = 'none';
+    noticeBox.textContent = '';
+    noticeBox.style.display = 'none';
   }
 
   async function loadAuthorization() {
-    clearError();
+    clearMessages();
     if (!AUTHORIZATION_ID) {
       loading.style.display = 'none';
-      showError('Missing authorization_id. Start this flow from ChatGPT.');
+      showError('Missing authorization request. Start this flow from ChatGPT.');
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    if (sessionError) {
+      loading.style.display = 'none';
+      showError(sessionError.message);
+      return;
+    }
+
     const session = sessionData.session;
     if (!session) {
       loading.style.display = 'none';
@@ -124,6 +142,7 @@ export function renderConsentPage(config: AppConfig): string {
       await supabase.auth.signOut();
       loading.style.display = 'none';
       login.style.display = 'block';
+      consent.style.display = 'none';
       showError('This Supabase identity is not authorized for r3alm AI-Mail.');
       return;
     }
@@ -136,12 +155,13 @@ export function renderConsentPage(config: AppConfig): string {
     }
 
     if (data && !('authorization_id' in data) && data.redirect_url) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
       window.location.assign(data.redirect_url);
       return;
     }
 
     document.getElementById('signed-in-email').textContent = email;
-    document.getElementById('client-name').textContent = data?.client?.name || 'OAuth client';
+    document.getElementById('client-name').textContent = data?.client?.name || 'ChatGPT — r3alm AI-Mail';
     document.getElementById('redirect-uri').textContent = data?.redirect_uri || '';
     const scopes = String(data?.scope || '').split(/\\s+/).filter(Boolean);
     const scopeList = document.getElementById('scope-list');
@@ -156,21 +176,30 @@ export function renderConsentPage(config: AppConfig): string {
     consent.style.display = 'block';
   }
 
-  document.getElementById('login-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    clearError();
-    const password = document.getElementById('password').value;
-    const { error } = await supabase.auth.signInWithPassword({ email: ALLOWED_EMAIL, password });
-    document.getElementById('password').value = '';
+  sendLinkButton.addEventListener('click', async () => {
+    clearMessages();
+    if (!AUTHORIZATION_ID) {
+      showError('Missing authorization request. Start this flow from ChatGPT.');
+      return;
+    }
+    sendLinkButton.disabled = true;
+    const { error } = await supabase.auth.signInWithOtp({
+      email: ALLOWED_EMAIL,
+      options: {
+        shouldCreateUser: false,
+        emailRedirectTo: window.location.origin
+      }
+    });
+    sendLinkButton.disabled = false;
     if (error) {
       showError(error.message);
       return;
     }
-    await loadAuthorization();
+    showNotice('Secure sign-in link sent to ' + ALLOWED_EMAIL + '. Open that email in this browser and follow the link to continue.');
   });
 
   async function decide(decision) {
-    clearError();
+    clearMessages();
     const result = decision === 'approve'
       ? await supabase.auth.oauth.approveAuthorization(AUTHORIZATION_ID)
       : await supabase.auth.oauth.denyAuthorization(AUTHORIZATION_ID);
@@ -178,6 +207,7 @@ export function renderConsentPage(config: AppConfig): string {
       showError(result.error.message);
       return;
     }
+    localStorage.removeItem(AUTH_STORAGE_KEY);
     if (result.data?.redirect_url) window.location.assign(result.data.redirect_url);
   }
 
