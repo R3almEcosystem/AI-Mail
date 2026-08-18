@@ -13,6 +13,11 @@ const BUILTIN_ALLOWED_HOSTS = [
   'mail-ai.r3alm.com'
 ] as const;
 
+const DEFAULT_SUPABASE_URL = 'https://wmqhvsiwarfpfaesctrd.supabase.co';
+const DEFAULT_OAUTH_CLIENT_ID = '77ee233c-8001-4318-acec-8d713fec56ba';
+const DEFAULT_PUBLISHABLE_KEY = 'sb_publishable_1bi9-ZkzbzCovzd35j1S2w_80Zyq6bY';
+const DEFAULT_MCP_RESOURCE = 'https://ai-mail.r3alm.com/mcp';
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   MAIL_USERNAME: z.string().email(),
@@ -27,6 +32,11 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().max(65535).default(3000),
   MCP_ALLOWED_HOSTS: z.string().default('localhost,127.0.0.1'),
   MCP_API_TOKEN: z.string().min(32, 'MCP_API_TOKEN must be at least 32 characters'),
+  SUPABASE_URL: z.string().url().default(DEFAULT_SUPABASE_URL),
+  SUPABASE_PUBLISHABLE_KEY: z.string().min(20).default(DEFAULT_PUBLISHABLE_KEY),
+  OAUTH_CLIENT_ID: z.string().min(1).default(DEFAULT_OAUTH_CLIENT_ID),
+  OAUTH_RESOURCE: z.string().url().default(DEFAULT_MCP_RESOURCE),
+  OAUTH_ALLOWED_EMAILS: z.string().default('admin@r3alm.com'),
   MAX_MESSAGE_BODY_CHARS: z.coerce.number().int().min(1000).max(250000).default(50000),
   MAX_RAW_MESSAGE_BYTES: z.coerce.number().int().min(100000).max(50000000).default(10000000),
   MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(100).default(50),
@@ -60,6 +70,10 @@ function normalizeServiceHost(value: string, label: string): string {
   return normalized;
 }
 
+function withoutTrailingSlash(value: string): string {
+  return value.replace(/\/+$/, '');
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
@@ -85,10 +99,19 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const outboundAllowedDomains = data.OUTBOUND_ALLOWED_DOMAINS.split(',')
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+  const oauthAllowedEmails = data.OAUTH_ALLOWED_EMAILS.split(',')
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
 
   if (data.HOST === '0.0.0.0' && allowedHosts.length === 0) {
     throw new Error('MCP_ALLOWED_HOSTS must be set when binding to 0.0.0.0');
   }
+  if (oauthAllowedEmails.length === 0) {
+    throw new Error('OAUTH_ALLOWED_EMAILS must contain at least one address');
+  }
+
+  const supabaseUrl = withoutTrailingSlash(data.SUPABASE_URL);
+  const authIssuer = `${supabaseUrl}/auth/v1`;
 
   return {
     nodeEnv: data.NODE_ENV,
@@ -111,6 +134,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       port: data.PORT,
       allowedHosts,
       apiToken: data.MCP_API_TOKEN
+    },
+    oauth: {
+      supabaseUrl,
+      publishableKey: data.SUPABASE_PUBLISHABLE_KEY,
+      issuer: authIssuer,
+      jwksUrl: `${authIssuer}/.well-known/jwks.json`,
+      authorizationServer: authIssuer,
+      clientId: data.OAUTH_CLIENT_ID,
+      resource: withoutTrailingSlash(data.OAUTH_RESOURCE),
+      allowedEmails: oauthAllowedEmails,
+      protectedResourceMetadataUrl: `${new URL(data.OAUTH_RESOURCE).origin}/.well-known/oauth-protected-resource/mcp`
     },
     limits: {
       maxMessageBodyChars: data.MAX_MESSAGE_BODY_CHARS,
