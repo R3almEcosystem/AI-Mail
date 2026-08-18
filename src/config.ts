@@ -5,6 +5,13 @@ const booleanString = z
   .default('true')
   .transform((value) => value.toLowerCase() === 'true');
 
+const BUILTIN_ALLOWED_HOSTS = [
+  'ai-mail-r3alm.vercel.app',
+  'ai-mail-git-main-r3alm.vercel.app',
+  'ai-mail-mauve.vercel.app',
+  'mail-ai.r3alm.com'
+] as const;
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   MAIL_USERNAME: z.string().email(),
@@ -63,7 +70,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     env.VERCEL_PROJECT_PRODUCTION_URL
   ];
   const allowedHosts = [...new Set(
-    [...configuredHosts, ...vercelHosts]
+    [...BUILTIN_ALLOWED_HOSTS, ...configuredHosts, ...vercelHosts]
       .map(normalizeAllowedHost)
       .filter((value): value is string => Boolean(value))
   )];
