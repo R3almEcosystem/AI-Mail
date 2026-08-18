@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { RequestHandler } from 'express';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import type { AppConfig } from './config.js';
 
 function constantTimeEquals(left: string, right: string): boolean {
@@ -9,23 +10,67 @@ function constantTimeEquals(left: string, right: string): boolean {
   return timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-export function staticBearerAuth(config: AppConfig): RequestHandler {
-  return (req, res, next) => {
+function challenge(config: AppConfig): string {
+  return `Bearer resource_metadata="${config.oauth.protectedResourceMetadataUrl}"`;
+}
+
+function unauthorized(config: AppConfig, res: Parameters<RequestHandler>[1]) {
+  res.setHeader('WWW-Authenticate', challenge(config));
+  res.status(401).json({ error: 'invalid_token' });
+}
+
+export function bearerAuth(config: AppConfig): RequestHandler {
+  const jwks = createRemoteJWKSet(new URL(config.oauth.jwksUrl));
+
+  return async (req, res, next) => {
     const authHeader = req.header('authorization');
     if (!authHeader?.startsWith('Bearer ')) {
-      res.setHeader('WWW-Authenticate', 'Bearer');
-      res.status(401).json({ error: 'invalid_token' });
+      unauthorized(config, res);
       return;
     }
 
     const token = authHeader.slice('Bearer '.length).trim();
-    if (!token || !constantTimeEquals(token, config.http.apiToken)) {
-      res.setHeader('WWW-Authenticate', 'Bearer');
-      res.status(401).json({ error: 'invalid_token' });
+    if (!token) {
+      unauthorized(config, res);
       return;
     }
 
-    next();
+    // Preserve the original long-lived administrative bearer credential for
+    // controlled API/CI use while allowing ChatGPT to use short-lived OAuth tokens.
+    if (constantTimeEquals(token, config.http.apiToken)) {
+      next();
+      return;
+    }
+
+    try {
+      const { payload } = await jwtVerify(token, jwks, {
+        issuer: config.oauth.issuer,
+        audience: 'authenticated'
+      });
+
+      const email = typeof payload.email === 'string' ? payload.email.toLowerCase() : '';
+      const clientId = typeof payload.client_id === 'string' ? payload.client_id : '';
+      const role = typeof payload.role === 'string' ? payload.role : '';
+
+      if (
+        !payload.sub ||
+        role !== 'authenticated' ||
+        clientId !== config.oauth.clientId ||
+        !config.oauth.allowedEmails.includes(email)
+      ) {
+        unauthorized(config, res);
+        return;
+      }
+
+      res.locals.oauth = {
+        subject: payload.sub,
+        email,
+        clientId
+      };
+      next();
+    } catch {
+      unauthorized(config, res);
+    }
   };
 }
 
