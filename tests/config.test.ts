@@ -67,7 +67,7 @@ describe('Vercel-aware configuration', () => {
     expect(config.oauth.jwksUrl).toBe('https://wmqhvsiwarfpfaesctrd.supabase.co/auth/v1/.well-known/jwks.json');
     expect(config.oauth.clientId).toBe('77ee233c-8001-4318-acec-8d713fec56ba');
     expect(config.oauth.resource).toBe('https://ai-mail.r3alm.com/mcp');
-    expect(config.oauth.allowedEmails).toEqual(['admin@r3alm.com']);
+    expect(config.oauth.allowedEmails).toEqual(['key@r3alm.com']);
     expect(config.oauth.protectedResourceMetadataUrl).toBe('https://ai-mail.r3alm.com/.well-known/oauth-protected-resource/mcp');
   });
 
