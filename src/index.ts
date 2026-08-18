@@ -5,7 +5,8 @@ import { createMcpHandler } from '@modelcontextprotocol/server';
 import { loadConfig } from './config.js';
 import { MailGateway } from './mail/client.js';
 import { buildMcpServer } from './mcp/server.js';
-import { staticBearerAuth } from './security.js';
+import { renderConsentPage } from './oauth/consent.js';
+import { bearerAuth } from './security.js';
 
 const config = loadConfig();
 const gateway = new MailGateway(config);
@@ -21,12 +22,45 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({
     service: 'r3alm-ai-mail',
     status: 'ok',
-    version: '0.2.0',
-    runtime: process.env.VERCEL ? 'vercel' : 'node'
+    version: '0.3.0',
+    runtime: process.env.VERCEL ? 'vercel' : 'node',
+    oauth: 'supabase-oauth-2.1'
   });
 });
 
-app.all('/mcp', staticBearerAuth(config), (req, res) => {
+const protectedResourceMetadata = {
+  resource: config.oauth.resource,
+  authorization_servers: [config.oauth.authorizationServer],
+  bearer_methods_supported: ['header'],
+  scopes_supported: ['openid', 'email', 'profile', 'offline_access']
+};
+
+app.get('/.well-known/oauth-protected-resource', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.status(200).json(protectedResourceMetadata);
+});
+
+app.get('/.well-known/oauth-protected-resource/mcp', (_req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.status(200).json(protectedResourceMetadata);
+});
+
+app.get('/oauth/consent', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'none'",
+    "script-src 'unsafe-inline' https://esm.sh",
+    "connect-src https://wmqhvsiwarfpfaesctrd.supabase.co",
+    "style-src 'unsafe-inline'",
+    "img-src 'self' data:",
+    "base-uri 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'"
+  ].join('; '));
+  res.status(200).type('html').send(renderConsentPage(config));
+});
+
+app.all('/mcp', bearerAuth(config), (req, res) => {
   void nodeHandler(req, res, req.body);
 });
 
