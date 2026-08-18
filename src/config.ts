@@ -54,6 +54,12 @@ function normalizeAllowedHost(value: string | undefined): string | undefined {
   return (withoutPath.split(':')[0] || undefined)?.toLowerCase();
 }
 
+function normalizeServiceHost(value: string, label: string): string {
+  const normalized = normalizeAllowedHost(value);
+  if (!normalized) throw new Error(`Invalid ${label}: ${value}`);
+  return normalized;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
   const parsed = envSchema.safeParse(env);
   if (!parsed.success) {
@@ -91,12 +97,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
       password: data.MAIL_PASSWORD
     },
     imap: {
-      host: data.IMAP_HOST,
+      host: normalizeServiceHost(data.IMAP_HOST, 'IMAP_HOST'),
       port: data.IMAP_PORT,
       secure: data.IMAP_SECURE
     },
     smtp: {
-      host: data.SMTP_HOST,
+      host: normalizeServiceHost(data.SMTP_HOST, 'SMTP_HOST'),
       port: data.SMTP_PORT,
       secure: data.SMTP_SECURE
     },
