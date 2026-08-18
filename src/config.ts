@@ -9,6 +9,7 @@ const BUILTIN_ALLOWED_HOSTS = [
   'ai-mail-r3alm.vercel.app',
   'ai-mail-git-main-r3alm.vercel.app',
   'ai-mail-mauve.vercel.app',
+  'ai-mail.r3alm.com',
   'mail-ai.r3alm.com'
 ] as const;
 
