@@ -1,4 +1,4 @@
-import type { ErrorRequestHandler } from 'express';
+import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { createMcpExpressApp } from '@modelcontextprotocol/express';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import { createMcpHandler } from '@modelcontextprotocol/server';
@@ -22,9 +22,9 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({
     service: 'r3alm-ai-mail',
     status: 'ok',
-    version: '0.3.0',
+    version: '0.3.1',
     runtime: process.env.VERCEL ? 'vercel' : 'node',
-    oauth: 'supabase-oauth-2.1'
+    oauth: 'supabase-oauth-2.1-passwordless'
   });
 });
 
@@ -45,7 +45,7 @@ app.get('/.well-known/oauth-protected-resource/mcp', (_req, res) => {
   res.status(200).json(protectedResourceMetadata);
 });
 
-app.get('/oauth/consent', (_req, res) => {
+const serveConsent: RequestHandler = (_req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Content-Security-Policy', [
     "default-src 'none'",
@@ -58,7 +58,13 @@ app.get('/oauth/consent', (_req, res) => {
     "form-action 'self'"
   ].join('; '));
   res.status(200).type('html').send(renderConsentPage(config));
-});
+};
+
+// Supabase passwordless sign-in returns to the Site URL root. Serving the
+// consent app at both locations lets it restore the pending authorization ID
+// from same-origin localStorage and resume the ChatGPT OAuth flow.
+app.get('/', serveConsent);
+app.get('/oauth/consent', serveConsent);
 
 app.all('/mcp', bearerAuth(config), (req, res) => {
   void nodeHandler(req, res, req.body);
