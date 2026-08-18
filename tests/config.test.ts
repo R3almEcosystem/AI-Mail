@@ -59,4 +59,24 @@ describe('Vercel-aware configuration', () => {
     expect(config.imap.host).toBe('mail.r3alm.com');
     expect(config.smtp.host).toBe('mail.r3alm.com');
   });
+
+  it('loads the canonical Supabase OAuth resource configuration', () => {
+    const config = loadConfig(baseEnv);
+
+    expect(config.oauth.issuer).toBe('https://wmqhvsiwarfpfaesctrd.supabase.co/auth/v1');
+    expect(config.oauth.jwksUrl).toBe('https://wmqhvsiwarfpfaesctrd.supabase.co/auth/v1/.well-known/jwks.json');
+    expect(config.oauth.clientId).toBe('77ee233c-8001-4318-acec-8d713fec56ba');
+    expect(config.oauth.resource).toBe('https://ai-mail.r3alm.com/mcp');
+    expect(config.oauth.allowedEmails).toEqual(['admin@r3alm.com']);
+    expect(config.oauth.protectedResourceMetadataUrl).toBe('https://ai-mail.r3alm.com/.well-known/oauth-protected-resource/mcp');
+  });
+
+  it('normalizes an OAuth resource trailing slash', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      OAUTH_RESOURCE: 'https://ai-mail.r3alm.com/mcp/'
+    });
+
+    expect(config.oauth.resource).toBe('https://ai-mail.r3alm.com/mcp');
+  });
 });
