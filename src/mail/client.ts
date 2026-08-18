@@ -40,6 +40,13 @@ export type SearchCriteria = {
   before?: Date;
 };
 
+type SentCopyStatus = {
+  stored: boolean;
+  folder?: string;
+  uid?: number;
+  warning?: string;
+};
+
 function tlsOptions(host: string) {
   return {
     rejectUnauthorized: true,
@@ -50,6 +57,7 @@ function tlsOptions(host: string) {
 
 export class MailGateway {
   private readonly transporter: Transporter;
+  private readonly archivalTransporter: Transporter;
 
   constructor(private readonly config: AppConfig) {
     this.transporter = nodemailer.createTransport({
@@ -64,6 +72,15 @@ export class MailGateway {
       connectionTimeout: 10_000,
       greetingTimeout: 10_000,
       socketTimeout: 30_000,
+      disableFileAccess: true,
+      disableUrlAccess: true
+    });
+
+    // Stream transport compiles a complete RFC 822 copy without delivering it.
+    // We append this copy to the IMAP Sent mailbox only after SMTP succeeds.
+    this.archivalTransporter = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true,
       disableFileAccess: true,
       disableUrlAccess: true
     });
@@ -93,6 +110,57 @@ export class MailGateway {
       return await operation(client);
     } finally {
       await client.logout().catch(() => undefined);
+    }
+  }
+
+  private async archiveSentCopy(input: {
+    to: string[];
+    cc?: string[];
+    bcc?: string[];
+    subject: string;
+    text: string;
+    messageId: string;
+    date: Date;
+    inReplyTo?: string;
+    references?: string[];
+  }): Promise<SentCopyStatus> {
+    try {
+      const compiled = await this.archivalTransporter.sendMail({
+        from: this.config.mail.username,
+        to: input.to,
+        cc: input.cc,
+        bcc: input.bcc,
+        subject: input.subject,
+        text: input.text,
+        messageId: input.messageId,
+        date: input.date,
+        ...(input.inReplyTo ? { inReplyTo: input.inReplyTo } : {}),
+        ...(input.references?.length ? { references: input.references } : {}),
+        disableFileAccess: true,
+        disableUrlAccess: true
+      });
+
+      const raw = (compiled as unknown as { message?: unknown }).message;
+      if (!Buffer.isBuffer(raw)) {
+        throw new Error('Sent-copy composer did not return a Buffer');
+      }
+
+      return await this.withImap(async (client) => {
+        const mailboxes = await client.list();
+        const sentFolder = mailboxes.find((mailbox) => mailbox.specialUse === '\\Sent')?.path ?? 'INBOX.Sent';
+        const appended = await client.append(sentFolder, raw, ['\\Seen'], input.date);
+
+        return {
+          stored: true,
+          folder: sentFolder,
+          ...(appended && typeof appended.uid === 'number' ? { uid: appended.uid } : {})
+        };
+      });
+    } catch (error) {
+      return {
+        stored: false,
+        warning: error instanceof Error ? error.message : 'Unknown Sent-folder archival error'
+      };
     }
   }
 
@@ -247,6 +315,7 @@ export class MailGateway {
   }
 
   async sendEmail(input: { to: string[]; cc?: string[]; bcc?: string[]; subject: string; text: string }) {
+    const sentAt = new Date();
     const result = await this.transporter.sendMail({
       from: this.config.mail.username,
       to: input.to,
@@ -254,15 +323,27 @@ export class MailGateway {
       bcc: input.bcc,
       subject: input.subject,
       text: input.text,
+      date: sentAt,
       disableFileAccess: true,
       disableUrlAccess: true
+    });
+
+    const sentCopy = await this.archiveSentCopy({
+      to: input.to,
+      cc: input.cc,
+      bcc: input.bcc,
+      subject: input.subject,
+      text: input.text,
+      messageId: result.messageId,
+      date: sentAt
     });
 
     return {
       messageId: result.messageId,
       accepted: result.accepted.map(String),
       rejected: result.rejected.map(String),
-      response: result.response
+      response: result.response,
+      sentCopy
     };
   }
 
@@ -286,17 +367,32 @@ export class MailGateway {
 
     const referenceIds = [...original.references];
     if (original.messageId) referenceIds.push(original.messageId);
+    const references = [...new Set(referenceIds)];
+    const subject = subjectForReply(original.subject);
+    const sentAt = new Date();
 
     const result = await this.transporter.sendMail({
       from: this.config.mail.username,
       to,
       ...(cc.length ? { cc } : {}),
-      subject: subjectForReply(original.subject),
+      subject,
       text: input.text,
+      date: sentAt,
       ...(original.messageId ? { inReplyTo: original.messageId } : {}),
-      ...(referenceIds.length ? { references: [...new Set(referenceIds)].join(' ') } : {}),
+      ...(references.length ? { references } : {}),
       disableFileAccess: true,
       disableUrlAccess: true
+    });
+
+    const sentCopy = await this.archiveSentCopy({
+      to,
+      ...(cc.length ? { cc } : {}),
+      subject,
+      text: input.text,
+      messageId: result.messageId,
+      date: sentAt,
+      ...(original.messageId ? { inReplyTo: original.messageId } : {}),
+      ...(references.length ? { references } : {})
     });
 
     return {
@@ -305,7 +401,8 @@ export class MailGateway {
       cc,
       accepted: result.accepted.map(String),
       rejected: result.rejected.map(String),
-      response: result.response
+      response: result.response,
+      sentCopy
     };
   }
 
