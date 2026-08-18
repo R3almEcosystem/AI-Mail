@@ -17,6 +17,7 @@ describe('Vercel-aware configuration', () => {
       'ai-mail-r3alm.vercel.app',
       'ai-mail-git-main-r3alm.vercel.app',
       'ai-mail-mauve.vercel.app',
+      'ai-mail.r3alm.com',
       'mail-ai.r3alm.com'
     ]));
   });
@@ -46,5 +47,16 @@ describe('Vercel-aware configuration', () => {
     });
 
     expect(config.http.allowedHosts).toContain('mail-ai.r3alm.com');
+  });
+
+  it('normalizes URL-shaped IMAP and SMTP host values to bare DNS hostnames', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      IMAP_HOST: 'https://mail.r3alm.com',
+      SMTP_HOST: 'https://mail.r3alm.com:465/'
+    });
+
+    expect(config.imap.host).toBe('mail.r3alm.com');
+    expect(config.smtp.host).toBe('mail.r3alm.com');
   });
 });
