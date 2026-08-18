@@ -36,7 +36,7 @@ const envSchema = z.object({
   SUPABASE_PUBLISHABLE_KEY: z.string().min(20).default(DEFAULT_PUBLISHABLE_KEY),
   OAUTH_CLIENT_ID: z.string().min(1).default(DEFAULT_OAUTH_CLIENT_ID),
   OAUTH_RESOURCE: z.string().url().default(DEFAULT_MCP_RESOURCE),
-  OAUTH_ALLOWED_EMAILS: z.string().default('admin@r3alm.com'),
+  OAUTH_ALLOWED_EMAILS: z.string().default('key@r3alm.com'),
   MAX_MESSAGE_BODY_CHARS: z.coerce.number().int().min(1000).max(250000).default(50000),
   MAX_RAW_MESSAGE_BYTES: z.coerce.number().int().min(100000).max(50000000).default(10000000),
   MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(100).default(50),
