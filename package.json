@@ -4,7 +4,9 @@
   "private": true,
   "description": "Unified direct-user and ChatGPT AI-Mail application for r3alm.",
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -45,5 +47,6 @@
     "tsx": "4.22.5",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
-  }
+  },
+  "packageManager": "npm@10.9.2"
 }
