@@ -1,22 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "express",
-  "regions": [
-    "iad1"
-  ],
+  "framework": "nextjs",
+  "regions": ["iad1"],
   "functions": {
-    "src/index.ts": {
-      "maxDuration": 60
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/app",
-      "destination": "https://ai-mail-web-r3alm.vercel.app/"
-    },
-    {
-      "source": "/app/:path*",
-      "destination": "https://ai-mail-web-r3alm.vercel.app/:path*"
-    }
-  ]
+    "src/app/mcp/route.ts": { "maxDuration": 60 }
+  }
 }

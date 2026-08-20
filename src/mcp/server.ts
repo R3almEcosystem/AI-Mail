@@ -23,7 +23,7 @@ function errorResult(error: unknown) {
 export function buildMcpServer(config: AppConfig, gateway: MailGateway): McpServer {
   const server = new McpServer({
     name: 'r3alm-ai-mail',
-    version: '0.2.0'
+    version: '0.4.0'
   });
 
   server.registerTool(

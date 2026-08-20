@@ -119,7 +119,7 @@ export function renderConsentPage(config: AppConfig): string {
     if (!AUTHORIZATION_ID) {
       // Root is also Supabase's passwordless callback. If there is no pending
       // ChatGPT authorization in same-origin storage, this is a direct user.
-      window.location.replace('/app');
+      window.location.replace('/');
       return;
     }
 
