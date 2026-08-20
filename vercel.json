@@ -1,13 +1,22 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "experimentalServices": {
-    "gateway": {
-      "entrypoint": "src/index.ts",
-      "routePrefix": "/"
-    },
-    "web": {
-      "entrypoint": "apps/web",
-      "routePrefix": "/app"
+  "framework": "express",
+  "regions": [
+    "iad1"
+  ],
+  "functions": {
+    "src/index.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/app",
+      "destination": "https://ai-mail-web-r3alm.vercel.app/"
+    },
+    {
+      "source": "/app/:path*",
+      "destination": "https://ai-mail-web-r3alm.vercel.app/:path*"
+    }
+  ]
 }

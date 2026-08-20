@@ -4,8 +4,9 @@ Secure remote MCP gateway that gives an authorized AI client controlled access t
 
 ## Dual access on one domain
 
-The production project is a Vercel Services deployment with two independently
-built services from this repository:
+Production uses two Vercel projects built from this single repository. The
+public `ai-mail` Express project keeps the connector and proxies the direct
+browser route to the independently built `ai-mail-web` Next.js project:
 
 | Route | Audience | Service |
 |---|---|---|
@@ -15,9 +16,9 @@ built services from this repository:
 | `/oauth/consent` | ChatGPT OAuth approval | Existing passwordless consent flow |
 | `/healthz` | Operations | Gateway health check |
 
-The gateway remains the catch-all service, preserving every connector URL.
-The browser service is mounted at the more specific `/app` prefix. A direct
-visit to the domain root is sent to `/app` unless a pending OAuth
+The gateway remains the catch-all application, preserving every connector URL.
+Root-level Vercel rewrites proxy only `/app` to the companion web project. A
+direct visit to the domain root is sent to `/app` unless a pending OAuth
 authorization is being resumed in that browser.
 
 ## Current r3alm mail settings
@@ -109,7 +110,7 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
 
 ## Vercel deployment — recommended
 
-The repository is configured as a Vercel Services project. `src/index.ts` remains the Express gateway entrypoint at `/`, while `apps/web` is the Next.js browser service mounted at `/app`. Only the root `vercel.json` defines deployment routing.
+The production `ai-mail` project remains an Express application. `src/index.ts` owns the MCP/OAuth gateway, and the root `vercel.json` proxies only `/app` to the independently deployed `apps/web` Next.js project.
 
 ### 1. Import the GitHub repository
 
@@ -121,7 +122,7 @@ R3almEcosystem/AI-Mail
 
 Use the feature branch `agent/initial-mail-gateway` for the first Preview deployment, then merge PR #1 and use `main` for Production after validation.
 
-Select the **Services** Framework Preset. Do not set a static output directory or an application Root Directory.
+Keep the existing `ai-mail` project on the **Express** Framework Preset. Deploy `apps/web` to the companion `ai-mail-web` Next.js project; do not set a static output directory.
 
 ### 2. Add Vercel environment variables
 
