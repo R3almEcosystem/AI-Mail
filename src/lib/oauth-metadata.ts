@@ -1,4 +1,4 @@
-import { loadConfig } from "@/config";
+import { loadConfig } from "@/gateway/config";
 
 export function protectedResourceMetadataResponse() {
   const config = loadConfig();

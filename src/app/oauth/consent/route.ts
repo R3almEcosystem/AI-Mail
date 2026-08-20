@@ -1,5 +1,5 @@
-import { loadConfig } from "@/config";
-import { renderConsentPage } from "@/oauth/consent";
+import { loadConfig } from "@/gateway/config";
+import { renderConsentPage } from "@/gateway/oauth/consent";
 
 export const dynamic = "force-dynamic";
 

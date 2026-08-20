@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { createRemoteJWKSet, jwtVerify } from "jose";
-import type { AppConfig } from "@/config";
+import type { AppConfig } from "@/gateway/config";
 
 const keySets = new WeakMap<AppConfig, ReturnType<typeof createRemoteJWKSet>>();
 

@@ -1,8 +1,8 @@
 import { createMcpHandler } from "@modelcontextprotocol/server";
-import type { AppConfig } from "@/config";
+import type { AppConfig } from "@/gateway/config";
 import { loadConfig } from "@/config";
-import { MailGateway } from "@/mail/client";
-import { buildMcpServer } from "@/mcp/server";
+import { MailGateway } from "@/gateway/mail/client";
+import { buildMcpServer } from "@/gateway/mcp/server";
 import { authorizeMcpRequest } from "@/lib/mcp-auth";
 
 export const runtime = "nodejs";
