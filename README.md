@@ -2,6 +2,27 @@
 
 Secure remote MCP gateway that gives an authorized AI client controlled access to the `admin@r3alm.com` mailbox over authenticated IMAP and SMTP.
 
+## Direct users and ChatGPT on one deployment
+
+The Vercel production artifact is a single Next.js application with two
+independent access surfaces on the same domain:
+
+| Route | Audience | Capability |
+|---|---|---|
+| `/` | Direct browser users | Landing page and login |
+| `/inbox` | Signed-in users | Mail, OpenAI actions, alerts, and escalation |
+| `/admin` | Administrators | Users, groups, settings, roles, and audit |
+| `/mcp` | ChatGPT and authorized MCP clients | Existing MCP mail tools |
+| `/.well-known/oauth-protected-resource*` | ChatGPT OAuth discovery | OAuth resource metadata |
+| `/oauth/consent` | ChatGPT OAuth approval | Passwordless Supabase consent |
+| `/healthz` | Operations | Combined application health |
+
+The MCP endpoint keeps its bearer/OAuth validation and host guard. Browser
+sessions use a separate signed HTTP-only cookie and role checks. A passwordless
+OAuth callback that returns to `/` is detected from same-origin pending state
+and resumed at `/oauth/consent`; ordinary root visits remain on the landing
+page.
+
 ## Current r3alm mail settings
 
 | Function | Host | Port | Security | Authentication |
@@ -67,11 +88,13 @@ A convenient token generator:
 openssl rand -hex 32
 ```
 
-Then run:
+Then run the unified application:
 
 ```bash
 npm run dev
 ```
+
+For the standalone Express/Docker gateway during maintenance, use `npm run gateway:dev`.
 
 Health endpoint:
 
@@ -91,7 +114,7 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
 
 ## Vercel deployment — recommended
 
-The repository is configured as an Express application for the Vercel Node.js runtime. `src/index.ts` default-exports the Express app for Vercel and only opens a standalone TCP listener when running outside Vercel. `vercel.json` selects the `iad1` region and gives the function a 60-second maximum invocation duration.
+The production `ai-mail` project builds one Next.js application. Native Route Handlers expose the existing MCP/OAuth contract alongside the direct browser application.
 
 ### 1. Import the GitHub repository
 
@@ -103,7 +126,7 @@ R3almEcosystem/AI-Mail
 
 Use the feature branch `agent/initial-mail-gateway` for the first Preview deployment, then merge PR #1 and use `main` for Production after validation.
 
-Vercel should detect the project as **Express**. Do not set a static output directory.
+`vercel.json` selects the **Next.js** framework for every deployment. Do not set a static output directory or a separate Root Directory.
 
 ### 2. Add Vercel environment variables
 

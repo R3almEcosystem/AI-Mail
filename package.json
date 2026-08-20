@@ -1,37 +1,52 @@
 {
   "name": "@r3alm/ai-mail",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
-  "description": "Secure IMAP/SMTP MCP mail gateway for r3alm.",
+  "description": "Unified direct-user and ChatGPT AI-Mail application for r3alm.",
   "type": "module",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/src/index.js",
-    "build": "tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "gateway:dev": "tsx watch src/index.ts",
+    "gateway:build": "tsc -p tsconfig.gateway.json"
   },
   "dependencies": {
+    "@ai-sdk/openai": "latest",
     "@modelcontextprotocol/express": "2.0.0",
     "@modelcontextprotocol/node": "2.0.0",
     "@modelcontextprotocol/server": "2.0.0",
+    "ai": "latest",
     "express": "5.2.1",
     "imapflow": "1.6.5",
     "jose": "6.1.0",
+    "lucide-react": "latest",
+    "mailparser": "latest",
+    "next": "latest",
     "nodemailer": "9.0.3",
     "postal-mime": "2.7.5",
+    "postgres": "^3.4.9",
+    "react": "latest",
+    "react-dom": "latest",
+    "server-only": "latest",
     "zod": "4.4.3"
   },
   "devDependencies": {
     "@types/express": "5.0.6",
+    "@types/mailparser": "latest",
     "@types/node": "26.1.2",
     "@types/nodemailer": "8.0.1",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
     "tsx": "4.22.5",
     "typescript": "5.8.3",
     "vitest": "4.1.10"
-  }
+  },
+  "packageManager": "npm@10.9.2"
 }

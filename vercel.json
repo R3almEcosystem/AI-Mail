@@ -1,10 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "express",
-  "regions": ["iad1"],
+  "framework": "nextjs",
+  "regions": [
+    "iad1"
+  ],
   "functions": {
-    "src/index.ts": {
+    "src/app/mcp/route.ts": {
       "maxDuration": 60
     }
-  }
+  },
+  "installCommand": "npm install --legacy-peer-deps"
 }

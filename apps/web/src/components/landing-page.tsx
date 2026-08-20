@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, Bot, Check, Inbox, LockKeyhole, ShieldCheck, Sparkles, Users, Zap } from "lucide-react";
 import { LoginPanel } from "@/components/login-panel";
+import { webPath } from "@/lib/web-path";
 
 const features = [
   { icon: Inbox, title: "Priority inbox", text: "Turn noisy mail into a focused queue of decisions, deadlines, and follow-ups." },
@@ -12,9 +13,9 @@ export function LandingPage() {
   return (
     <main className="landing-page">
       <header className="landing-nav">
-        <Link href="/" className="brand-lockup landing-brand" aria-label="r3alm AI-Mail home"><span className="brand-mark" aria-hidden="true">r3</span><span><strong>r3alm</strong><small>AI-MAIL</small></span></Link>
+        <Link href={webPath("/")} className="brand-lockup landing-brand" aria-label="r3alm AI-Mail home"><span className="brand-mark" aria-hidden="true">r3</span><span><strong>r3alm</strong><small>AI-MAIL</small></span></Link>
         <nav aria-label="Public navigation"><a href="#platform">Platform</a><a href="#security">Security</a><a href="#access">Access</a></nav>
-        <Link href="/login" className="landing-signin">Sign in <ArrowRight size={15} /></Link>
+        <Link href={webPath("/login")} className="landing-signin">Sign in <ArrowRight size={15} /></Link>
       </header>
 
       <section className="landing-hero">

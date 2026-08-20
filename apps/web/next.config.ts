@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
+const serviceBasePath = process.env.NODE_ENV === "production" ? "/app" : undefined;
+
 const nextConfig: NextConfig = {
+  // Vercel Services strips /app before the request reaches Next.js. Prefixing
+  // generated assets keeps chunks and styles on the browser-facing service URL.
+  assetPrefix: serviceBasePath,
   poweredByHeader: false,
   reactStrictMode: true,
   experimental: {
@@ -25,4 +30,3 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-

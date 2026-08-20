@@ -22,7 +22,7 @@ app.get('/healthz', (_req, res) => {
   res.status(200).json({
     service: 'r3alm-ai-mail',
     status: 'ok',
-    version: '0.3.1',
+    version: '0.4.0',
     runtime: process.env.VERCEL ? 'vercel' : 'node',
     oauth: 'supabase-oauth-2.1-passwordless'
   });

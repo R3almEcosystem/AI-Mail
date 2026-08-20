@@ -2,10 +2,10 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
-COPY tsconfig.json ./
+COPY tsconfig.gateway.json ./
 COPY src ./src
 COPY tests ./tests
-RUN npm run build
+RUN npm run gateway:build
 
 FROM node:22-alpine AS runtime
 WORKDIR /app
