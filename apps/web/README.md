@@ -16,6 +16,12 @@ A secure Next.js management console for `ai-mail.r3alm.com`. The application pro
 - PostgreSQL persistence for users, salted scrypt password hashes, escalation groups, settings, and audit events
 - Demo data when mail or AI services have not yet been configured
 
+In the combined Vercel Services deployment, the browser app is mounted at
+`/app`, with the signed-in inbox at `/app/inbox`. The repository's existing
+MCP/OAuth gateway continues to own `/mcp`, `/.well-known/...`, and
+`/oauth/consent`, so direct users and ChatGPT can use the same domain without
+sharing session or routing logic.
+
 ## Local setup
 
 1. Install dependencies:

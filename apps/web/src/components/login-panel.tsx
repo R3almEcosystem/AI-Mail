@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { ArrowRight, KeyRound, LoaderCircle, Sparkles } from "lucide-react";
+import { webPath } from "@/lib/web-path";
 
 export function LoginPanel({ compact = false }: { compact?: boolean }) {
   const [email, setEmail] = useState("bernie@r3alm.com");
@@ -10,16 +11,16 @@ export function LoginPanel({ compact = false }: { compact?: boolean }) {
   const [loading, setLoading] = useState<"credentials" | "demo" | null>(null);
 
   function destination() {
-    if (typeof window === "undefined") return "/app";
-    const target = new URLSearchParams(window.location.search).get("next") || "/app";
-    return target.startsWith("/") && !target.startsWith("//") ? target : "/app";
+    if (typeof window === "undefined") return webPath("/inbox");
+    const target = new URLSearchParams(window.location.search).get("next") || webPath("/inbox");
+    return target.startsWith("/") && !target.startsWith("//") ? target : webPath("/inbox");
   }
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading("credentials");
     setError("");
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch(webPath("/api/auth/login"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -36,7 +37,7 @@ export function LoginPanel({ compact = false }: { compact?: boolean }) {
   async function signInDemo() {
     setLoading("demo");
     setError("");
-    const response = await fetch("/api/auth/demo", { method: "POST" });
+    const response = await fetch(webPath("/api/auth/demo"), { method: "POST" });
     if (response.ok) {
       window.location.assign(destination());
       return;

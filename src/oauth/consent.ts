@@ -117,8 +117,9 @@ export function renderConsentPage(config: AppConfig): string {
   async function loadAuthorization() {
     clearMessages();
     if (!AUTHORIZATION_ID) {
-      loading.style.display = 'none';
-      showError('Missing authorization request. Start this flow from ChatGPT.');
+      // Root is also Supabase's passwordless callback. If there is no pending
+      // ChatGPT authorization in same-origin storage, this is a direct user.
+      window.location.replace('/app');
       return;
     }
 

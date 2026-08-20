@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESSION_NAME, verifySessionToken } from "@/lib/auth";
+import { webPath } from "@/lib/web-path";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -9,7 +10,7 @@ export async function proxy(request: NextRequest) {
   const user = await verifySessionToken(request.cookies.get(SESSION_NAME)?.value);
   if (user) {
     if (pathname.startsWith("/admin") && user.role !== "admin" && user.role !== "super_admin") {
-      return NextResponse.redirect(new URL("/app", request.url));
+      return NextResponse.redirect(new URL(webPath("/inbox"), request.url));
     }
     return NextResponse.next();
   }
@@ -18,8 +19,8 @@ export async function proxy(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("next", pathname);
+  const loginUrl = new URL(webPath("/login"), request.url);
+  loginUrl.searchParams.set("next", webPath(pathname));
   return NextResponse.redirect(loginUrl);
 }
 

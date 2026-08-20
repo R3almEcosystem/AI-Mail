@@ -1,10 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "express",
-  "regions": ["iad1"],
-  "functions": {
-    "src/index.ts": {
-      "maxDuration": 60
+  "experimentalServices": {
+    "gateway": {
+      "entrypoint": "src/index.ts",
+      "routePrefix": "/"
+    },
+    "web": {
+      "entrypoint": "apps/web",
+      "routePrefix": "/app"
     }
   }
 }

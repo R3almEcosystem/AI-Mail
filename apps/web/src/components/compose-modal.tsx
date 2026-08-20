@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Minimize2, Paperclip, Send, Sparkles, X } from "lucide-react";
 import type { MailMessage } from "@/lib/types";
+import { webPath } from "@/lib/web-path";
 
 export function ComposeModal({
   open,
@@ -33,7 +34,7 @@ export function ComposeModal({
     event.preventDefault();
     setSending(true);
     setError("");
-    const response = await fetch("/api/mail/send", {
+    const response = await fetch(webPath("/api/mail/send"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ to, subject, text }),
@@ -68,4 +69,3 @@ export function ComposeModal({
     </div>
   );
 }
-

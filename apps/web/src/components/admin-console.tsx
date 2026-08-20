@@ -44,6 +44,7 @@ import type {
   UserRole,
   UserStatus,
 } from "@/lib/types";
+import { webPath } from "@/lib/web-path";
 
 type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "audit";
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
@@ -237,11 +238,11 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     async function load() {
       setLoading(true);
       const [usersResponse, groupsResponse, settingsResponse, auditResponse, statusResponse] = await Promise.all([
-        fetch("/api/admin/users", { cache: "no-store" }),
-        fetch("/api/admin/groups", { cache: "no-store" }),
-        fetch("/api/admin/settings", { cache: "no-store" }),
-        fetch("/api/admin/audit", { cache: "no-store" }),
-        fetch("/api/status", { cache: "no-store" }),
+        fetch(webPath("/api/admin/users"), { cache: "no-store" }),
+        fetch(webPath("/api/admin/groups"), { cache: "no-store" }),
+        fetch(webPath("/api/admin/settings"), { cache: "no-store" }),
+        fetch(webPath("/api/admin/audit"), { cache: "no-store" }),
+        fetch(webPath("/api/status"), { cache: "no-store" }),
       ]);
       if ([usersResponse, groupsResponse, settingsResponse, auditResponse, statusResponse].some((response) => !response.ok)) {
         setToast("The Admin Console could not load all workspace data.");
@@ -265,14 +266,14 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   }, [deferredSearch, statusFilter, users]);
 
   async function refreshAudit() {
-    const response = await fetch("/api/admin/audit", { cache: "no-store" });
+    const response = await fetch(webPath("/api/admin/audit"), { cache: "no-store" });
     if (response.ok) setEvents(((await response.json()) as { events: AuditEvent[] }).events);
   }
 
   async function saveUser(data: { name: string; email: string; title: string; role: UserRole; status: UserStatus; password?: string }) {
     setSaving(true);
     const creating = editor === "new";
-    const response = await fetch(creating ? "/api/admin/users" : `/api/admin/users/${(editor as ManagedUser).id}`, { method: creating ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
+    const response = await fetch(webPath(creating ? "/api/admin/users" : `/api/admin/users/${(editor as ManagedUser).id}`), { method: creating ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     const result = (await response.json().catch(() => null)) as { user?: ManagedUser; error?: string } | null;
     if (!response.ok || !result?.user) { setToast(result?.error || "Unable to save the user."); setSaving(false); return; }
     setUsers((current) => creating ? [...current, result.user as ManagedUser] : current.map((user) => user.id === result.user?.id ? result.user : user) as ManagedUser[]);
@@ -283,7 +284,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     if (!editor || editor === "new") return;
     if (!window.confirm(`Remove ${editor.name} from this workspace?`)) return;
     setSaving(true);
-    const response = await fetch(`/api/admin/users/${editor.id}`, { method: "DELETE" });
+    const response = await fetch(webPath(`/api/admin/users/${editor.id}`), { method: "DELETE" });
     const result = (await response.json().catch(() => null)) as { user?: ManagedUser; error?: string } | null;
     if (!response.ok || !result?.user) { setToast(result?.error || "Unable to remove the user."); setSaving(false); return; }
     setUsers((current) => current.map((user) => user.id === result.user?.id ? result.user as ManagedUser : user)); setToast("User removed from active access."); setEditor(null); setSaving(false); void refreshAudit();
@@ -292,7 +293,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   async function saveGroup(data: AlertGroupInput) {
     setSaving(true);
     const creating = groupEditor === "new";
-    const endpoint = creating ? "/api/admin/groups" : `/api/admin/groups/${(groupEditor as AlertGroup).id}`;
+    const endpoint = webPath(creating ? "/api/admin/groups" : `/api/admin/groups/${(groupEditor as AlertGroup).id}`);
     const response = await fetch(endpoint, { method: creating ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
     const result = (await response.json().catch(() => null)) as { group?: AlertGroup; error?: string } | null;
     if (!response.ok || !result?.group) { setToast(result?.error || "Unable to save the escalation group."); setSaving(false); return; }
@@ -309,7 +310,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     if (!groupEditor || groupEditor === "new") return;
     if (!window.confirm(`Retire ${groupEditor.name}? It will no longer appear as an escalation target.`)) return;
     setSaving(true);
-    const response = await fetch(`/api/admin/groups/${groupEditor.id}`, { method: "DELETE" });
+    const response = await fetch(webPath(`/api/admin/groups/${groupEditor.id}`), { method: "DELETE" });
     const result = (await response.json().catch(() => null)) as { group?: AlertGroup; error?: string } | null;
     if (!response.ok || !result?.group) { setToast(result?.error || "Unable to retire the escalation group."); setSaving(false); return; }
     setGroups((current) => current.map((group) => group.id === result.group?.id ? result.group as AlertGroup : group));
@@ -319,26 +320,26 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   async function saveSettings() {
     if (!settings) return;
     setSaving(true);
-    const response = await fetch("/api/admin/settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
+    const response = await fetch(webPath("/api/admin/settings"), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
     const result = (await response.json().catch(() => null)) as { settings?: AdminSettings; error?: string } | null;
     if (!response.ok || !result?.settings) { setToast(result?.error || "Unable to save settings."); setSaving(false); return; }
     setSettings(result.settings); setToast(demo ? "Settings updated for this demo session." : "Workspace settings saved."); setSaving(false); void refreshAudit();
   }
 
-  async function logout() { await fetch("/api/auth/logout", { method: "POST" }); window.location.assign("/"); }
+  async function logout() { await fetch(webPath("/api/auth/logout"), { method: "POST" }); window.location.assign(webPath("/")); }
   const meta = sectionMeta[section];
 
   return (
     <main className="admin-shell">
       <aside className={mobileNav ? "admin-sidebar admin-sidebar--open" : "admin-sidebar"}>
         <button className="admin-sidebar-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={18} /></button>
-        <Link href="/app" className="brand-lockup admin-brand"><span className="brand-mark" aria-hidden="true">r3</span><span><strong>r3alm</strong><small>ADMIN CONSOLE</small></span></Link>
+        <Link href={webPath("/inbox")} className="brand-lockup admin-brand"><span className="brand-mark" aria-hidden="true">r3</span><span><strong>r3alm</strong><small>ADMIN CONSOLE</small></span></Link>
         <nav>{navGroups.map((group) => <div key={group.label}><p>{group.label}</p>{group.items.map((item) => { const ItemIcon = item.icon; return <button key={item.id} className={section === item.id ? "active" : ""} type="button" onClick={() => { setSection(item.id); setMobileNav(false); }}><ItemIcon size={17} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "users" ? <b>{users.length}</b> : item.id === "groups" ? <b>{groups.filter((alertGroup) => alertGroup.active).length}</b> : null}</button>; })}</div>)}</nav>
-        <div className="admin-sidebar-bottom"><Link href="/app"><ArrowLeft size={17} /> Back to AI-Mail</Link><button onClick={logout}><LogOut size={17} /> Sign out</button><div><span>{initials(initialUser.name)}</span><p><strong>{initialUser.name}</strong><small>{roleLabels[initialUser.role]}</small></p></div></div>
+        <div className="admin-sidebar-bottom"><Link href={webPath("/inbox")}><ArrowLeft size={17} /> Back to AI-Mail</Link><button onClick={logout}><LogOut size={17} /> Sign out</button><div><span>{initials(initialUser.name)}</span><p><strong>{initialUser.name}</strong><small>{roleLabels[initialUser.role]}</small></p></div></div>
       </aside>
 
       <div className="admin-main">
-        <header className="admin-topbar"><div><button className="admin-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span><p className="eyebrow">{meta.eyebrow}</p><h1>{meta.title}</h1><small>{meta.detail}</small></span></div><div>{demo ? <span className="admin-demo-badge"><Database size={13} /> Demo workspace</span> : <span className="admin-live-badge"><Check size={13} /> Persistent</span>}<Link href="/app" className="secondary-button"><MailCheck size={15} /> Open mail</Link></div></header>
+        <header className="admin-topbar"><div><button className="admin-menu" onClick={() => setMobileNav(true)} aria-label="Open navigation"><Menu size={19} /></button><span><p className="eyebrow">{meta.eyebrow}</p><h1>{meta.title}</h1><small>{meta.detail}</small></span></div><div>{demo ? <span className="admin-demo-badge"><Database size={13} /> Demo workspace</span> : <span className="admin-live-badge"><Check size={13} /> Persistent</span>}<Link href={webPath("/inbox")} className="secondary-button"><MailCheck size={15} /> Open mail</Link></div></header>
         {demo ? <div className="admin-demo-banner"><CircleAlert size={16} /><span><strong>Simulation mode:</strong> user, group, and settings changes work in this preview but are not durable until `DATABASE_URL` is connected.</span></div> : null}
         <div className="admin-content">
           {loading ? <div className="admin-loading"><LoaderCircle className="spin" size={24} /><span>Loading workspace controls…</span></div> : null}

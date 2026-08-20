@@ -10,6 +10,7 @@ import { Sidebar, type DashboardSection } from "@/components/sidebar";
 import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-views";
 import type { AiAction, AlertGroup, AppStatus, MailListResponse, MailMessage, SessionUser } from "@/lib/types";
 import { initialAlerts, type AlertRecord } from "@/lib/alerts";
+import { webPath } from "@/lib/web-path";
 
 const sectionTitles: Record<DashboardSection, { kicker: string; title: string }> = {
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
@@ -41,9 +42,9 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     setLoading(true);
     try {
       const [mailResponse, statusResponse, groupsResponse] = await Promise.all([
-        fetch("/api/mail?limit=50", { cache: "no-store" }),
-        fetch("/api/status", { cache: "no-store" }),
-        fetch("/api/alert-groups", { cache: "no-store" }),
+        fetch(`${webPath("/api/mail")}?limit=50`, { cache: "no-store" }),
+        fetch(webPath("/api/status"), { cache: "no-store" }),
+        fetch(webPath("/api/alert-groups"), { cache: "no-store" }),
       ]);
       if (!mailResponse.ok || !statusResponse.ok) throw new Error("Unable to load console data.");
 
@@ -101,7 +102,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     if (message.body) return;
 
     try {
-      const response = await fetch(`/api/mail/${message.uid}`, { cache: "no-store" });
+      const response = await fetch(webPath(`/api/mail/${message.uid}`), { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load the full message.");
       const data = (await response.json()) as { message: MailMessage };
       setMessages((current) =>
@@ -118,7 +119,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     const targetUid = selected.uid;
 
     try {
-      const response = await fetch(`/api/mail/${targetUid}`, {
+      const response = await fetch(webPath(`/api/mail/${targetUid}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action }),
@@ -152,7 +153,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     setAiLoading(true);
     setAiResult("");
     try {
-      const response = await fetch("/api/ai", {
+      const response = await fetch(webPath("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action, message: selected }),

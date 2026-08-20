@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { LoginPanel } from "@/components/login-panel";
+import { webPath } from "@/lib/web-path";
 
 export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-brand-panel">
         <div className="login-brand-copy">
-          <Link href="/" className="brand-lockup brand-lockup--large" aria-label="r3alm AI-Mail home">
+          <Link href={webPath("/")} className="brand-lockup brand-lockup--large" aria-label="r3alm AI-Mail home">
             <span className="brand-mark" aria-hidden="true">r3</span>
             <span><strong>r3alm</strong><small>AI-MAIL</small></span>
           </Link>

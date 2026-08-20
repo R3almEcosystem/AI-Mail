@@ -13,6 +13,7 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import type { SessionUser, UserRole } from "@/lib/types";
+import { webPath } from "@/lib/web-path";
 
 export type DashboardSection = "overview" | "inbox" | "ai" | "accounts" | "settings";
 
@@ -38,8 +39,8 @@ export function Sidebar({
   user: SessionUser;
 }) {
   async function logout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.assign("/login");
+    await fetch(webPath("/api/auth/logout"), { method: "POST" });
+    window.location.assign(webPath("/login"));
   }
 
   return (
@@ -83,7 +84,7 @@ export function Sidebar({
 
       <div className="sidebar-bottom">
         {(user.role === "admin" || user.role === "super_admin") ? (
-          <button type="button" className="nav-button nav-button--admin" onClick={() => window.location.assign("/admin")}>
+          <button type="button" className="nav-button nav-button--admin" onClick={() => window.location.assign(webPath("/admin"))}>
             <ShieldCheck size={18} strokeWidth={1.8} />
             <span>Admin Console</span>
           </button>

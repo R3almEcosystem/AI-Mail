@@ -2,6 +2,24 @@
 
 Secure remote MCP gateway that gives an authorized AI client controlled access to the `admin@r3alm.com` mailbox over authenticated IMAP and SMTP.
 
+## Dual access on one domain
+
+The production project is a Vercel Services deployment with two independently
+built services from this repository:
+
+| Route | Audience | Service |
+|---|---|---|
+| `/app` | Direct browser users | Next.js landing page, login, inbox, alerts, groups, and Admin Console |
+| `/mcp` | ChatGPT and other authorized MCP clients | Existing authenticated MCP mail gateway |
+| `/.well-known/oauth-protected-resource*` | ChatGPT OAuth discovery | Existing OAuth resource metadata |
+| `/oauth/consent` | ChatGPT OAuth approval | Existing passwordless consent flow |
+| `/healthz` | Operations | Gateway health check |
+
+The gateway remains the catch-all service, preserving every connector URL.
+The browser service is mounted at the more specific `/app` prefix. A direct
+visit to the domain root is sent to `/app` unless a pending OAuth
+authorization is being resumed in that browser.
+
 ## Current r3alm mail settings
 
 | Function | Host | Port | Security | Authentication |
@@ -91,7 +109,7 @@ curl -s -X POST http://127.0.0.1:3000/mcp \
 
 ## Vercel deployment — recommended
 
-The repository is configured as an Express application for the Vercel Node.js runtime. `src/index.ts` default-exports the Express app for Vercel and only opens a standalone TCP listener when running outside Vercel. `vercel.json` selects the `iad1` region and gives the function a 60-second maximum invocation duration.
+The repository is configured as a Vercel Services project. `src/index.ts` remains the Express gateway entrypoint at `/`, while `apps/web` is the Next.js browser service mounted at `/app`. Only the root `vercel.json` defines deployment routing.
 
 ### 1. Import the GitHub repository
 
@@ -103,7 +121,7 @@ R3almEcosystem/AI-Mail
 
 Use the feature branch `agent/initial-mail-gateway` for the first Preview deployment, then merge PR #1 and use `main` for Production after validation.
 
-Vercel should detect the project as **Express**. Do not set a static output directory.
+Select the **Services** Framework Preset. Do not set a static output directory or an application Root Directory.
 
 ### 2. Add Vercel environment variables
 
