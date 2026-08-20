@@ -1,10 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
-import type { AppConfig } from '../config.js';
-import { assertRecipientsAllowed } from '../mail/address.js';
-import { MailGateway } from '../mail/client.js';
-import { stripHeaderNewlines, wrapUntrustedEmail } from '../mail/sanitize.js';
-import { redactError } from '../security.js';
+import type { AppConfig } from '../config';
+import { assertRecipientsAllowed } from '../mail/address';
+import { MailGateway } from '../mail/client';
+import { stripHeaderNewlines, wrapUntrustedEmail } from '../mail/sanitize';
+import { redactError } from '../security';
 
 const folderSchema = z.string().min(1).max(255).default('INBOX');
 const emailSchema = z.string().email().max(320);

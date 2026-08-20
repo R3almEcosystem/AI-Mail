@@ -1,7 +1,7 @@
 import { timingSafeEqual } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import type { AppConfig } from './config.js';
+import type { AppConfig } from './config';
 
 function constantTimeEquals(left: string, right: string): boolean {
   const leftBuffer = Buffer.from(left, 'utf8');

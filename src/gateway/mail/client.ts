@@ -1,9 +1,9 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer, { type Transporter } from 'nodemailer';
 import PostalMime from 'postal-mime';
-import type { AppConfig } from '../config.js';
-import { envelopeAddresses, dedupeAddresses } from './address.js';
-import { normalizeMessageId, subjectForReply } from './sanitize.js';
+import type { AppConfig } from '../config';
+import { envelopeAddresses, dedupeAddresses } from './address';
+import { normalizeMessageId, subjectForReply } from './sanitize';
 
 export type MessageSummary = {
   uid: number;

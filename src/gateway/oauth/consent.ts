@@ -1,4 +1,4 @@
-import type { AppConfig } from '../config.js';
+import type { AppConfig } from '../config';
 
 function jsValue(value: unknown): string {
   return JSON.stringify(value).replace(/</g, '\\u003c');
