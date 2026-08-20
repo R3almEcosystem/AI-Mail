@@ -1,0 +1,11 @@
+node_modules
+.next
+.vercel
+.env*.local
+npm-debug.log*
+*.zip
+*.tsbuildinfo
+browser-tmp
+AGENTS.md
+CLAUDE.md
+
