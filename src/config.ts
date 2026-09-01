@@ -32,8 +32,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().max(65535).default(3000),
   MCP_ALLOWED_HOSTS: z.string().default('localhost,127.0.0.1'),
   MCP_API_TOKEN: z.string().min(32, 'MCP_API_TOKEN must be at least 32 characters'),
-  SUPABASE_URL: z.string().url().default(DEFAULT_SUPABASE_URL),
-  SUPABASE_PUBLISHABLE_KEY: z.string().min(20).default(DEFAULT_PUBLISHABLE_KEY),
+  OAUTH_SUPABASE_URL: z.string().url().default(DEFAULT_SUPABASE_URL),
+  OAUTH_SUPABASE_PUBLISHABLE_KEY: z.string().min(20).default(DEFAULT_PUBLISHABLE_KEY),
   OAUTH_CLIENT_ID: z.string().min(1).default(DEFAULT_OAUTH_CLIENT_ID),
   OAUTH_RESOURCE: z.string().url().default(DEFAULT_MCP_RESOURCE),
   OAUTH_ALLOWED_EMAILS: z.string().default('key@r3alm.com'),
@@ -110,7 +110,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     throw new Error('OAUTH_ALLOWED_EMAILS must contain at least one address');
   }
 
-  const supabaseUrl = withoutTrailingSlash(data.SUPABASE_URL);
+  const supabaseUrl = withoutTrailingSlash(data.OAUTH_SUPABASE_URL);
   const authIssuer = `${supabaseUrl}/auth/v1`;
 
   return {
@@ -137,7 +137,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     },
     oauth: {
       supabaseUrl,
-      publishableKey: data.SUPABASE_PUBLISHABLE_KEY,
+      publishableKey: data.OAUTH_SUPABASE_PUBLISHABLE_KEY,
       issuer: authIssuer,
       jwksUrl: `${authIssuer}/.well-known/jwks.json`,
       authorizationServer: authIssuer,

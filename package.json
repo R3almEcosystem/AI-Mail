@@ -1,6 +1,6 @@
 {
   "name": "@r3alm/ai-mail",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Unified direct-user and ChatGPT AI-Mail application for r3alm.",
   "type": "module",

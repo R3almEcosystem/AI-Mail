@@ -23,6 +23,31 @@ OAuth callback that returns to `/` is detected from same-origin pending state
 and resumed at `/oauth/consent`; ordinary root visits remain on the landing
 page.
 
+## Supabase application database
+
+The direct AI-Mail console is linked to Supabase project
+`cvrihauikkflnvunmvma` (`ai-mail`, `us-east-2`). The committed migration creates
+the durable user, workspace-settings, alert-group, and audit tables. All four
+tables have Row Level Security enabled and grant no access to the public `anon`
+or `authenticated` Data API roles; the application reaches them only through a
+server-side Postgres connection.
+
+The ChatGPT connector deliberately uses the OAuth-only
+`OAUTH_SUPABASE_URL` and `OAUTH_SUPABASE_PUBLISHABLE_KEY` variables because
+those values identify the issuer used by current ChatGPT connections. Vercel's
+Supabase integration can therefore inject its normal `SUPABASE_*` and
+`POSTGRES_*` variables without changing the connector's OAuth routes.
+
+Connection discovery uses this order:
+
+1. `AI_MAIL_DATABASE_URL`
+2. `POSTGRES_URL`
+3. `POSTGRES_URL_NON_POOLING`
+4. `DATABASE_URL`
+
+The canonical migration is
+`supabase/migrations/20260901171511_link_ai_mail_database.sql`.
+
 ## Current r3alm mail settings
 
 | Function | Host | Port | Security | Authentication |
@@ -155,6 +180,12 @@ OUTBOUND_ALLOWED_DOMAINS=
 
 Mark `MAIL_PASSWORD` and `MCP_API_TOKEN` as sensitive secrets. Apply them to **Preview** while testing and **Production** before the production deployment.
 
+Connect Supabase project `cvrihauikkflnvunmvma` to the same Vercel project so
+Vercel injects `POSTGRES_URL`, `SUPABASE_URL`, and the related storage variables.
+The application uses the injected `POSTGRES_URL` for application data while the
+OAuth-only variables above preserve ChatGPT identity. For a manual connection,
+set the Supabase transaction-pooler URI as `AI_MAIL_DATABASE_URL` instead.
+
 ### 3. Expose Vercel System Environment Variables
 
 Enable **Automatically expose System Environment Variables** in Vercel's Environment Variables settings. The application will then add these Vercel-provided values to its DNS-rebinding allowlist when present:
@@ -193,7 +224,7 @@ Expected response:
 {
   "service": "r3alm-ai-mail",
   "status": "ok",
-  "version": "0.1.0",
+  "version": "0.4.1",
   "runtime": "vercel"
 }
 ```

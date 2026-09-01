@@ -71,6 +71,28 @@ describe('Vercel-aware configuration', () => {
     expect(config.oauth.protectedResourceMetadataUrl).toBe('https://ai-mail.r3alm.com/.well-known/oauth-protected-resource/mcp');
   });
 
+  it('keeps ChatGPT OAuth isolated from Vercel Supabase storage variables', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      SUPABASE_URL: 'https://cvrihauikkflnvunmvma.supabase.co',
+      SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_application_database_key'
+    });
+
+    expect(config.oauth.issuer).toBe('https://wmqhvsiwarfpfaesctrd.supabase.co/auth/v1');
+    expect(config.oauth.publishableKey).toBe('sb_publishable_1bi9-ZkzbzCovzd35j1S2w_80Zyq6bY');
+  });
+
+  it('accepts explicit OAuth issuer overrides through OAuth-only variables', () => {
+    const config = loadConfig({
+      ...baseEnv,
+      OAUTH_SUPABASE_URL: 'https://identity.example.com/',
+      OAUTH_SUPABASE_PUBLISHABLE_KEY: 'sb_publishable_identity_override_key'
+    });
+
+    expect(config.oauth.issuer).toBe('https://identity.example.com/auth/v1');
+    expect(config.oauth.publishableKey).toBe('sb_publishable_identity_override_key');
+  });
+
   it('normalizes an OAuth resource trailing slash', () => {
     const config = loadConfig({
       ...baseEnv,

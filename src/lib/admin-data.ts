@@ -18,7 +18,7 @@ const scrypt = promisify(scryptCallback);
 type SqlClient = ReturnType<typeof postgres>;
 
 let client: SqlClient | null = null;
-let schemaPromise: Promise<void> | null = null;
+let initializationPromise: Promise<void> | null = null;
 
 const defaultSettings: AdminSettings = {
   organizationName: "r3alm",
@@ -31,7 +31,7 @@ const defaultSettings: AdminSettings = {
   aiPriorityDetection: true,
   requireMfa: false,
   sessionTimeoutMinutes: 720,
-  allowDemoLogin: true,
+  allowDemoLogin: false,
 };
 
 let demoUsers: ManagedUser[] = [
@@ -58,10 +58,19 @@ let demoAudit: AuditEvent[] = [
   { id: "audit-5", actorName: "Bernie O’Neill", action: "Reviewed mail connection", target: "Primary mailbox", createdAt: "2026-08-16T18:40:00.000Z" },
 ];
 
+function databaseUrl() {
+  return process.env.AI_MAIL_DATABASE_URL
+    || process.env.POSTGRES_URL
+    || process.env.POSTGRES_URL_NON_POOLING
+    || process.env.DATABASE_URL
+    || null;
+}
+
 function getClient() {
-  if (!process.env.DATABASE_URL) return null;
+  const connectionString = databaseUrl();
+  if (!connectionString) return null;
   if (!client) {
-    client = postgres(process.env.DATABASE_URL, {
+    client = postgres(connectionString, {
       max: 3,
       idle_timeout: 20,
       connect_timeout: 10,
@@ -73,65 +82,12 @@ function getClient() {
 }
 
 export function databaseConfigured() {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(databaseUrl());
 }
 
-async function ensureSchema(sql: SqlClient) {
-  if (schemaPromise) return schemaPromise;
-  schemaPromise = (async () => {
-    await sql`
-      CREATE TABLE IF NOT EXISTS ai_mail_users (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        title TEXT NOT NULL DEFAULT '',
-        role TEXT NOT NULL,
-        status TEXT NOT NULL,
-        password_hash TEXT,
-        last_login_at TIMESTAMPTZ,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS ai_mail_settings (
-        id TEXT PRIMARY KEY,
-        organization_name TEXT NOT NULL,
-        workspace_name TEXT NOT NULL,
-        default_sender_name TEXT NOT NULL,
-        support_email TEXT NOT NULL,
-        ai_model TEXT NOT NULL,
-        ai_tone TEXT NOT NULL,
-        ai_auto_summarize BOOLEAN NOT NULL,
-        ai_priority_detection BOOLEAN NOT NULL,
-        require_mfa BOOLEAN NOT NULL,
-        session_timeout_minutes INTEGER NOT NULL,
-        allow_demo_login BOOLEAN NOT NULL,
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS ai_mail_audit_events (
-        id TEXT PRIMARY KEY,
-        actor_id TEXT,
-        actor_name TEXT NOT NULL,
-        action TEXT NOT NULL,
-        target TEXT NOT NULL,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
-    await sql`
-      CREATE TABLE IF NOT EXISTS ai_mail_alert_groups (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        description TEXT NOT NULL DEFAULT '',
-        color TEXT NOT NULL DEFAULT 'blue',
-        member_ids JSONB NOT NULL DEFAULT '[]'::jsonb,
-        active BOOLEAN NOT NULL DEFAULT TRUE,
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      )
-    `;
+async function initializeDatabase(sql: SqlClient) {
+  if (initializationPromise) return initializationPromise;
+  initializationPromise = (async () => {
     await sql`
       INSERT INTO ai_mail_settings (
         id, organization_name, workspace_name, default_sender_name, support_email,
@@ -167,10 +123,10 @@ async function ensureSchema(sql: SqlClient) {
       `;
     }
   })().catch((error) => {
-    schemaPromise = null;
+    initializationPromise = null;
     throw error;
   });
-  return schemaPromise;
+  return initializationPromise;
 }
 
 function iso(value: unknown) {
@@ -241,7 +197,7 @@ export async function verifyPassword(password: string, encoded?: string | null) 
 export async function findUserForLogin(email: string) {
   const sql = getClient();
   if (!sql) return null;
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const rows = await sql`
     SELECT id, name, email, role, status, password_hash
     FROM ai_mail_users WHERE LOWER(email) = LOWER(${email}) LIMIT 1
@@ -263,7 +219,7 @@ export async function findUserForLogin(email: string) {
 export async function recordLogin(user: SessionUser) {
   const sql = getClient();
   if (!sql || user.demo) return;
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   await Promise.all([
     sql`UPDATE ai_mail_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ${user.id}`,
     addAudit(user, "Signed in", "AI-Mail Console"),
@@ -273,7 +229,7 @@ export async function recordLogin(user: SessionUser) {
 export async function listUsers() {
   const sql = getClient();
   if (!sql) return demoUsers.map((user) => ({ ...user }));
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const rows = await sql`SELECT * FROM ai_mail_users ORDER BY created_at ASC`;
   return rows.map((row) => mapUser(row));
 }
@@ -307,7 +263,7 @@ export async function createUser(input: CreateUserInput, actor: SessionUser) {
     await addAudit(actor, input.status === "invited" ? "Invited user" : "Created user", user.name);
     return user;
   }
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const passwordHash = input.password ? await hashPassword(input.password) : null;
   try {
     await sql`
@@ -328,7 +284,7 @@ export async function updateUser(id: string, input: UpdateUserInput, actor: Sess
   const sql = getClient();
   const current = sql
     ? (await (async () => {
-        await ensureSchema(sql);
+        await initializeDatabase(sql);
         const rows = await sql`SELECT * FROM ai_mail_users WHERE id = ${id} LIMIT 1`;
         return rows[0] ? mapUser(rows[0]) : null;
       })())
@@ -366,7 +322,7 @@ export async function updateUser(id: string, input: UpdateUserInput, actor: Sess
 export async function getSettings() {
   const sql = getClient();
   if (!sql) return { ...demoSettings };
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const rows = await sql`SELECT * FROM ai_mail_settings WHERE id = 'default' LIMIT 1`;
   return rows[0] ? mapSettings(rows[0]) : { ...defaultSettings };
 }
@@ -376,7 +332,7 @@ export async function updateSettings(input: AdminSettings, actor: SessionUser) {
   if (!sql) {
     demoSettings = { ...input };
   } else {
-    await ensureSchema(sql);
+    await initializeDatabase(sql);
     await sql`
       UPDATE ai_mail_settings SET
         organization_name = ${input.organizationName}, workspace_name = ${input.workspaceName},
@@ -407,7 +363,7 @@ export async function listAlertGroups(activeOnly = false) {
       .filter((group) => !activeOnly || group.active)
       .map((group) => ({ ...group, memberIds: [...group.memberIds] }));
   }
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const rows = activeOnly
     ? await sql`SELECT * FROM ai_mail_alert_groups WHERE active = TRUE ORDER BY name ASC`
     : await sql`SELECT * FROM ai_mail_alert_groups ORDER BY active DESC, name ASC`;
@@ -428,7 +384,7 @@ export async function createAlertGroup(input: SaveAlertGroupInput, actor: Sessio
     }
     demoAlertGroups = [...demoAlertGroups, group];
   } else {
-    await ensureSchema(sql);
+    await initializeDatabase(sql);
     try {
       await sql`
         INSERT INTO ai_mail_alert_groups (id, name, description, color, member_ids, active, created_at)
@@ -501,10 +457,17 @@ export async function addAudit(actor: SessionUser, action: string, target: strin
     demoAudit = [event, ...demoAudit].slice(0, 100);
     return event;
   }
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   await sql`
     INSERT INTO ai_mail_audit_events (id, actor_id, actor_name, action, target, created_at)
-    VALUES (${event.id}, ${actor.id}, ${event.actorName}, ${event.action}, ${event.target}, ${event.createdAt})
+    VALUES (
+      ${event.id},
+      (SELECT id FROM ai_mail_users WHERE id = ${actor.id}),
+      ${event.actorName},
+      ${event.action},
+      ${event.target},
+      ${event.createdAt}
+    )
   `;
   return event;
 }
@@ -512,7 +475,7 @@ export async function addAudit(actor: SessionUser, action: string, target: strin
 export async function listAudit() {
   const sql = getClient();
   if (!sql) return demoAudit.map((event) => ({ ...event }));
-  await ensureSchema(sql);
+  await initializeDatabase(sql);
   const rows = await sql`SELECT * FROM ai_mail_audit_events ORDER BY created_at DESC LIMIT 100`;
   return rows.map((row) => ({
     id: String(row.id),

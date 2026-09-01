@@ -62,7 +62,7 @@ export const initialAlerts: AlertRecord[] = [
     id: "security-setup",
     title: "Production authentication incomplete",
     summary: "The preview is protected by demo sessions; production identity secrets are not configured.",
-    detail: "Add AUTH_SECRET and DATABASE_URL in Vercel, seed the initial Super Admin, and keep demo login disabled before promoting this build to ai-mail.r3alm.com.",
+    detail: "Add AUTH_SECRET and the Supabase POSTGRES_URL in Vercel, seed the initial Super Admin, and keep demo login disabled before promoting this build to ai-mail.r3alm.com.",
     source: "Security",
     time: "Now",
     severity: "critical",

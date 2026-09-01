@@ -104,7 +104,11 @@ export async function verifySessionToken(token?: string) {
 }
 
 export function authenticationConfigured() {
-  return Boolean(process.env.AUTH_SECRET && (process.env.DATABASE_URL || process.env.APP_ACCESS_PASSWORD));
+  const database = process.env.AI_MAIL_DATABASE_URL
+    || process.env.POSTGRES_URL
+    || process.env.POSTGRES_URL_NON_POOLING
+    || process.env.DATABASE_URL;
+  return Boolean(process.env.AUTH_SECRET && (database || process.env.APP_ACCESS_PASSWORD));
 }
 
 export function isAdminRole(role: UserRole) {
