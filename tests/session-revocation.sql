@@ -4,7 +4,7 @@ DO $$ BEGIN
   IF current_database() <> 'aimail_phase1_test' THEN RAISE EXCEPTION 'Synthetic test database required'; END IF;
 END $$;
 INSERT INTO public.ai_mail_users(id,name,email,role,status,password_hash)
-VALUES('phase1-test','Synthetic Test','phase1@example.test','admin','active','synthetic-hash');
+VALUES('phase1-test','Synthetic Test','phase1@example.test','admin','active','synthetic-hash') ON CONFLICT (email) DO NOTHING;
 INSERT INTO public.ai_mail_sessions(id_hash,user_id,auth_version,expires_at)
 VALUES(repeat('a',64),'phase1-test',1,NOW()+INTERVAL '1 hour');
 DO $$ DECLARE version_before bigint; BEGIN

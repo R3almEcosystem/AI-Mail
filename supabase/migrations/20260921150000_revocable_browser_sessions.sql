@@ -1,6 +1,9 @@
 -- Apply before deploying phase 1. No existing accounts or mailbox records are deleted.
 BEGIN;
 ALTER TABLE public.ai_mail_users ADD COLUMN auth_version bigint NOT NULL DEFAULT 1;
+-- Preserve compatibility with the existing bootstrap's ON CONFLICT (email).
+-- The initial schema only indexed lower(email); its check constraint already enforces lower-case values.
+CREATE UNIQUE INDEX IF NOT EXISTS ai_mail_users_email_bootstrap_idx ON public.ai_mail_users(email);
 CREATE TABLE public.ai_mail_sessions (
   id_hash text PRIMARY KEY CHECK (id_hash ~ '^[a-f0-9]{64}$'),
   user_id text NOT NULL REFERENCES public.ai_mail_users(id) ON DELETE CASCADE,

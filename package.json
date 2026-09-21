@@ -4,10 +4,12 @@
   "private": true,
   "description": "Unified direct-user and ChatGPT AI-Mail application for r3alm.",
   "type": "module",
-  "engines": { "node": "22.x" },
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run && npm run test:phase1",
