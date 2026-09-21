@@ -28,6 +28,28 @@ function runNodeStep(name, args, cwd) {
   console.log(`[phase1-verify] PASS ${name}`);
 }
 
+function runDependencyAudit(root = path.resolve(__dirname, '..')) {
+  const os = require('node:os');
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'aimail-audit-home-'));
+  try {
+    console.log('[phase1-verify] START production-dependency-audit');
+    const result = spawnSync('npm', ['audit', '--omit=dev', '--audit-level=moderate'], {
+      cwd: root,
+      env: { ...isolatedEnvironment(), HOME: home },
+      stdio: 'inherit',
+      timeout: 180_000,
+      shell: false,
+    });
+    if (result.error || result.signal || result.status !== 0) {
+      const detail = result.error?.code || result.signal || String(result.status);
+      throw new Error(`production-dependency-audit failed (exit/status ${detail})`);
+    }
+    console.log('[phase1-verify] PASS production-dependency-audit');
+  } finally {
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+}
+
 function verifyCore(root = path.resolve(__dirname, '..')) {
   const tools = {
     typescript: 'node_modules/typescript/bin/tsc',
@@ -45,9 +67,10 @@ function verifyCore(root = path.resolve(__dirname, '..')) {
   runNodeStep('vitest', [tools.vitest, 'run'], root);
   runNodeStep('security-regressions', ['--test', ...regressions], root);
   runNodeStep('standalone-gateway', [tools.typescript, '-p', 'tsconfig.gateway.json'], root);
+  runDependencyAudit(root);
 }
 
-module.exports = { isolatedEnvironment, runNodeStep, verifyCore };
+module.exports = { isolatedEnvironment, runNodeStep, runDependencyAudit, verifyCore };
 if (require.main === module) {
   try { verifyCore(); }
   catch (error) {

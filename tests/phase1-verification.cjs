@@ -45,3 +45,29 @@ test('missing installed tools are not treated as successful verification', () =>
   try { assert.throws(() => verifier().verifyCore(temp), /Missing verification dependency/); }
   finally { fs.rmSync(temp, { recursive: true, force: true }); }
 });
+
+function withSyntheticNpm(program, check) {
+  const os = require('node:os');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aimail-audit-command-'));
+  const originalPath = process.env.PATH;
+  fs.writeFileSync(path.join(dir, 'npm'), `#!${process.execPath}\n${program}\n`, { mode: 0o700 });
+  process.env.PATH = `${dir}${path.delimiter}${originalPath}`;
+  try { check(); }
+  finally { process.env.PATH = originalPath; fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+test('a failed dependency audit blocks verification', () => {
+  withSyntheticNpm('process.exit(1)', () => {
+    assert.throws(() => verifier().runDependencyAudit(root), /production-dependency-audit failed/);
+  });
+});
+
+test('dependency audit requires the production graph and moderate severity threshold', () => {
+  withSyntheticNpm(`
+    const assert = require('node:assert/strict');
+    assert.deepEqual(process.argv.slice(2), ['audit', '--omit=dev', '--audit-level=moderate']);
+    assert.equal(process.env.AUTH_SECRET, undefined);
+    assert.equal(process.env.DATABASE_URL, undefined);
+    assert.ok(process.env.HOME.includes('aimail-audit-home-'));
+  `, () => { assert.doesNotThrow(() => verifier().runDependencyAudit(root)); });
+});
