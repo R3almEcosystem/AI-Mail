@@ -20,6 +20,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { AiAction, MailMessage } from "@/lib/types";
+import { MessageSecurityPanel } from "./message-security-panel";
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -44,6 +45,7 @@ export function InboxWorkspace({
   aiLoading,
   aiResult,
   demo,
+  aiConfigured = false,
   onFilterChange,
   onSearchChange,
   onSelect,
@@ -60,6 +62,7 @@ export function InboxWorkspace({
   aiLoading: boolean;
   aiResult: string;
   demo: boolean;
+  aiConfigured?: boolean;
   onFilterChange: (filter: "all" | "unread" | "flagged") => void;
   onSearchChange: (value: string) => void;
   onSelect: (message: MailMessage) => void;
@@ -142,6 +145,7 @@ export function InboxWorkspace({
                 <button type="button" className="icon-button" aria-label="Message details"><ChevronDown size={15} /></button>
               </div>
             </header>
+            <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
             <div className="message-body">
               {(selected.body || selected.preview).split("\n").map((paragraph, index) => (
                 <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>
@@ -161,16 +165,16 @@ export function InboxWorkspace({
         <div className="ai-panel-heading">
           <span className="ai-orb"><Sparkles size={17} /></span>
           <div><p className="eyebrow">OPENAI COPILOT</p><h3>Mail intelligence</h3></div>
-          <span className={demo ? "mode-badge mode-badge--demo" : "mode-badge"}>{demo ? "Demo" : "Live"}</span>
+          <span className={demo ? "mode-badge mode-badge--demo" : "mode-badge"}>{demo ? "Demo" : aiConfigured ? "Available" : "Not configured"}</span>
         </div>
-
+        {!demo && !aiConfigured ? <p className="ai-empty">AI is not configured. Email-security inspection remains independent and available.</p> : null}
         {selected ? (
           <>
             <div className="ai-actions-grid">
-              <button type="button" onClick={() => onAiAction("summarize")} disabled={aiLoading}><Bot size={16} /><span><strong>Summarize</strong><small>Key points</small></span></button>
-              <button type="button" onClick={() => onAiAction("draft")} disabled={aiLoading}><Reply size={16} /><span><strong>Draft reply</strong><small>Executive tone</small></span></button>
-              <button type="button" onClick={() => onAiAction("extract")} disabled={aiLoading}><Check size={16} /><span><strong>Actions</strong><small>Extract tasks</small></span></button>
-              <button type="button" onClick={() => onAiAction("prioritize")} disabled={aiLoading}><Tag size={16} /><span><strong>Prioritize</strong><small>Assess urgency</small></span></button>
+              <button type="button" onClick={() => onAiAction("summarize")} disabled={aiLoading || (!demo && !aiConfigured)}><Bot size={16} /><span><strong>Summarize</strong><small>Key points</small></span></button>
+              <button type="button" onClick={() => onAiAction("draft")} disabled={aiLoading || (!demo && !aiConfigured)}><Reply size={16} /><span><strong>Draft reply</strong><small>Executive tone</small></span></button>
+              <button type="button" onClick={() => onAiAction("extract")} disabled={aiLoading || (!demo && !aiConfigured)}><Check size={16} /><span><strong>Actions</strong><small>Extract tasks</small></span></button>
+              <button type="button" onClick={() => onAiAction("prioritize")} disabled={aiLoading || (!demo && !aiConfigured)}><Tag size={16} /><span><strong>Prioritize</strong><small>Assess urgency</small></span></button>
             </div>
             <div className="ai-result">
               <div><strong>{aiLoading ? "Thinking…" : aiResult ? "AI result" : "Ready to assist"}</strong><Sparkles size={14} /></div>

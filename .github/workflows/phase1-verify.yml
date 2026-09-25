@@ -1,0 +1,74 @@
+name: Phase 1 security verification
+on:
+  push:
+    branches: [fix/phase1-security-mail-20260921]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  lockfile:
+    if: github.event_name == 'push' && github.repository == 'R3almEcosystem/AI-Mail' && github.ref == 'refs/heads/fix/phase1-security-mail-20260921'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      revision: ${{ steps.revision.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/phase1-security-mail-20260921
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Commit only the generated lockfile to the remediation branch
+        id: revision
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --quiet -- package-lock.json; then
+            git add package-lock.json
+            git commit -m 'chore: refresh phase 1 dependency lockfile'
+            git push origin HEAD:fix/phase1-security-mail-20260921
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  verify:
+    needs: [lockfile]
+    if: always() && (needs.lockfile.result == 'success' || needs.lockfile.result == 'skipped')
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: synthetic-ci-password
+          POSTGRES_DB: aimail_phase1_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.lockfile.outputs.revision || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+      - run: npm run check
+      - run: npm run gateway:build
+      - run: npm run build
+      - run: npm audit --omit=dev --audit-level=moderate
+      - name: Verify migrations and revocation using isolated PostgreSQL
+        env:
+          PGHOST: localhost
+          PGPORT: 5432
+          PGUSER: postgres
+          PGPASSWORD: synthetic-ci-password
+          PGDATABASE: aimail_phase1_test
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated;'
+          for migration in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$migration"; done
+          psql -v ON_ERROR_STOP=1 -f tests/session-revocation.sql

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bell, Menu, PenLine, Search, ShieldCheck, X } from "lucide-react";
 import { ComposeModal } from "@/components/compose-modal";
 import { AlertsPanel } from "@/components/alerts-panel";
@@ -37,8 +37,14 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [demo, setDemo] = useState(true);
+  const selectionVersion = useRef(0);
+  const aiVersion = useRef(0);
+  const loadVersion = useRef(0);
 
   const loadData = useCallback(async () => {
+    const version = ++loadVersion.current;
+    const selectionAtStart = ++selectionVersion.current;
+    aiVersion.current++; setAiLoading(false); setAiResult("");
     setLoading(true);
     try {
       const [mailResponse, statusResponse, groupsResponse] = await Promise.all([
@@ -53,6 +59,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         statusResponse.json(),
       ])) as [MailListResponse, AppStatus];
 
+      if (version !== loadVersion.current) return;
       setMessages(mailData.messages);
       setDemo(mailData.demo);
       setStatus(statusData);
@@ -61,13 +68,14 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         setAlertGroups(groupData.groups);
       }
       setSelected((current) => {
+        if (selectionAtStart !== selectionVersion.current) return current;
         if (!current) return mailData.messages[0] || null;
         return mailData.messages.find((message) => message.uid === current.uid) || mailData.messages[0] || null;
       });
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Unable to load AI-Mail.");
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   }, []);
 
@@ -96,6 +104,8 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }, [filter, messages, search]);
 
   async function selectMessage(message: MailMessage, openInbox = true) {
+    const version = ++selectionVersion.current;
+    aiVersion.current++; setAiLoading(false);
     setSelected(message);
     setAiResult("");
     if (openInbox) setSection("inbox");
@@ -105,18 +115,21 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       const response = await fetch(webPath(`/api/mail/${message.uid}`), { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load the full message.");
       const data = (await response.json()) as { message: MailMessage };
+      if (version !== selectionVersion.current) return;
+      if (data?.message?.uid !== message.uid) throw new Error("The message identity could not be confirmed.");
       setMessages((current) =>
         current.map((item) => (item.uid === message.uid ? data.message : item)),
       );
       setSelected(data.message);
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "Unable to load the message.");
+      if (version === selectionVersion.current) setToast(error instanceof Error ? error.message : "Unable to load the message.");
     }
   }
 
   async function applyAction(action: "read" | "unread" | "flag" | "unflag" | "archive") {
     if (!selected) return;
     const targetUid = selected.uid;
+    const selectionAtAction = selectionVersion.current;
 
     try {
       const response = await fetch(webPath(`/api/mail/${targetUid}`), {
@@ -129,7 +142,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       if (action === "archive") {
         const nextMessages = messages.filter((message) => message.uid !== targetUid);
         setMessages(nextMessages);
-        setSelected(nextMessages[0] || null);
+        if (selectionAtAction === selectionVersion.current) {
+          selectionVersion.current++; aiVersion.current++; setAiLoading(false); setAiResult("");
+          setSelected(nextMessages[0] || null);
+        }
         setToast(demo ? "Archive preview completed." : "Message archived.");
         return;
       }
@@ -149,23 +165,28 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }
 
   async function runAiAction(action: AiAction) {
-    if (!selected) return;
+    if (!selected || aiLoading) return;
+    const uid = selected.uid;
+    const version = ++aiVersion.current;
+    const selectionAtStart = selectionVersion.current;
     setAiLoading(true);
     setAiResult("");
     try {
       const response = await fetch(webPath("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, message: selected }),
+        body: JSON.stringify({ action, uid }),
       });
-      const result = (await response.json().catch(() => null)) as { text?: string; error?: string; demo?: boolean } | null;
+      const result = (await response.json().catch(() => null)) as { text?: string; error?: string; demo?: boolean; uid?: number; truncated?: boolean } | null;
+      if (version !== aiVersion.current || selectionAtStart !== selectionVersion.current) return;
       if (!response.ok) throw new Error(result?.error || "AI processing failed.");
-      setAiResult(result?.text || "No AI response was returned.");
+      if (result?.uid !== uid) throw new Error("The AI response could not be matched to this message.");
+      setAiResult((result?.truncated ? "Analysis uses an excerpt of this message.\n\n" : "") + (result?.text || "No AI response was returned."));
       if (result?.demo) setToast("OpenAI preview shown. Add API credentials for live analysis.");
     } catch (error) {
-      setAiResult(error instanceof Error ? error.message : "AI processing failed.");
+      if (version === aiVersion.current && selectionAtStart === selectionVersion.current) setAiResult(error instanceof Error ? error.message : "AI processing failed.");
     } finally {
-      setAiLoading(false);
+      if (version === aiVersion.current) setAiLoading(false);
     }
   }
 
@@ -229,7 +250,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         </header>
 
         {!status?.authentication ? (
-          <div className="setup-banner"><ShieldCheck size={16} /><span><strong>Security setup required:</strong> add APP_ACCESS_PASSWORD and AUTH_SECRET before routing the production domain to this build.</span></div>
+          <div className="setup-banner"><ShieldCheck size={16} /><span><strong>Security setup required:</strong> configure individual administrator access, AUTH_SECRET and the session database before routing the production domain to this build.</span></div>
         ) : null}
 
         <div className={`page-content page-content--${section}`}>
@@ -251,7 +272,8 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               loading={loading}
               aiLoading={aiLoading}
               aiResult={aiResult}
-              demo={Boolean(demo || !status?.openai)}
+              demo={demo}
+              aiConfigured={Boolean(status?.openai)}
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onSelect={(message) => void selectMessage(message, false)}
