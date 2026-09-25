@@ -51,7 +51,7 @@ const invisible = /[\u200b-\u200f\u202a-\u202e\u2060-\u2069\ufeff]/g;
 function decodeEntities(value: string): string {
   return value.replace(/&(#x[\da-f]{1,6}|#\d{1,7}|amp|quot|apos|lt|gt|colon|tab|newline|nbsp);?/gi, (original, entity: string) => {
     if (entity[0] === '#') {
-      const point = entity[1].toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+      const point = entity[1]?.toLowerCase() === 'x' ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
       return point > 0 && point <= 0x10ffff && !(point >= 0xd800 && point <= 0xdfff) ? String.fromCodePoint(point) : original;
     }
     return ({ amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', colon: ':', tab: '\t', newline: '\n', nbsp: ' ' } as Record<string, string>)[entity.toLowerCase()] ?? original;
@@ -83,7 +83,7 @@ function likelyCard(value: string): boolean {
 }
 function mailboxDomain(address?: string): string | undefined {
   const match = address?.trim().match(/(?:^|<)[^<>\s@]+@([a-z\d.-]+)>?$/i);
-  return match?.[1].toLowerCase().replace(/\.$/, '');
+  return match?.[1]?.toLowerCase().replace(/\.$/, '');
 }
 function webUrl(value: string): URL | null {
   try {
@@ -148,7 +148,7 @@ export function assessEmailSecurity(input: SecurityMessage): SecurityAssessment 
     if (url.hostname.split('.').some(part => part.startsWith('xn--'))) add('international_domain');
   };
   for (const match of html.matchAll(/\b(?:href|src|action)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
-    inspectUrl(match[1] ?? match[2] ?? match[3]); if (candidates > 1000) break;
+    inspectUrl(match[1] ?? match[2] ?? match[3] ?? ''); if (candidates > 1000) break;
   }
   for (const match of `${input.text}\n${html}`.matchAll(/\b(?:https?:\/\/|javascript:|data:|vbscript:|file:|blob:)[^\s<>"']+/gi)) {
     inspectUrl(match[0]); if (candidates > 1000) break;
@@ -161,7 +161,7 @@ export function assessEmailSecurity(input: SecurityMessage): SecurityAssessment 
     const start = (match.index ?? 0) + match[0].length;
     const end = html.indexOf('<', start);
     if (end < 0 || end - start > 2048 || !/^<\/a\s*>/i.test(html.slice(end, end + 32))) continue;
-    const target = webUrl(attribute[1] ?? attribute[2] ?? attribute[3]);
+    const target = webUrl(attribute[1] ?? attribute[2] ?? attribute[3] ?? '');
     const visible = webUrl(html.slice(start, end).trim());
     if (target && visible && target.hostname.toLowerCase() !== visible.hostname.toLowerCase()) add('link_mismatch');
   }
