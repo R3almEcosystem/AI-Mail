@@ -20,6 +20,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { AiAction, MailMessage } from "@/lib/types";
+import { MessageSecurityPanel } from "./message-security-panel";
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
@@ -142,6 +143,7 @@ export function InboxWorkspace({
                 <button type="button" className="icon-button" aria-label="Message details"><ChevronDown size={15} /></button>
               </div>
             </header>
+            <MessageSecurityPanel assessment={selected.security} demo={demo} />
             <div className="message-body">
               {(selected.body || selected.preview).split("\n").map((paragraph, index) => (
                 <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>

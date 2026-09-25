@@ -1,6 +1,7 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
+import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
 import { assertMessageIdentity, type MailServiceConfig, type MailAction } from './policy.js';
@@ -11,6 +12,7 @@ export type MessageSummary = {
   to: Array<{ name?: string; address: string }>; flags: string[];
 };
 export type ParsedMessage = MessageSummary & {
+  security: SecurityAssessment;
   cc: Array<{ name?: string; address: string }>;
   messageId?: string; inReplyTo?: string; references: string[]; text: string;
   attachments: Array<{ filename?: string; mimeType?: string; disposition?: string; related?: boolean; contentId?: string }>;
@@ -110,7 +112,13 @@ export class MailGateway {
       if (message.source.byteLength > this.config.limits.maxRawMessageBytes) throw new Error('Message exceeds the raw-message size limit');
       const parsed = await PostalMime.parse(message.source, { maxNestingDepth: 50 });
       const headers = new Map<string, string>(parsed.headers.map(header => [header.key.toLowerCase(), header.value] as [string, string]));
+      const security = assessEmailSecurity({
+        direction: 'inbound', subject: message.envelope?.subject || '', text: parsed.text || '', html: parsed.html || '',
+        from: envelopeAddresses(message.envelope?.from)[0]?.address, replyTo: headers.get('reply-to'),
+        attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename, mimeType: attachment.mimeType })),
+      });
       return {
+        security,
         ...this.toSummary(message), cc: envelopeAddresses(message.envelope?.cc),
         messageId: normalizeMessageId(parsed.messageId || message.envelope?.messageId),
         inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
@@ -166,6 +174,8 @@ export class MailGateway {
     assertRecipientsAllowed([...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])], { maxRecipients: this.config.limits.maxRecipients, allowedDomains: this.config.limits.outboundAllowedDomains });
     const subject = stripHeaderNewlines(input.subject);
     if (!subject || subject.length > 500 || !input.text.trim() || input.text.length > this.config.limits.maxMessageBodyChars) throw new Error('Invalid outgoing message');
+    // Shared by browser and MCP send/reply. No transport is opened after a denial.
+    assertOutboundEmailSecurity({ direction: 'outbound', subject, text: input.text, from: this.config.smtp.from ?? this.config.mail.username });
     const message = { ...input, subject }; const date = new Date();
     const result = await this.smtpTransport().sendMail({ ...message, from: this.config.smtp.from ?? this.config.mail.username, date, disableFileAccess: true, disableUrlAccess: true });
     if (!result.accepted?.length) throw new Error('SMTP did not accept any recipients');
