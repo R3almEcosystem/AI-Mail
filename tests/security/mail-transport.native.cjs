@@ -66,3 +66,9 @@ test('inbound authentication is not asserted for ordinary messages either', asyn
   assert.equal(message.security.disposition,'no_local_match');
   assert.equal(message.security.coverage.malware,'not_scanned');
 });
+test('nullable MIME filename is normalized while content remains explicitly unscanned', async () => {
+  const message=await fixture({attachments:[{filename:null,mimeType:'application/pdf'}]}).gateway.getMessage('INBOX',1);
+  assert.equal(message.security.disposition,'review');
+  assert.ok(message.security.findings.some(finding=>finding.code==='attachment_unscanned'));
+  assert.ok(!message.security.findings.some(finding=>finding.code==='invalid_input'));
+});

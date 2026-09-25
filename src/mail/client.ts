@@ -115,7 +115,7 @@ export class MailGateway {
       const security = assessEmailSecurity({
         direction: 'inbound', subject: message.envelope?.subject || '', text: parsed.text || '', html: parsed.html || '',
         from: envelopeAddresses(message.envelope?.from)[0]?.address, replyTo: headers.get('reply-to'),
-        attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename, mimeType: attachment.mimeType })),
+        attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename ?? undefined, mimeType: attachment.mimeType })),
       });
       return {
         security,
