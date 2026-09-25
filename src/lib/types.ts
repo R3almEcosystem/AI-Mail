@@ -1,4 +1,5 @@
 import type { SecurityAssessment } from "../security/email-security";
+import type { AttachmentInspection } from "../security/attachment-scan";
 
 export type MailPriority = "urgent" | "important" | "normal" | "low";
 
@@ -16,6 +17,7 @@ export type MailMessage = {
   category: string;
   attachments?: number;
   security?: SecurityAssessment;
+  attachmentInspection?: AttachmentInspection;
 };
 
 export type MailListResponse = {

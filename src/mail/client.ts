@@ -1,6 +1,7 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
+import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection } from '../security/attachment-scan.js';
 import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
@@ -13,6 +14,7 @@ export type MessageSummary = {
 };
 export type ParsedMessage = MessageSummary & {
   security: SecurityAssessment;
+  attachmentInspection: AttachmentInspection;
   cc: Array<{ name?: string; address: string }>;
   messageId?: string; inReplyTo?: string; references: string[]; text: string;
   attachments: Array<{ filename?: string; mimeType?: string; disposition?: string; related?: boolean; contentId?: string }>;
@@ -103,7 +105,7 @@ export class MailGateway {
   }
   async getMessage(folder: string, uid: number): Promise<ParsedMessage> {
     assertMessageIdentity(folder, uid);
-    return this.withMailbox(folder, async client => {
+    const loaded = await this.withMailbox(folder, async client => {
       const metadata = await client.fetchOne(uid, { size: true }, { uid: true });
       if (!metadata) throw new Error('Message not found');
       if (typeof metadata.size !== 'number' || !Number.isSafeInteger(metadata.size) || metadata.size < 0 || metadata.size > this.config.limits.maxRawMessageBytes) throw new Error('Message exceeds the raw-message size limit or its size is unknown');
@@ -118,6 +120,8 @@ export class MailGateway {
         attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename ?? undefined, mimeType: attachment.mimeType })),
       });
       return {
+        attachmentBytes: parsed.attachments.map(attachment => attachment.content),
+        message: {
         security,
         ...this.toSummary(message), cc: envelopeAddresses(message.envelope?.cc),
         messageId: normalizeMessageId(parsed.messageId || message.envelope?.messageId),
@@ -129,8 +133,12 @@ export class MailGateway {
           ...(attachment.disposition ? { disposition: attachment.disposition } : {}), ...(attachment.related !== undefined ? { related: attachment.related } : {}),
           ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
         })),
+        },
       };
     });
+    // Release the IMAP lock and connection before any optional third-party scan.
+    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, attachmentPolicyFromEnv());
+    return { ...loaded.message, attachmentInspection };
   }
   async updateMessage(folder: string, uid: number, action: MailAction, archiveFolder = 'Archive') {
     assertMessageIdentity(folder, uid);

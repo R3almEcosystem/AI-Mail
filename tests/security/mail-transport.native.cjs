@@ -30,6 +30,7 @@ function fixture(parsed = {}) {
     './sanitize.js': { normalizeMessageId: value => value, subjectForReply: value => `Re: ${value}`, stripHeaderNewlines: value => value.replace(/[\r\n]/g,''), clampText: (value, limit) => value.slice(0,limit) },
     './policy.js': { assertMessageIdentity() {} },
     '../security/email-security.js': security,
+    '../security/attachment-scan.js': { ...load(path.join(root, 'src/security/attachment-scan.ts')), attachmentPolicyFromEnv: () => ({ mode: 'disabled' }) },
   });
   const gateway = new MailGateway({ imap: { host:'mail.example.com',port:993,secure:true }, smtp: { host:'mail.example.com',port:465,secure:true }, mail: { username:'own@example.com',password:'synthetic' }, limits: { maxRecipients:20,maxSearchResults:50,maxRawMessageBytes:10000,maxMessageBodyChars:100,outboundAllowedDomains:[] } });
   return { gateway, smtpCalls: () => smtpCalls, logoutCalls: () => logoutCalls };
