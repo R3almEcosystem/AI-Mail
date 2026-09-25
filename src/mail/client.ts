@@ -1,6 +1,8 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
+import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection } from '../security/attachment-scan.js';
+import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
 import { assertMessageIdentity, type MailServiceConfig, type MailAction } from './policy.js';
@@ -11,6 +13,8 @@ export type MessageSummary = {
   to: Array<{ name?: string; address: string }>; flags: string[];
 };
 export type ParsedMessage = MessageSummary & {
+  security: SecurityAssessment;
+  attachmentInspection: AttachmentInspection;
   cc: Array<{ name?: string; address: string }>;
   messageId?: string; inReplyTo?: string; references: string[]; text: string;
   attachments: Array<{ filename?: string; mimeType?: string; disposition?: string; related?: boolean; contentId?: string }>;
@@ -101,7 +105,7 @@ export class MailGateway {
   }
   async getMessage(folder: string, uid: number): Promise<ParsedMessage> {
     assertMessageIdentity(folder, uid);
-    return this.withMailbox(folder, async client => {
+    const loaded = await this.withMailbox(folder, async client => {
       const metadata = await client.fetchOne(uid, { size: true }, { uid: true });
       if (!metadata) throw new Error('Message not found');
       if (typeof metadata.size !== 'number' || !Number.isSafeInteger(metadata.size) || metadata.size < 0 || metadata.size > this.config.limits.maxRawMessageBytes) throw new Error('Message exceeds the raw-message size limit or its size is unknown');
@@ -110,7 +114,15 @@ export class MailGateway {
       if (message.source.byteLength > this.config.limits.maxRawMessageBytes) throw new Error('Message exceeds the raw-message size limit');
       const parsed = await PostalMime.parse(message.source, { maxNestingDepth: 50 });
       const headers = new Map<string, string>(parsed.headers.map(header => [header.key.toLowerCase(), header.value] as [string, string]));
+      const security = assessEmailSecurity({
+        direction: 'inbound', subject: message.envelope?.subject || '', text: parsed.text || '', html: parsed.html || '',
+        from: envelopeAddresses(message.envelope?.from)[0]?.address, replyTo: headers.get('reply-to'),
+        attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename ?? undefined, mimeType: attachment.mimeType })),
+      });
       return {
+        attachmentBytes: parsed.attachments.map(attachment => attachment.content),
+        message: {
+        security,
         ...this.toSummary(message), cc: envelopeAddresses(message.envelope?.cc),
         messageId: normalizeMessageId(parsed.messageId || message.envelope?.messageId),
         inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
@@ -121,8 +133,12 @@ export class MailGateway {
           ...(attachment.disposition ? { disposition: attachment.disposition } : {}), ...(attachment.related !== undefined ? { related: attachment.related } : {}),
           ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
         })),
+        },
       };
     });
+    // Release the IMAP lock and connection before any optional third-party scan.
+    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, attachmentPolicyFromEnv());
+    return { ...loaded.message, attachmentInspection };
   }
   async updateMessage(folder: string, uid: number, action: MailAction, archiveFolder = 'Archive') {
     assertMessageIdentity(folder, uid);
@@ -166,6 +182,8 @@ export class MailGateway {
     assertRecipientsAllowed([...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])], { maxRecipients: this.config.limits.maxRecipients, allowedDomains: this.config.limits.outboundAllowedDomains });
     const subject = stripHeaderNewlines(input.subject);
     if (!subject || subject.length > 500 || !input.text.trim() || input.text.length > this.config.limits.maxMessageBodyChars) throw new Error('Invalid outgoing message');
+    // Shared by browser and MCP send/reply. No transport is opened after a denial.
+    assertOutboundEmailSecurity({ direction: 'outbound', subject, text: input.text, from: this.config.smtp.from ?? this.config.mail.username });
     const message = { ...input, subject }; const date = new Date();
     const result = await this.smtpTransport().sendMail({ ...message, from: this.config.smtp.from ?? this.config.mail.username, date, disableFileAccess: true, disableUrlAccess: true });
     if (!result.accepted?.length) throw new Error('SMTP did not accept any recipients');

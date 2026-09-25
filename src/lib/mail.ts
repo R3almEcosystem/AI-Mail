@@ -28,7 +28,7 @@ function toMessage(message: MessageSummary | ParsedMessage): MailMessage {
   return {
     uid: message.uid, sender: from?.name || from?.address || "Unknown sender", senderEmail: from?.address || "",
     subject: message.subject, preview: parsed ? parsed.text.slice(0, 220) : "Open this message to load its contents securely.",
-    ...(parsed ? { body: parsed.text || "This message does not contain a plain-text body." } : {}),
+    ...(parsed ? { body: parsed.text || "This message does not contain a plain-text body.", security: parsed.security, attachmentInspection: parsed.attachmentInspection } : {}),
     receivedAt: message.date || new Date(0).toISOString(), unread, flagged: message.flags.includes("\\Flagged"),
     priority: inferPriority(message.subject, unread), category: inferCategory(from?.address || "", message.subject), attachments: parsed?.attachments.length || 0,
   };

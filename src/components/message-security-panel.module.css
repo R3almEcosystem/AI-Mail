@@ -1,0 +1,16 @@
+.panel { margin: 0 24px 18px; padding: 18px; border: 1px solid #c9d5e4; border-radius: 12px; background: #f4f7fb; color: #26384e; overflow-wrap: anywhere; }
+.highRisk { border-color: #d69a94; background: #fff5f3; }
+.heading { display: flex; align-items: flex-start; gap: 12px; }
+.heading svg { flex-shrink: 0; margin-top: 3px; }
+.label { font-size: 10px; font-weight: 750; letter-spacing: 0.1em; }
+.heading h2 { margin: 4px 0 0; font-size: 16px; line-height: 1.45; color: inherit; }
+.panel p, .panel li { font-size: 13px; line-height: 1.6; }
+.panel p { margin: 12px 0; }
+.panel summary { cursor: pointer; font-size: 13px; font-weight: 650; padding: 6px 0; }
+.panel summary:focus-visible { outline: 2px solid #385d86; outline-offset: 4px; }
+.panel ul { margin: 8px 0 12px; padding-left: 20px; }
+.panel li + li { margin-top: 8px; }
+.coverage { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; border-top: 1px solid #d8e0e9; padding-top: 12px; margin: 12px 0 0; }
+.coverage dt { font-size: 11px; color: #53657b; line-height: 1.4; }
+.coverage dd { font-size: 12px; margin: 3px 0 0; font-weight: 650; }
+@media (max-width: 640px) { .panel { margin-left: 14px; margin-right: 14px; padding: 14px; } .coverage { grid-template-columns: 1fr; } }
