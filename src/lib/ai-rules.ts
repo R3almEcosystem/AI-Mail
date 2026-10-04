@@ -43,6 +43,7 @@ function mapRule(row: Record<string, unknown>): AiRule {
     bodyTerms: textArray(row.body_terms),
     subjectPrefixes: textArray(row.subject_prefixes),
     requireReply: Boolean(row.require_reply),
+    direction: (row.direction === "inbound" || row.direction === "outbound" ? row.direction : "both") as AiRule["direction"],
     actions,
     active: Boolean(row.active),
     system: Boolean(row.system),
@@ -77,6 +78,7 @@ export type RuleMessageInput = {
   subject: string;
   body?: string;
   isReply?: boolean;
+  direction?: "inbound" | "outbound";
 };
 
 const lower = (value: string | undefined) => (value || "").toLowerCase();
@@ -94,7 +96,9 @@ function matchesRule(rule: AiRule, message: RuleMessageInput): boolean {
   const subject = lower(message.subject);
   const body = lower(message.body);
   const recipients = (message.recipients || []).map(lower);
+  const direction = message.direction || "inbound";
 
+  if (rule.direction !== "both" && rule.direction !== direction) return false;
   if (rule.senderDomains.length && !rule.senderDomains.some((domain) => senderDomain === lower(domain) || senderDomain.endsWith(`.${lower(domain)}`))) return false;
   if (rule.senderAddresses.length && !rule.senderAddresses.some((address) => sender === lower(address))) return false;
   if (rule.recipientTerms.length && !recipients.some((recipient) => containsAny(recipient, rule.recipientTerms))) return false;
