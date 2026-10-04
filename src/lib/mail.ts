@@ -117,17 +117,21 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
   };
 }
 
-export async function listMail(folder = "INBOX", limit = 50): Promise<MailListResponse> {
+export async function listMail(folder = "INBOX", limit = 50, beforeUid?: number): Promise<MailListResponse> {
   const { gateway, config, settings } = await runtime();
-  const [messages, status, rules] = await Promise.all([
-    gateway.listMessages(folder, Math.min(limit, config.limits.maxSearchResults), false),
+  const pageLimit = Math.min(limit, config.limits.maxSearchResults);
+  const [page, status, rules] = await Promise.all([
+    gateway.listMessagesPage(folder, pageLimit, false, undefined, beforeUid),
     gateway.mailboxStatus(folder),
     listAiRules(true),
   ]);
+  const messages = page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder));
   return {
-    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder)),
+    messages,
     unread: status.unseen,
     total: status.messages,
+    hasMore: page.hasMore,
+    nextBeforeUid: page.hasMore && messages.length ? messages[messages.length - 1].uid : null,
     demo: false,
   };
 }
