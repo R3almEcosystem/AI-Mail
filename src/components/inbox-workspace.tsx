@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -48,6 +48,10 @@ export function InboxWorkspace({
   aiConfigured = false,
   mailboxLabel = "Inbox",
   mailboxEyebrow = "PRIMARY",
+  loadedCount = messages.length,
+  totalCount = messages.length,
+  hasMore = false,
+  loadingMore = false,
   sentMode = false,
   onFilterChange,
   onSearchChange,
@@ -68,6 +72,10 @@ export function InboxWorkspace({
   aiConfigured?: boolean;
   mailboxLabel?: string;
   mailboxEyebrow?: string;
+  loadedCount?: number;
+  totalCount?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
   sentMode?: boolean;
   onFilterChange: (filter: "all" | "unread" | "flagged") => void;
   onSearchChange: (value: string) => void;
@@ -76,14 +84,22 @@ export function InboxWorkspace({
   onAiAction: (action: AiAction) => void;
   onCompose: () => void;
   onRefresh: () => void;
+  onLoadMore: () => void;
 }) {
   const [mobileDetail, setMobileDetail] = useState(false);
+  const mailListRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const list = mailListRef.current;
+    if (!list || !hasMore || loading || loadingMore) return;
+    if (list.scrollHeight <= list.clientHeight + 80) onLoadMore();
+  }, [hasMore, loadedCount, loading, loadingMore, onLoadMore]);
 
   return (
     <section className={mobileDetail ? "inbox-layout inbox-layout--mobile-detail" : "inbox-layout"}>
       <div className="mail-list-panel">
         <div className="mail-list-heading">
-          <div><p className="eyebrow">{mailboxEyebrow}</p><h2>{mailboxLabel} <span>{messages.length}</span></h2></div>
+          <div><p className="eyebrow">{mailboxEyebrow}</p><h2>{mailboxLabel} <span>{loadedCount < totalCount ? `${loadedCount} of ${totalCount}` : totalCount}</span></h2></div>
           <button type="button" className="icon-button" onClick={onRefresh} aria-label={`Refresh ${mailboxLabel.toLowerCase()}`}>
             <RefreshCw size={17} className={loading ? "spin" : ""} />
           </button>
@@ -99,7 +115,15 @@ export function InboxWorkspace({
             </button>
           ))}
         </div>
-        <div className="mail-items">
+        <div
+          className="mail-items"
+          ref={mailListRef}
+          onScroll={(event) => {
+            const list = event.currentTarget;
+            if (!hasMore || loadingMore || loading) return;
+            if (list.scrollHeight - list.scrollTop - list.clientHeight < 240) onLoadMore();
+          }}
+        >
           {messages.length ? messages.map((message) => (
             <button
               type="button"
@@ -126,6 +150,15 @@ export function InboxWorkspace({
           )) : (
             <div className="empty-state"><Inbox size={24} /><strong>No messages found</strong><span>Try a different filter or search.</span></div>
           )}
+          {hasMore || loadingMore ? (
+            <div className="mail-load-more">
+              <button type="button" onClick={onLoadMore} disabled={loadingMore || loading}>
+                {loadingMore ? <><RefreshCw size={13} className="spin" /> Loading older messages…</> : <>Load older messages <span>+50</span></>}
+              </button>
+            </div>
+          ) : loadedCount > 0 ? (
+            <div className="mail-list-complete">All {totalCount} messages loaded</div>
+          ) : null}
         </div>
       </div>
 
