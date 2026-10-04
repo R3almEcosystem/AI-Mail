@@ -15,7 +15,7 @@ const testUrl = 'postgres://synthetic.invalid/in-memory-only';
 
 before(async () => {
   db = new PGlite();
-  await db.exec('CREATE ROLE anon; CREATE ROLE authenticated;');
+  await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE SCHEMA auth; CREATE TABLE auth.users (id text PRIMARY KEY, email text UNIQUE, email_confirmed_at timestamptz, deleted_at timestamptz, banned_until timestamptz);`);
   const directory = path.join(__dirname, '../supabase/migrations');
   for (const file of fs.readdirSync(directory).filter(name => name.endsWith('.sql')).sort()) {
     await db.exec(fs.readFileSync(path.join(directory, file), 'utf8'));
@@ -45,8 +45,9 @@ after(async () => {
 async function fixture() {
   const id = `synthetic-${++sequence}`;
   const user = { id, name: 'Synthetic User', email: `${id}@example.test`, role: 'admin', demo: false };
+  await db.query('INSERT INTO auth.users(id,email,email_confirmed_at) VALUES($1,$2,NOW())', [id, user.email]);
   await db.query('INSERT INTO public.ai_mail_users(id,name,email,role,status,password_hash) VALUES($1,$2,$3,$4,$5,$6)', [id, user.name, user.email, user.role, 'active', 'synthetic-hash']);
-  const sessionId = await store.createDatabaseSession(user, 'synthetic-hash', 3600);
+  const sessionId = await store.createDatabaseSession(user, 3600);
   return { user, claims: { ...user, sessionId } };
 }
 
@@ -102,10 +103,10 @@ test('the database refuses an expired session', async () => {
   assert.equal(await store.findActiveSession(claims), null);
 });
 
-test('credential changes between password verification and session creation are rejected', async () => {
+test('Supabase identity changes between password verification and session creation are rejected', async () => {
   const { user } = await fixture();
-  await db.query("UPDATE public.ai_mail_users SET password_hash='new-hash' WHERE id=$1", [user.id]);
-  await assert.rejects(store.createDatabaseSession(user, 'synthetic-hash', 3600), /UNAUTHORIZED/);
+  await db.query("UPDATE auth.users SET email=$1 WHERE id=$2", [`changed-${user.email}`, user.id]);
+  await assert.rejects(store.createDatabaseSession(user, 3600), /UNAUTHORIZED/);
 });
 
 test('MFA-required policy refuses password-only sessions', async () => {
@@ -113,7 +114,7 @@ test('MFA-required policy refuses password-only sessions', async () => {
   await db.exec("UPDATE public.ai_mail_settings SET require_mfa=TRUE WHERE id='default'");
   try {
     assert.equal(await store.findActiveSession(claims), null);
-    await assert.rejects(store.createDatabaseSession(user, 'synthetic-hash', 3600), /UNAUTHORIZED/);
+    await assert.rejects(store.createDatabaseSession(user, 3600), /UNAUTHORIZED/);
   } finally {
     await db.exec("UPDATE public.ai_mail_settings SET require_mfa=FALSE WHERE id='default'");
   }
