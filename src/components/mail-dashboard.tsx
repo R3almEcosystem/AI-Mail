@@ -100,6 +100,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     if (loading || loadingMore || !hasMore || nextBeforeUid === null) return;
     const folder = activeFolder;
     const cursor = nextBeforeUid;
+    const version = loadVersion.current;
     setLoadingMore(true);
     try {
       const response = await fetch(
@@ -110,7 +111,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       if (!response.ok || !data || !("messages" in data)) {
         throw new Error(data && "error" in data && data.error ? data.error : "Unable to load older messages.");
       }
-      if (folder !== activeFolder) return;
+      if (version !== loadVersion.current) return;
       setMessages((current) => {
         const seen = new Set(current.map((message) => `${message.folder || folder}:${message.uid}`));
         const older = data.messages.filter((message) => !seen.has(`${message.folder || folder}:${message.uid}`));
@@ -151,7 +152,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       if (filter === "unread" && !message.unread) return false;
       if (filter === "flagged" && !message.flagged) return false;
       if (!query) return true;
-      return `${message.sender} ${message.senderEmail} ${message.subject} ${message.preview}`
+      return `${message.sender} ${message.senderEmail} ${message.recipientLabel || ""} ${message.subject} ${message.preview}`
         .toLowerCase()
         .includes(query);
     });
@@ -201,6 +202,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       }
 
       if (action === "archive") {
+        setMailboxTotal((current) => Math.max(0, current - 1));
         const nextMessages = messages.filter((message) => message.uid !== targetUid);
         setMessages(nextMessages);
         if (selectionAtAction === selectionVersion.current) {
