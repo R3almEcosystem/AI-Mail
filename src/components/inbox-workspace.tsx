@@ -46,6 +46,9 @@ export function InboxWorkspace({
   aiResult,
   demo,
   aiConfigured = false,
+  mailboxLabel = "Inbox",
+  mailboxEyebrow = "PRIMARY",
+  sentMode = false,
   onFilterChange,
   onSearchChange,
   onSelect,
@@ -63,6 +66,9 @@ export function InboxWorkspace({
   aiResult: string;
   demo: boolean;
   aiConfigured?: boolean;
+  mailboxLabel?: string;
+  mailboxEyebrow?: string;
+  sentMode?: boolean;
   onFilterChange: (filter: "all" | "unread" | "flagged") => void;
   onSearchChange: (value: string) => void;
   onSelect: (message: MailMessage) => void;
@@ -77,8 +83,8 @@ export function InboxWorkspace({
     <section className={mobileDetail ? "inbox-layout inbox-layout--mobile-detail" : "inbox-layout"}>
       <div className="mail-list-panel">
         <div className="mail-list-heading">
-          <div><p className="eyebrow">PRIMARY</p><h2>Inbox <span>{messages.length}</span></h2></div>
-          <button type="button" className="icon-button" onClick={onRefresh} aria-label="Refresh inbox">
+          <div><p className="eyebrow">{mailboxEyebrow}</p><h2>{mailboxLabel} <span>{messages.length}</span></h2></div>
+          <button type="button" className="icon-button" onClick={onRefresh} aria-label={`Refresh ${mailboxLabel.toLowerCase()}`}>
             <RefreshCw size={17} className={loading ? "spin" : ""} />
           </button>
         </div>
@@ -87,7 +93,7 @@ export function InboxWorkspace({
           <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search mail" aria-label="Search mail" />
         </div>
         <div className="filter-tabs" role="tablist" aria-label="Inbox filters">
-          {(["all", "unread", "flagged"] as const).map((item) => (
+          {(sentMode ? (["all", "flagged"] as const) : (["all", "unread", "flagged"] as const)).map((item) => (
             <button type="button" role="tab" aria-selected={filter === item} className={filter === item ? "active" : ""} onClick={() => onFilterChange(item)} key={item}>
               {item[0].toUpperCase() + item.slice(1)}
             </button>
@@ -106,7 +112,7 @@ export function InboxWorkspace({
             >
               <span className={`sender-avatar sender-avatar--${message.uid % 4}`}>{initials(message.sender)}</span>
               <span className="mail-item-copy">
-                <span className="mail-item-top"><strong>{message.sender}</strong><small>{formatDate(message.receivedAt)}</small></span>
+                <span className="mail-item-top"><strong>{sentMode ? `To: ${message.recipientLabel || "Recipient"}` : message.sender}</strong><small>{formatDate(message.receivedAt)}</small></span>
                 <span className="mail-item-subject">{message.subject}</span>
                 <span className="mail-item-preview">{message.preview}</span>
                 <span className="mail-item-meta">
@@ -128,7 +134,7 @@ export function InboxWorkspace({
           <>
             <div className="message-toolbar">
               <button type="button" className="icon-button mobile-back" onClick={() => setMobileDetail(false)} aria-label="Back to messages"><ArrowLeft size={17} /></button>
-              <button type="button" className="icon-button" onClick={() => onAction(selected.unread ? "read" : "unread")} aria-label={selected.unread ? "Mark as read" : "Mark as unread"}><MailOpen size={17} /></button>
+              {!sentMode ? <button type="button" className="icon-button" onClick={() => onAction(selected.unread ? "read" : "unread")} aria-label={selected.unread ? "Mark as read" : "Mark as unread"}><MailOpen size={17} /></button> : null}
               <button type="button" className="icon-button" onClick={() => onAction("archive")} aria-label="Archive"><Archive size={17} /></button>
               <button type="button" className={`icon-button ${selected.flagged ? "icon-button--active" : ""}`} onClick={() => onAction(selected.flagged ? "unflag" : "flag")} aria-label="Flag message"><Star size={17} /></button>
               <span className="toolbar-divider" />
@@ -140,7 +146,7 @@ export function InboxWorkspace({
               <h1>{selected.subject}</h1>
               <div className="sender-line">
                 <span className={`sender-avatar sender-avatar--${selected.uid % 4}`}>{initials(selected.sender)}</span>
-                <span><strong>{selected.sender}</strong><small>{selected.senderEmail}</small></span>
+                <span><strong>{sentMode ? `To: ${selected.recipientLabel || "Recipient"}` : selected.sender}</strong><small>{sentMode ? selected.senderEmail : selected.senderEmail}</small></span>
                 <time>{formatDate(selected.receivedAt)}</time>
                 <button type="button" className="icon-button" aria-label="Message details"><ChevronDown size={15} /></button>
               </div>
@@ -152,8 +158,8 @@ export function InboxWorkspace({
               ))}
             </div>
             <div className="message-actions">
-              <button type="button" className="secondary-button" onClick={onCompose}><Reply size={16} /> Reply</button>
-              <button type="button" className="secondary-button" onClick={onCompose}><Send size={16} /> Forward</button>
+              {!sentMode ? <button type="button" className="secondary-button" onClick={onCompose}><Reply size={16} /> Reply</button> : null}
+              <button type="button" className="secondary-button" onClick={onCompose}><Send size={16} /> {sentMode ? "New message" : "Forward"}</button>
             </div>
           </>
         ) : (
@@ -188,7 +194,7 @@ export function InboxWorkspace({
               <span><strong>Context signals</strong><small>Derived from this message</small></span>
               <div><span>Category</span><b>{selected.category}</b></div>
               <div><span>Priority</span><b>{selected.priority}</b></div>
-              <div><span>Response</span><b>{selected.unread ? "Pending" : "Reviewed"}</b></div>
+              <div><span>Response</span><b>{sentMode ? "Sent" : selected.unread ? "Pending" : "Reviewed"}</b></div>
             </div>
           </>
         ) : (
