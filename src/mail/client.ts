@@ -101,7 +101,7 @@ export class MailGateway {
       if (!Object.keys(query).length) query.all = true;
 
       const found = await client.search(query, { uid: true });
-      const uids = Array.isArray(found) ? found : [];
+      const uids = Array.isArray(found) ? [...found].sort((a, b) => a - b) : [];
       const selected = uids.slice(-limit);
       if (!selected.length) return { messages: [], hasMore: false };
 
