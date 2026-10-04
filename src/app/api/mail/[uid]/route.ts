@@ -6,7 +6,7 @@ import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-const actionSchema = z.object({ action: z.enum(["read", "unread", "flag", "unflag", "archive"]), folder: z.string().min(1).max(120).optional() });
+const actionSchema = z.object({ action: z.enum(["read", "unread", "flag", "unflag", "archive"]), folder: z.enum(["INBOX", "INBOX.Sent"]).optional() });
 type RouteContext = { params: Promise<{ uid: string }> };
 const validUid = (uid: number) => Number.isSafeInteger(uid) && uid >= 1 && uid <= 4294967295;
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -20,6 +20,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
     }
     if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
     const folder = request.nextUrl.searchParams.get("folder") || "INBOX";
+    if (folder !== "INBOX" && folder !== "INBOX.Sent") return NextResponse.json({ error: "Unsupported mailbox folder." }, { status: 400 });
     return NextResponse.json({ message: await getMail(uid, folder), demo: false }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The message could not be loaded."); }
 }
