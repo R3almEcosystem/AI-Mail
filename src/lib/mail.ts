@@ -1,15 +1,66 @@
 import "server-only";
 import { MailGateway, type MessageSummary, type ParsedMessage } from "../mail/client";
-import { browserMailConfig, type MailAction } from "../mail/policy";
+import { browserMailConfig, serviceHost, type MailAction, type MailServiceConfig } from "../mail/policy";
+import { getSettings } from "@/lib/admin-data";
+import { getServiceSecret } from "@/lib/service-secrets";
 import type { MailListResponse, MailMessage, MailPriority } from "@/lib/types";
 
-export function mailConfiguration() {
+function domainList(value: string): string[] {
+  return value.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
+function constrainedDomains(databaseValue: string, environmentValue: readonly string[]): string[] {
+  const configured = domainList(databaseValue);
+  if (!configured.length) return [...environmentValue];
+  if (!environmentValue.length) return configured;
+  const environment = new Set(environmentValue);
+  return configured.filter((domain) => environment.has(domain));
+}
+
+async function runtime() {
+  const [settings, imapVaultPassword, smtpVaultPassword] = await Promise.all([
+    getSettings(),
+    getServiceSecret("ai_mail_imap_password"),
+    getServiceSecret("ai_mail_smtp_password"),
+  ]);
+  const base = browserMailConfig();
+  const imapPassword = imapVaultPassword || process.env.IMAP_PASSWORD || process.env.MAIL_PASSWORD || base.mail.password;
+  const smtpPassword = smtpVaultPassword || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || base.smtp.password || base.mail.password;
+  const config: MailServiceConfig = {
+    ...base,
+    mail: {
+      username: settings.imapUser,
+      password: imapPassword,
+    },
+    imap: {
+      host: serviceHost(settings.imapHost),
+      port: settings.imapPort,
+      secure: settings.imapSecure,
+    },
+    smtp: {
+      host: serviceHost(settings.smtpHost),
+      port: settings.smtpPort,
+      secure: settings.smtpSecure,
+      username: settings.smtpUser,
+      password: smtpPassword,
+      from: settings.smtpFrom,
+    },
+    limits: {
+      ...base.limits,
+      outboundAllowedDomains: constrainedDomains(settings.outboundAllowedDomains, base.limits.outboundAllowedDomains),
+    },
+  };
+  return { settings, config, gateway: new MailGateway(config) };
+}
+
+export async function mailConfiguration() {
+  const { config } = await runtime();
   return {
-    imap: Boolean(process.env.IMAP_HOST && (process.env.IMAP_USER || process.env.MAIL_USERNAME) && (process.env.IMAP_PASSWORD || process.env.MAIL_PASSWORD)),
-    smtp: Boolean(process.env.SMTP_HOST && (process.env.SMTP_USER || process.env.MAIL_USERNAME) && (process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD) && (process.env.SMTP_FROM || process.env.MAIL_USERNAME)),
+    imap: Boolean(config.imap.host && config.mail.username && config.mail.password),
+    smtp: Boolean(config.smtp.host && config.smtp.username && config.smtp.password && config.smtp.from),
   };
 }
-function gateway() { return new MailGateway(browserMailConfig()); }
+
 function inferCategory(sender: string, subject: string) {
   const content = `${sender} ${subject}`.toLowerCase();
   if (/legal|counsel|trademark|contract|resolution/.test(content)) return "Legal";
@@ -17,30 +68,70 @@ function inferCategory(sender: string, subject: string) {
   if (/vercel|deploy|security|api|system/.test(content)) return "Technology";
   return "General";
 }
-function inferPriority(subject: string, unread: boolean): MailPriority {
+
+function inferPriority(subject: string, unread: boolean, enabled: boolean): MailPriority {
+  if (!enabled) return "normal";
   if (/urgent|immediate|action required|deadline/i.test(subject)) return "urgent";
   if (unread || /review|approval|request|next steps/i.test(subject)) return "important";
   return "normal";
 }
-function toMessage(message: MessageSummary | ParsedMessage): MailMessage {
-  const from = message.from[0]; const unread = !message.flags.includes("\\Seen");
+
+function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean): MailMessage {
+  const from = message.from[0];
+  const unread = !message.flags.includes("\\Seen");
   const parsed = "text" in message ? message : null;
   return {
-    uid: message.uid, sender: from?.name || from?.address || "Unknown sender", senderEmail: from?.address || "",
-    subject: message.subject, preview: parsed ? parsed.text.slice(0, 220) : "Open this message to load its contents securely.",
+    uid: message.uid,
+    sender: from?.name || from?.address || "Unknown sender",
+    senderEmail: from?.address || "",
+    subject: message.subject,
+    preview: parsed ? parsed.text.slice(0, 220) : "Open this message to load its contents securely.",
     ...(parsed ? { body: parsed.text || "This message does not contain a plain-text body.", security: parsed.security, attachmentInspection: parsed.attachmentInspection } : {}),
-    receivedAt: message.date || new Date(0).toISOString(), unread, flagged: message.flags.includes("\\Flagged"),
-    priority: inferPriority(message.subject, unread), category: inferCategory(from?.address || "", message.subject), attachments: parsed?.attachments.length || 0,
+    receivedAt: message.date || new Date(0).toISOString(),
+    unread,
+    flagged: message.flags.includes("\\Flagged"),
+    priority: inferPriority(message.subject, unread, priorityDetection),
+    category: inferCategory(from?.address || "", message.subject),
+    attachments: parsed?.attachments.length || 0,
   };
 }
+
 export async function listMail(folder = "INBOX", limit = 50): Promise<MailListResponse> {
-  const client = gateway(); const config = browserMailConfig();
-  const [messages, status] = await Promise.all([client.listMessages(folder, Math.min(limit, config.limits.maxSearchResults), false), client.mailboxStatus(folder)]);
-  return { messages: messages.map(toMessage), unread: status.unseen, total: status.messages, demo: false };
+  const { gateway, config, settings } = await runtime();
+  const [messages, status] = await Promise.all([
+    gateway.listMessages(folder, Math.min(limit, config.limits.maxSearchResults), false),
+    gateway.mailboxStatus(folder),
+  ]);
+  return {
+    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection)),
+    unread: status.unseen,
+    total: status.messages,
+    demo: false,
+  };
 }
-export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessage> { return toMessage(await gateway().getMessage(folder, uid)); }
-export async function updateMail(uid: number, action: MailAction, folder = "INBOX") { return gateway().updateMessage(folder, uid, action, process.env.MAIL_ARCHIVE_FOLDER || "Archive"); }
+
+export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessage> {
+  const { gateway, settings } = await runtime();
+  return toMessage(await gateway.getMessage(folder, uid), settings.aiPriorityDetection);
+}
+
+export async function updateMail(uid: number, action: MailAction, folder = "INBOX") {
+  const { gateway, settings } = await runtime();
+  return gateway.updateMessage(folder, uid, action, settings.mailArchiveFolder);
+}
+
 export async function sendMail(input: { to: string; cc?: string; subject: string; text: string }) {
-  if (!mailConfiguration().smtp) throw new Error("SMTP is not configured");
-  return gateway().sendEmail({ to: [input.to], ...(input.cc ? { cc: [input.cc] } : {}), subject: input.subject, text: input.text });
+  const { gateway, config } = await runtime();
+  if (!config.smtp.host || !config.smtp.username || !config.smtp.password || !config.smtp.from) throw new Error("SMTP is not configured");
+  return gateway.sendEmail({
+    to: [input.to],
+    ...(input.cc ? { cc: [input.cc] } : {}),
+    subject: input.subject,
+    text: input.text,
+  });
+}
+
+export async function testMailConnection(service: "imap" | "smtp") {
+  const { gateway } = await runtime();
+  return service === "imap" ? gateway.testImap() : gateway.testSmtp();
 }
