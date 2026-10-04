@@ -1,7 +1,7 @@
 const test=require('node:test');const assert=require('node:assert/strict');const path=require('node:path');const load=require('./load-typescript.cjs');
 const root=path.resolve(__dirname,'../..');const message=uid=>({uid,folder:'INBOX',direction:'inbound',sender:'Example',senderEmail:'a@example.com',subject:'Message '+uid,preview:'preview',receivedAt:'2026-09-25T12:00:00Z',unread:false,flagged:false,priority:'normal',category:'General'});
 function fixture(openai=true){
- const state=['inbox',[message(1),message(2)],message(1),{openai,authentication:true,mode:'live'},false,'all','','',false,false,false,[],[],'',false,false];
+ const state=['inbox',[message(1),message(2)],message(1),{openai,authentication:true,mode:'live'},false,0,'all','','',false,false,false,[],[],'',false,false];
  const refs=[];let cursor=0,refCursor=0;
  const react={useState:init=>{const i=cursor++;if(!(i in state))state[i]=typeof init==='function'?init():init;return[state[i],update=>{state[i]=typeof update==='function'?update(state[i]):update;}];},useRef:init=>{const i=refCursor++;return refs[i]??(refs[i]={current:init});},useCallback:fn=>fn,useMemo:fn=>fn(),useEffect(){}};
  const modules={react,'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})},'lucide-react':new Proxy({},{get:(_,key)=>key}),'@/lib/alerts':{initialAlerts:[]},'@/lib/web-path':{webPath:value=>value}};
@@ -23,5 +23,5 @@ test('AI requests carry a UID, never browser-supplied email content',async()=>{
 });
 test('an old AI response cannot appear against a newly selected email',async()=>{
  const f=fixture(),props=f.render();let resolve;const original=global.fetch;global.fetch=()=>new Promise(r=>resolve=r);
- try{props.onAiAction('summarize');props.onSelect({...message(2),body:'second'});resolve(Response.json({uid:1,text:'wrong-message-summary',demo:false}));await flush();assert.equal(f.state[7],'');assert.equal(f.state[8],false);}finally{global.fetch=original;}
+ try{props.onAiAction('summarize');props.onSelect({...message(2),body:'second'});resolve(Response.json({uid:1,text:'wrong-message-summary',demo:false}));await flush();assert.equal(f.state[8],'');assert.equal(f.state[9],false);}finally{global.fetch=original;}
 });
