@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticationConfigured, createSessionToken, SESSION_NAME } from "@/lib/auth";
+import { createSessionToken, SESSION_NAME } from "@/lib/auth";
 import { findUserForLogin, getSettings, recordLogin } from "@/lib/admin-data";
 import { createDatabaseSession, consumeLoginAttempt } from "@/lib/session-store";
 import { isSameOriginRequest } from "@/lib/auth-policy";
 import { privateHeaders } from "@/lib/api-error";
-import { supabasePasswordAuthConfigured, verifySupabasePassword } from "@/lib/supabase-auth";
+import { verifySupabasePassword } from "@/lib/supabase-auth";
 
 const loginSchema = z.object({
   email: z.string().trim().email().max(320),
@@ -20,13 +20,6 @@ export async function POST(request: NextRequest) {
   const parsed = loginSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Enter a valid email and password." }, { status: 400 });
-  }
-
-  if (!authenticationConfigured() || !supabasePasswordAuthConfigured()) {
-    return NextResponse.json(
-      { error: "Individual-account authentication is not configured." },
-      { status: 503 },
-    );
   }
 
   try {
