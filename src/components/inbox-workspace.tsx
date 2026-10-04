@@ -60,6 +60,7 @@ export function InboxWorkspace({
   onAiAction,
   onCompose,
   onRefresh,
+  onLoadMore,
 }: {
   messages: MailMessage[];
   selected: MailMessage | null;
