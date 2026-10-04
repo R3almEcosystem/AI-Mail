@@ -91,9 +91,10 @@ export function InboxWorkspace({
 
   useEffect(() => {
     const list = mailListRef.current;
-    if (!list || !hasMore || loading || loadingMore) return;
+    const canAutoFill = filter === "all" && !search.trim();
+    if (!list || !canAutoFill || !hasMore || loading || loadingMore) return;
     if (list.scrollHeight <= list.clientHeight + 80) onLoadMore();
-  }, [hasMore, loadedCount, loading, loadingMore, onLoadMore]);
+  }, [filter, hasMore, loadedCount, loading, loadingMore, onLoadMore, search]);
 
   return (
     <section className={mobileDetail ? "inbox-layout inbox-layout--mobile-detail" : "inbox-layout"}>
