@@ -6,11 +6,28 @@ import { mailConfiguration } from "@/lib/mail";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
 import type { AppStatus } from "@/lib/types";
+
 export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
-    const user = await requireCapability("mail:read"); const mail = mailConfiguration(); const ai = aiConfiguration();
-    const status: AppStatus = { mode: mail.imap && !user.demo ? "live" : "demo", authentication: authenticationConfigured(), database: databaseConfigured(), demoLogin: demoLoginEnabled(), imap: mail.imap, smtp: mail.smtp, openai: ai.configured, model: ai.model };
+    const user = await requireCapability("mail:read");
+    const [mail, ai] = await Promise.all([mailConfiguration(), aiConfiguration()]);
+    const status: AppStatus = {
+      mode: mail.imap && !user.demo ? "live" : "demo",
+      authentication: authenticationConfigured(),
+      database: databaseConfigured(),
+      demoLogin: demoLoginEnabled(),
+      imap: mail.imap,
+      smtp: mail.smtp,
+      openai: ai.configured,
+      model: ai.model,
+      aiTone: ai.tone,
+      aiAutoSummarize: ai.autoSummarize,
+      aiPriorityDetection: ai.priorityDetection,
+    };
     return NextResponse.json(status, { headers: privateHeaders });
-  } catch (error) { return apiError(error); }
+  } catch (error) {
+    return apiError(error);
+  }
 }
