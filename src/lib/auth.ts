@@ -20,10 +20,22 @@ export function demoLoginEnabled(): boolean {
     && !databaseConnectionString() && !liveSecretNames.some((key) => Boolean(process.env[key]));
 }
 
+export function authenticationKeyMaterial(): string | null {
+  const dedicated = process.env.AUTH_SECRET;
+  if (dedicated && encoder.encode(dedicated).length >= 32) return dedicated;
+
+  // AI Mail already requires a strong server-only MCP token in production.
+  // Domain-separate it for browser-session HMAC use when a dedicated
+  // AUTH_SECRET has not been provisioned in Vercel.
+  const mcpToken = process.env.MCP_API_TOKEN;
+  if (mcpToken && encoder.encode(mcpToken).length >= 32) {
+    return `r3alm-ai-mail-browser-session-v1:${mcpToken}`;
+  }
+  return null;
+}
+
 function sessionSecret(): string | null {
-  const secret = process.env.AUTH_SECRET;
-  // Preview URLs are public identifiers, never signing keys. Fail closed everywhere.
-  return secret && encoder.encode(secret).length >= 32 ? secret : null;
+  return authenticationKeyMaterial();
 }
 function toBase64Url(value: Uint8Array | string): string {
   const bytes = typeof value === "string" ? encoder.encode(value) : value;
