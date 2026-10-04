@@ -33,6 +33,8 @@ export type MailListResponse = {
   messages: MailMessage[];
   unread: number;
   total: number;
+  hasMore: boolean;
+  nextBeforeUid: number | null;
   demo: boolean;
 };
 
