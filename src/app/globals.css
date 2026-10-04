@@ -325,6 +325,12 @@ textarea:focus-visible {
 .filter-tabs button { padding: 5px 9px; color: #8a94a4; background: transparent; border: 0; border-radius: 7px; cursor: pointer; font-size: 8px; font-weight: 750; }
 .filter-tabs button.active { color: #285fc5; background: #eaf1fd; }
 .mail-items { flex: 1; overflow-y: auto; overscroll-behavior: contain; }
+.mail-load-more { display: flex; justify-content: center; padding: 12px 14px 16px; }
+.mail-load-more button { min-height: 34px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 13px; color: #4d6280; background: #fff; border: 1px solid #dbe2eb; border-radius: 9px; cursor: pointer; font-size: 8px; font-weight: 750; }
+.mail-load-more button:hover { background: #f6f9fd; }
+.mail-load-more button:disabled { cursor: wait; opacity: .65; }
+.mail-load-more button span { color: #8190a4; font-size: 7px; }
+.mail-list-complete { padding: 11px 14px 15px; color: #9aa4b1; font-size: 7px; text-align: center; }
 .mail-item { width: 100%; display: grid; grid-template-columns: 35px minmax(0, 1fr) 7px; align-items: start; gap: 10px; padding: 14px; background: transparent; border: 0; border-bottom: 1px solid #edf0f4; cursor: pointer; text-align: left; transition: 150ms ease; }
 .mail-item:hover { background: #f7f9fc; }
 .mail-item--selected { background: #edf3ff; box-shadow: inset 3px 0 #3e78df; }
