@@ -41,6 +41,7 @@ import type {
   AuditEvent,
   ManagedUser,
   SessionUser,
+  ServiceSecretStatus,
   UserRole,
   UserStatus,
 } from "@/lib/types";
@@ -223,6 +224,9 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [status, setStatus] = useState<AppStatus | null>(null);
+  const [secretStatus, setSecretStatus] = useState<ServiceSecretStatus>({ openaiApiKey: false, imapPassword: false, smtpPassword: false });
+  const [credentials, setCredentials] = useState({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
+  const [testingService, setTestingService] = useState<"imap" | "smtp" | "openai" | null>(null);
   const [demo, setDemo] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -249,8 +253,21 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
         setLoading(false);
         return;
       }
-      const [userData, groupData, settingsData, auditData, statusData] = await Promise.all([usersResponse.json(), groupsResponse.json(), settingsResponse.json(), auditResponse.json(), statusResponse.json()]) as [{ users: ManagedUser[]; demo: boolean }, { groups: AlertGroup[]; demo: boolean }, { settings: AdminSettings; demo: boolean }, { events: AuditEvent[] }, AppStatus];
-      setUsers(userData.users); setGroups(groupData.groups); setSettings(settingsData.settings); setEvents(auditData.events); setStatus(statusData); setDemo(userData.demo || groupData.demo || settingsData.demo); setLoading(false);
+      const [userData, groupData, settingsData, auditData, statusData] = await Promise.all([usersResponse.json(), groupsResponse.json(), settingsResponse.json(), auditResponse.json(), statusResponse.json()]) as [
+        { users: ManagedUser[]; demo: boolean },
+        { groups: AlertGroup[]; demo: boolean },
+        { settings: AdminSettings; secrets: ServiceSecretStatus; demo: boolean },
+        { events: AuditEvent[] },
+        AppStatus,
+      ];
+      setUsers(userData.users);
+      setGroups(groupData.groups);
+      setSettings(settingsData.settings);
+      setSecretStatus(settingsData.secrets);
+      setEvents(auditData.events);
+      setStatus(statusData);
+      setDemo(userData.demo || groupData.demo || settingsData.demo);
+      setLoading(false);
     }
     void load();
   }, []);
@@ -317,13 +334,51 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     setToast("Escalation group retired."); setGroupEditor(null); setSaving(false); void refreshAudit();
   }
 
-  async function saveSettings() {
-    if (!settings) return;
+  async function saveSettings(showToast = true): Promise<boolean> {
+    if (!settings) return false;
     setSaving(true);
-    const response = await fetch(webPath("/api/admin/settings"), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(settings) });
-    const result = (await response.json().catch(() => null)) as { settings?: AdminSettings; error?: string } | null;
-    if (!response.ok || !result?.settings) { setToast(result?.error || "Unable to save settings."); setSaving(false); return; }
-    setSettings(result.settings); setToast(demo ? "Settings updated for this demo session." : "Workspace settings saved."); setSaving(false); void refreshAudit();
+    const suppliedCredentials = Object.fromEntries(Object.entries(credentials).filter(([, value]) => Boolean(value)));
+    const response = await fetch(webPath("/api/admin/settings"), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...settings, ...(Object.keys(suppliedCredentials).length ? { credentials: suppliedCredentials } : {}) }),
+    });
+    const result = (await response.json().catch(() => null)) as { settings?: AdminSettings; secrets?: ServiceSecretStatus; error?: string } | null;
+    if (!response.ok || !result?.settings) {
+      setToast(result?.error || "Unable to save settings.");
+      setSaving(false);
+      return false;
+    }
+    setSettings(result.settings);
+    if (result.secrets) setSecretStatus(result.secrets);
+    setCredentials({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
+    const statusResponse = await fetch(webPath("/api/status"), { cache: "no-store" });
+    if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
+    if (showToast) setToast(demo ? "Settings updated for this demo session." : "AI & mail settings saved.");
+    setSaving(false);
+    void refreshAudit();
+    return true;
+  }
+
+  async function testService(service: "imap" | "smtp" | "openai") {
+    if (!await saveSettings(false)) return;
+    setTestingService(service);
+    try {
+      const response = await fetch(webPath("/api/admin/services/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ service }),
+      });
+      const result = (await response.json().catch(() => null)) as { ok?: boolean; model?: string; error?: string } | null;
+      if (!response.ok || !result?.ok) throw new Error(result?.error || "Connection test failed.");
+      setToast(service === "openai" ? `OpenAI connection verified${result.model ? ` with ${result.model}` : ""}.` : `${service.toUpperCase()} connection verified.`);
+      const statusResponse = await fetch(webPath("/api/status"), { cache: "no-store" });
+      if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Connection test failed.");
+    } finally {
+      setTestingService(null);
+    }
   }
 
   async function logout() { await fetch(webPath("/api/auth/logout"), { method: "POST" }); window.location.assign(webPath("/")); }
