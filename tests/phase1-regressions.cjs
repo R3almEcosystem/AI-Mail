@@ -5,7 +5,7 @@ const user = { id: 'user-test', name: 'Bernie O’Neill', email: 'person@example
 const secret = 'test-only-secret-not-for-production-0123456789';
 function environment(values, run) {
   const before = { ...process.env };
-  for (const key of ['AUTH_SECRET','ENABLE_DEMO_LOGIN','AI_MAIL_DEMO_MODE','DATABASE_URL','POSTGRES_URL','POSTGRES_URL_NON_POOLING','AI_MAIL_DATABASE_URL','APP_ACCESS_PASSWORD','IMAP_PASSWORD','SMTP_PASSWORD','MAIL_PASSWORD','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY']) delete process.env[key];
+  for (const key of ['AUTH_SECRET','MCP_API_TOKEN','ENABLE_DEMO_LOGIN','AI_MAIL_DEMO_MODE','DATABASE_URL','POSTGRES_URL','POSTGRES_URL_NON_POOLING','AI_MAIL_DATABASE_URL','APP_ACCESS_PASSWORD','IMAP_PASSWORD','SMTP_PASSWORD','MAIL_PASSWORD','OPENAI_API_KEY','SUPABASE_SERVICE_ROLE_KEY']) delete process.env[key];
   Object.assign(process.env, { NODE_ENV: 'test', VERCEL_ENV: 'preview' }, values);
   return Promise.resolve().then(run).finally(() => {
     for (const key of Object.keys(process.env)) if (!(key in before)) delete process.env[key];
@@ -18,6 +18,11 @@ test('remote preview cannot issue cookies without an explicit secret', () => env
 }));
 test('short signing secrets fail closed', () => environment({ AUTH_SECRET: 'short' }, async () => {
   assert.equal(await loadModule('src/lib/auth.ts').createSessionToken(user), null);
+}));
+test('server MCP credential provides a domain-separated browser signing fallback', () => environment({ MCP_API_TOKEN: secret, DATABASE_URL: 'postgres://test.invalid/test' }, async () => {
+  const auth = loadModule('src/lib/auth.ts');
+  assert.equal(auth.authenticationConfigured(), true);
+  assert.ok(await auth.createSessionToken(user));
 }));
 test('explicit demo disable wins in preview', () => environment({ AUTH_SECRET: secret, ENABLE_DEMO_LOGIN: 'false' }, () => {
   assert.equal(loadModule('src/lib/auth.ts').demoLoginEnabled(), false);
