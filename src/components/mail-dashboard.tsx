@@ -93,7 +93,8 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   useEffect(() => {
     const body = selected?.body?.trim();
     if (!body || !selected || !status?.openai || (!status.aiAutoSummarize && !selected.aiAutoSummary) || aiLoading || aiResult) return;
-    if (body.split(/\s+/).length <= 250 || autoSummarySeen.current.has(selected.uid)) return;
+    const ruleRequestedSummary = Boolean(selected.aiAutoSummary);
+    if ((!ruleRequestedSummary && body.split(/\s+/).length <= 250) || autoSummarySeen.current.has(selected.uid)) return;
     autoSummarySeen.current.add(selected.uid);
     void runAiAction("summarize");
   }, [selected, status?.openai, status?.aiAutoSummarize, aiLoading, aiResult]);
