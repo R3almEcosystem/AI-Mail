@@ -19,10 +19,11 @@ export async function POST(request:NextRequest) {
     let input;
     try{input=await readAiRequest(request);}catch{return NextResponse.json({error:"Invalid AI request. Supply an INBOX message UID, not message content."},{status:400,headers:privateHeaders});}
     if(user.demo)return NextResponse.json({text:demoResponses[input.action],demo:true,model:null,uid:input.uid},{headers:privateHeaders});
-    if(!aiConfiguration().configured)return NextResponse.json({error:"AI processing is not configured."},{status:503,headers:privateHeaders});
+    const ai = await aiConfiguration();
+    if(!ai.configured)return NextResponse.json({error:"AI processing is not configured."},{status:503,headers:privateHeaders});
     // Current application exposes its configured shared mailbox. No caller-selected account or folder.
     const message=await getMail(input.uid,"INBOX");
     const result=await analyzeMail(input.action,message,input.instructions);
-    return NextResponse.json({text:result.text,usage:result.usage,truncated:result.truncated,demo:false,uid:input.uid,model:aiConfiguration().model},{headers:privateHeaders});
+    return NextResponse.json({text:result.text,usage:result.usage,truncated:result.truncated,demo:false,uid:input.uid,model:ai.model},{headers:privateHeaders});
   }catch(error){return apiError(error,"AI processing failed. No generated result is available.");}
 }
