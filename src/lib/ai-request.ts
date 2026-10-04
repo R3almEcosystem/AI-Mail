@@ -1,13 +1,28 @@
-export type AiRequest = { action:'summarize'|'draft'|'prioritize'|'extract'; uid:number; instructions?:string };
+export type AiRequest = {
+  action:'summarize'|'draft'|'prioritize'|'extract';
+  uid:number;
+  folder:'INBOX'|'INBOX.Sent';
+  instructions?:string;
+};
+
+const allowedFolders = new Set(['INBOX','INBOX.Sent']);
+
 export function parseAiRequest(value:unknown):AiRequest|null {
   if (!value || typeof value!=='object' || Array.isArray(value)) return null;
   const input=value as Record<string,unknown>;
-  if (Object.keys(input).some(key=>!['action','uid','instructions'].includes(key))
+  if (Object.keys(input).some(key=>!['action','uid','folder','instructions'].includes(key))
     || typeof input.action!=='string' || !['summarize','draft','prioritize','extract'].includes(input.action)
     || typeof input.uid!=='number' || !Number.isSafeInteger(input.uid) || input.uid<1 || input.uid>4294967295
+    || (input.folder!==undefined && (typeof input.folder!=='string' || !allowedFolders.has(input.folder)))
     || (input.instructions!==undefined && (typeof input.instructions!=='string' || input.instructions.length>1000))) return null;
-  return {action:input.action as AiRequest['action'],uid:input.uid,...(input.instructions===undefined?{}:{instructions:input.instructions as string})};
+  return {
+    action:input.action as AiRequest['action'],
+    uid:input.uid,
+    folder:(input.folder as AiRequest['folder'] | undefined) ?? 'INBOX',
+    ...(input.instructions===undefined?{}:{instructions:input.instructions as string}),
+  };
 }
+
 export async function readAiRequest(request:Request):Promise<AiRequest> {
   const invalid=()=>new Error('INVALID_AI_REQUEST');
   if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/i.test(request.headers.get('content-type') ?? '')
