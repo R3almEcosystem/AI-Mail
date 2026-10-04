@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const parsed = sendSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Check the recipient, subject, and message." }, { status: 400 });
     if (user.demo) return NextResponse.json({ ok: true, demo: true, messageId: "demo-message" }, { headers: privateHeaders });
-    if (!mailConfiguration().smtp) return NextResponse.json({ error: "Outgoing mail is not configured. No message was sent." }, { status: 503 });
+    if (!(await mailConfiguration()).smtp) return NextResponse.json({ error: "Outgoing mail is not configured. No message was sent." }, { status: 503 });
     const result = await sendMail(parsed.data);
     return NextResponse.json({ ok: true, demo: false, ...result }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The message could not be accepted. Check the recipient policy and mail service before retrying."); }
