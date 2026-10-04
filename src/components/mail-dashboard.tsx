@@ -42,7 +42,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const selectionVersion = useRef(0);
   const aiVersion = useRef(0);
   const loadVersion = useRef(0);
-  const autoSummarySeen = useRef<Set<number>>(new Set());
+  const autoSummarySeen = useRef<Set<string>>(new Set());
 
   const loadData = useCallback(async (folder = "INBOX") => {
     const version = ++loadVersion.current;
