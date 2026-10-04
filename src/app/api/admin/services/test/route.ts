@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     if (parsed.data.service === "openai") {
       const result = await testAiConnection();
-      return NextResponse.json({ ok: true, service: "openai", ...result }, { headers: privateHeaders });
+      return NextResponse.json({ ok: result.ok, service: "openai", model: result.model }, { headers: privateHeaders });
     }
 
     await testMailConnection(parsed.data.service);
