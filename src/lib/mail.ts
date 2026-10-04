@@ -78,19 +78,25 @@ function inferPriority(subject: string, unread: boolean, enabled: boolean): Mail
   return "normal";
 }
 
-function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean, rules: AiRule[]): MailMessage {
+function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean, rules: AiRule[], folder: string): MailMessage {
   const from = message.from[0];
   const unread = !message.flags.includes("\\Seen");
   const parsed = "text" in message ? message : null;
+  const outbound = folder === "INBOX.Sent";
+  const recipientLabel = message.to.map((recipient) => recipient.name || recipient.address).filter(Boolean).join(", ");
   const ruleEvaluation = evaluateAiRules(rules, {
     senderEmail: from?.address || "",
     recipients: message.to.map((recipient) => recipient.address),
     subject: message.subject,
     body: parsed?.text,
     isReply: /^(re|fw|fwd):/i.test(message.subject.trim()),
+    direction: outbound ? "outbound" : "inbound",
   });
   return {
     uid: message.uid,
+    direction: outbound ? "outbound" : "inbound",
+    folder,
+    recipientLabel: recipientLabel || undefined,
     sender: from?.name || from?.address || "Unknown sender",
     senderEmail: from?.address || "",
     subject: message.subject,
@@ -119,7 +125,7 @@ export async function listMail(folder = "INBOX", limit = 50): Promise<MailListRe
     listAiRules(true),
   ]);
   return {
-    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules)),
+    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder)),
     unread: status.unseen,
     total: status.messages,
     demo: false,
@@ -132,7 +138,7 @@ export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessag
     gateway.getMessage(folder, uid),
     listAiRules(true),
   ]);
-  return toMessage(message, settings.aiPriorityDetection, rules);
+  return toMessage(message, settings.aiPriorityDetection, rules, folder);
 }
 
 export async function updateMail(uid: number, action: MailAction, folder = "INBOX") {
