@@ -111,17 +111,24 @@ async function initializeDatabase(sql: SqlClient) {
       ON CONFLICT DO NOTHING
     `;
 
-    const initialPassword = process.env.ADMIN_INITIAL_PASSWORD;
-    if (initialPassword) {
-      const passwordHash = await hashPassword(initialPassword);
-      await sql`
-        INSERT INTO ai_mail_users (id, name, email, title, role, status, password_hash)
-        VALUES (
-          'owner-bernie', 'Bernie O’Neill', ${process.env.ADMIN_INITIAL_EMAIL || "bernie@r3alm.com"},
-          'Director / Engineer', 'super_admin', 'active', ${passwordHash}
-        ) ON CONFLICT (email) DO NOTHING
-      `;
-    }
+    await sql`
+      INSERT INTO ai_mail_users (id, name, email, title, role, status, password_hash)
+      SELECT id::text, 'Bernie O''Neill', LOWER(email), 'Director / Engineer', 'super_admin', 'active', NULL
+      FROM auth.users
+      WHERE LOWER(email) = 'bernie@r3alm.com'
+      ON CONFLICT (email) DO UPDATE SET
+        id = EXCLUDED.id, name = EXCLUDED.name, title = EXCLUDED.title,
+        role = EXCLUDED.role, status = EXCLUDED.status, password_hash = NULL, updated_at = NOW()
+    `;
+    await sql`
+      INSERT INTO ai_mail_users (id, name, email, title, role, status, password_hash)
+      SELECT id::text, 'r3alm Administrator', LOWER(email), 'AI Mail Administrator', 'admin', 'active', NULL
+      FROM auth.users
+      WHERE LOWER(email) = 'admin@r3alm.com'
+      ON CONFLICT (email) DO UPDATE SET
+        id = EXCLUDED.id, name = EXCLUDED.name, title = EXCLUDED.title,
+        role = EXCLUDED.role, status = EXCLUDED.status, password_hash = NULL, updated_at = NOW()
+    `;
   })().catch((error) => {
     initializationPromise = null;
     throw error;
