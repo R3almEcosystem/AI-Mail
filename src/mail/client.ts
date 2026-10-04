@@ -62,8 +62,17 @@ export class MailGateway {
       try { return await operation(client); } finally { lock.release(); }
     });
   }
+  async testImap(): Promise<{ imap: 'ok' }> {
+    await this.withImap(async () => undefined);
+    return { imap: 'ok' };
+  }
+  async testSmtp(): Promise<{ smtp: 'ok' }> {
+    await this.smtpTransport().verify();
+    return { smtp: 'ok' };
+  }
   async testConnections(): Promise<{ imap: 'ok'; smtp: 'ok' }> {
-    await this.withImap(async () => undefined); await this.smtpTransport().verify();
+    await this.testImap();
+    await this.testSmtp();
     return { imap: 'ok', smtp: 'ok' };
   }
   async listMailboxes(): Promise<Array<{ path: string; specialUse?: string; messages?: number; unseen?: number }>> {
