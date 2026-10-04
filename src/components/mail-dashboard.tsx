@@ -27,6 +27,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [selected, setSelected] = useState<MailMessage | null>(null);
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [inboxUnread, setInboxUnread] = useState(0);
   const [filter, setFilter] = useState<"all" | "unread" | "flagged">("all");
   const [search, setSearch] = useState("");
   const [aiResult, setAiResult] = useState("");
@@ -63,6 +64,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
 
       if (version !== loadVersion.current) return;
       setMessages(mailData.messages);
+      if (folder === "INBOX") setInboxUnread(mailData.unread);
       setDemo(mailData.demo);
       setStatus(statusData);
       if (groupsResponse.ok) {
@@ -95,12 +97,13 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     const body = selected?.body?.trim();
     if (!body || !selected || !status?.openai || (!status.aiAutoSummarize && !selected.aiAutoSummary) || aiLoading || aiResult) return;
     const ruleRequestedSummary = Boolean(selected.aiAutoSummary);
-    if ((!ruleRequestedSummary && body.split(/\s+/).length <= 250) || autoSummarySeen.current.has(selected.uid)) return;
-    autoSummarySeen.current.add(selected.uid);
+    const summaryKey = `${selected.folder || "INBOX"}:${selected.uid}`;
+    if ((!ruleRequestedSummary && body.split(/\s+/).length <= 250) || autoSummarySeen.current.has(summaryKey)) return;
+    autoSummarySeen.current.add(summaryKey);
     void runAiAction("summarize");
   }, [selected, status?.openai, status?.aiAutoSummarize, aiLoading, aiResult]);
 
-  const unread = messages.filter((message) => message.unread).length;
+  const unread = inboxUnread;
   const unreadAlerts = alerts.filter((alert) => alert.unread && alert.status === "active").length;
   const filteredMessages = useMemo(() => {
     const query = search.trim().toLowerCase();
