@@ -15,6 +15,7 @@ import { webPath } from "@/lib/web-path";
 const sectionTitles: Record<DashboardSection, { kicker: string; title: string }> = {
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
   inbox: { kicker: "COMMUNICATIONS", title: "Executive inbox" },
+  sent: { kicker: "OUTBOUND", title: "Sent messages" },
   ai: { kicker: "INTELLIGENCE", title: "AI automation" },
   accounts: { kicker: "INFRASTRUCTURE", title: "Connected services" },
   settings: { kicker: "ADMINISTRATION", title: "System settings" },
@@ -42,14 +43,14 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const loadVersion = useRef(0);
   const autoSummarySeen = useRef<Set<number>>(new Set());
 
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (folder = "INBOX") => {
     const version = ++loadVersion.current;
     const selectionAtStart = ++selectionVersion.current;
     aiVersion.current++; setAiLoading(false); setAiResult("");
     setLoading(true);
     try {
       const [mailResponse, statusResponse, groupsResponse] = await Promise.all([
-        fetch(`${webPath("/api/mail")}?limit=50`, { cache: "no-store" }),
+        fetch(`${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}`, { cache: "no-store" }),
         fetch(webPath("/api/status"), { cache: "no-store" }),
         fetch(webPath("/api/alert-groups"), { cache: "no-store" }),
       ]);
@@ -81,7 +82,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }, []);
 
   useEffect(() => {
-    void loadData();
+    void loadData("INBOX");
   }, [loadData]);
 
   useEffect(() => {
@@ -118,11 +119,12 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     aiVersion.current++; setAiLoading(false);
     setSelected(message);
     setAiResult("");
-    if (openInbox) setSection("inbox");
+    if (openInbox) setSection(message.direction === "outbound" ? "sent" : "inbox");
     if (message.body) return;
 
     try {
-      const response = await fetch(webPath(`/api/mail/${message.uid}`), { cache: "no-store" });
+      const folder = message.folder || (message.direction === "outbound" ? "INBOX.Sent" : "INBOX");
+      const response = await fetch(`${webPath(`/api/mail/${message.uid}`)}?folder=${encodeURIComponent(folder)}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load the full message.");
       const data = (await response.json()) as { message: MailMessage };
       if (version !== selectionVersion.current) return;
@@ -145,7 +147,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       const response = await fetch(webPath(`/api/mail/${targetUid}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, folder: selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX") }),
       });
       if (!response.ok) throw new Error("The message could not be updated.");
 
@@ -185,7 +187,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       const response = await fetch(webPath("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, uid }),
+        body: JSON.stringify({ action, uid, folder: selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX") }),
       });
       const result = (await response.json().catch(() => null)) as { text?: string; error?: string; demo?: boolean; uid?: number; truncated?: boolean } | null;
       if (version !== aiVersion.current || selectionAtStart !== selectionVersion.current) return;
@@ -203,6 +205,15 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   function changeSection(nextSection: DashboardSection) {
     setSection(nextSection);
     setMobileNav(false);
+    if (nextSection === "inbox" || nextSection === "overview") {
+      setFilter("all");
+      setSearch("");
+      void loadData("INBOX");
+    } else if (nextSection === "sent") {
+      setFilter("all");
+      setSearch("");
+      void loadData("INBOX.Sent");
+    }
   }
 
   const closeAlerts = useCallback(() => setAlertsOpen(false), []);
@@ -284,13 +295,38 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               aiResult={aiResult}
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
+              mailboxLabel="Inbox"
+              mailboxEyebrow="PRIMARY"
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onSelect={(message) => void selectMessage(message, false)}
               onAction={(action) => void applyAction(action)}
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
-              onRefresh={() => void loadData()}
+              onRefresh={() => void loadData("INBOX")}
+            />
+          ) : null}
+          {section === "sent" ? (
+            <InboxWorkspace
+              messages={filteredMessages}
+              selected={selected}
+              filter={filter}
+              search={search}
+              loading={loading}
+              aiLoading={aiLoading}
+              aiResult={aiResult}
+              demo={demo}
+              aiConfigured={Boolean(status?.openai)}
+              mailboxLabel="Sent"
+              mailboxEyebrow="OUTBOUND"
+              sentMode
+              onFilterChange={setFilter}
+              onSearchChange={setSearch}
+              onSelect={(message) => void selectMessage(message, false)}
+              onAction={(action) => void applyAction(action)}
+              onAiAction={(action) => void runAiAction(action)}
+              onCompose={() => setComposeOpen(true)}
+              onRefresh={() => void loadData("INBOX.Sent")}
             />
           ) : null}
           {section === "ai" ? <AiRulesView /> : null}
