@@ -14,7 +14,7 @@ function database() {
 const digest = (id: string) => createHash("sha256").update(id).digest("hex");
 
 /** Credential snapshot prevents issuing a session if the account changed during sign-in. */
-export async function createDatabaseSession(user: SessionUser, verifiedPasswordHash: string, durationSeconds: number): Promise<string> {
+export async function createDatabaseSession(user: SessionUser, durationSeconds: number): Promise<string> {
   if (user.demo || !Number.isInteger(durationSeconds) || durationSeconds < 1 || durationSeconds > 604800) throw new Error("UNAUTHORIZED");
   const sql = database(); const id = newSessionId();
   const rows = await sql`
