@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
       const message = mockMessages.find(item => item.uid === uid);
       return message ? NextResponse.json({ message, demo: true }, { headers: privateHeaders }) : NextResponse.json({ error: "Message not found." }, { status: 404 });
     }
-    if (!mailConfiguration().imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
+    if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
     const folder = request.nextUrl.searchParams.get("folder") || "INBOX";
     return NextResponse.json({ message: await getMail(uid, folder), demo: false }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The message could not be loaded."); }
@@ -31,7 +31,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = actionSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Invalid mailbox action." }, { status: 400 });
     if (user.demo) return NextResponse.json({ ok: true, demo: true }, { headers: privateHeaders });
-    if (!mailConfiguration().imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
+    if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
     await updateMail(uid, parsed.data.action, parsed.data.folder || "INBOX");
     return NextResponse.json({ ok: true, demo: false }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The mail server did not confirm the change."); }
