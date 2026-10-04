@@ -20,6 +20,7 @@ const rule = (overrides) => ({
   bodyTerms: [],
   subjectPrefixes: [],
   requireReply: false,
+  direction: 'both',
   actions: {},
   active: true,
   system: true,
@@ -138,4 +139,27 @@ test('product newsletters compress without escalation', () => {
   assert.equal(result.priority, 'low');
   assert.equal(result.autoSummary, true);
   assert.equal(result.compress, true);
+});
+
+test('outbound Sent rules do not match inbound mail and do match Sent mail', () => {
+  const rules = [rule({
+    id: 'sent-monitor',
+    direction: 'outbound',
+    category: 'Sent Monitor',
+    priority: 'normal',
+    senderAddresses: ['admin@r3alm.com'],
+    subjectTerms: ['r3alm monitor'],
+  })];
+  assert.equal(evaluateAiRules(rules, {
+    senderEmail: 'admin@r3alm.com',
+    subject: 'r3alm Monitor : VYST Market Alert',
+    direction: 'inbound',
+  }).matches.length, 0);
+  const result = evaluateAiRules(rules, {
+    senderEmail: 'admin@r3alm.com',
+    subject: 'r3alm Monitor : VYST Market Alert',
+    direction: 'outbound',
+  });
+  assert.equal(result.category, 'Sent Monitor');
+  assert.deepEqual(result.matches.map(item => item.id), ['sent-monitor']);
 });
