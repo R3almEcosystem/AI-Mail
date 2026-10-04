@@ -9,7 +9,8 @@ function setup(options={}){
  let issued=0;
  const route=loadModule('src/app/api/auth/login/route.ts',{...next,
   '@/lib/auth':{authenticationConfigured:()=>true,createSessionToken:async()=>{issued++;return 'signed';},SESSION_NAME:'session'},
-  '@/lib/admin-data':{findUserForLogin:async()=>options.missing?null:{user,status:options.status||'active',passwordHash:null},getSettings:async()=>({requireMfa:Boolean(options.mfa),sessionTimeoutMinutes:60}),recordLogin:async()=>{}},\n  '@/lib/supabase-auth':{supabasePasswordAuthConfigured:()=>true,verifySupabasePassword:async()=>options.badPassword?null:{id:user.id,email:user.email}},
+  '@/lib/admin-data':{findUserForLogin:async()=>options.missing?null:{user,status:options.status||'active',passwordHash:null},getSettings:async()=>({requireMfa:Boolean(options.mfa),sessionTimeoutMinutes:60}),recordLogin:async()=>{}},
+  '@/lib/supabase-auth':{supabasePasswordAuthConfigured:()=>true,verifySupabasePassword:async()=>options.badPassword?null:{id:user.id,email:user.email}},
   '@/lib/session-store':{consumeLoginAttempt:async()=>!options.limited,createDatabaseSession:async()=>{if(options.databaseDown)throw Error('DB down');return 'session-id';}}
  });
  const request=new Request('https://ai-mail.r3alm.com/api/auth/login',{method:'POST',headers:{Origin:'https://ai-mail.r3alm.com'},body:JSON.stringify({email:user.email,password:'shared-test-password'})});
