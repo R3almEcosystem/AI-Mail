@@ -13,7 +13,7 @@
   "buildCommand": "node scripts/verify-core.cjs && npm run build",
   "git": {
     "deploymentEnabled": {
-      "main": false
+      "main": true
     }
   }
 }
