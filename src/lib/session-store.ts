@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash, createHmac } from "node:crypto";
 import postgres from "postgres";
-import { databaseConnectionString, newSessionId, type SessionClaims } from "@/lib/auth";
+import { authenticationKeyMaterial, databaseConnectionString, newSessionId, type SessionClaims } from "@/lib/auth";
 import type { SessionUser, UserRole } from "@/lib/types";
 
 let sqlClient: ReturnType<typeof postgres> | undefined;
@@ -63,7 +63,7 @@ export async function revokeDatabaseSession(claims: SessionClaims): Promise<void
 
 /** Distributed per-identity limit, containing credential stuffing across server instances. */
 export async function consumeLoginAttempt(email: string): Promise<boolean> {
-  const secret = process.env.AUTH_SECRET;
+  const secret = authenticationKeyMaterial();
   if (!secret) throw new Error("AUTH_UNAVAILABLE");
   const key = createHmac("sha256", secret).update(`login:${email.toLowerCase()}`).digest("hex");
   const sql = database();
