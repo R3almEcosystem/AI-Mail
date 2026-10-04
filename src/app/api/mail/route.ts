@@ -9,6 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireCapability("mail:read");
     const folder = request.nextUrl.searchParams.get("folder") || "INBOX";
+    if (folder !== "INBOX" && folder !== "INBOX.Sent") return NextResponse.json({ error: "Unsupported mailbox folder." }, { status: 400 });
     const limit = Number(request.nextUrl.searchParams.get("limit") || 50);
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100) return NextResponse.json({ error: "Invalid message limit." }, { status: 400 });
     if (user.demo) return NextResponse.json({ messages: mockMessages, unread: mockMessages.filter(message => message.unread).length, total: mockMessages.length, demo: true }, { headers: privateHeaders });
