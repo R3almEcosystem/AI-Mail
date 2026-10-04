@@ -83,9 +83,26 @@ export type AdminSettings = {
   aiTone: "concise" | "balanced" | "detailed";
   aiAutoSummarize: boolean;
   aiPriorityDetection: boolean;
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+  imapUser: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpFrom: string;
+  mailArchiveFolder: string;
+  outboundAllowedDomains: string;
   requireMfa: boolean;
   sessionTimeoutMinutes: number;
   allowDemoLogin: boolean;
+};
+
+export type ServiceSecretStatus = {
+  openaiApiKey: boolean;
+  imapPassword: boolean;
+  smtpPassword: boolean;
 };
 
 export type AuditEvent = {
