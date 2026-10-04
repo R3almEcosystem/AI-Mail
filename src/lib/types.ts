@@ -43,6 +43,36 @@ export type AppStatus = {
 
 export type AiAction = "summarize" | "draft" | "prioritize" | "extract";
 
+export type AiRuleActionPolicy = {
+  autoSummary?: boolean;
+  suggestReply?: boolean;
+  extractActions?: boolean;
+  extractDeadline?: boolean;
+  escalate?: boolean;
+  sentiment?: boolean;
+  compress?: boolean;
+  sensitive?: boolean;
+};
+
+export type AiRule = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priority: MailPriority;
+  senderDomains: string[];
+  senderAddresses: string[];
+  recipientTerms: string[];
+  subjectTerms: string[];
+  bodyTerms: string[];
+  subjectPrefixes: string[];
+  requireReply: boolean;
+  actions: AiRuleActionPolicy;
+  active: boolean;
+  system: boolean;
+  sortOrder: number;
+};
+
 export type UserRole = "super_admin" | "admin" | "manager" | "member" | "viewer";
 export type UserStatus = "active" | "invited" | "suspended" | "deleted";
 
