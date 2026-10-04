@@ -5,6 +5,9 @@ export type MailPriority = "urgent" | "important" | "normal" | "low";
 
 export type MailMessage = {
   uid: number;
+  direction?: "inbound" | "outbound";
+  folder?: string;
+  recipientLabel?: string;
   sender: string;
   senderEmail: string;
   subject: string;
@@ -73,6 +76,7 @@ export type AiRule = {
   bodyTerms: string[];
   subjectPrefixes: string[];
   requireReply: boolean;
+  direction: "inbound" | "outbound" | "both";
   actions: AiRuleActionPolicy;
   active: boolean;
   system: boolean;
