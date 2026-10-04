@@ -20,7 +20,8 @@ function fixtures(options = {}) {
     if(config.streamTransport)return {message:Buffer.from('fixture mime')};
     sends++; return {messageId:'test-message',accepted:['approved@example.test'],rejected:[],response:'250 OK'};
   },verify:async()=>true})};
-  const overrides={'imapflow':{ImapFlow},'nodemailer':mailer,'mailparser':{simpleParser:async()=>({text:'test',attachments:[]})},'postal-mime':{parse:async()=>({text:'test',headers:[],attachments:[]})}};
+  const settings={imapHost:'imap.example.test',imapPort:993,imapSecure:true,imapUser:'sender@example.test',smtpHost:'smtp.example.test',smtpPort:465,smtpSecure:true,smtpUser:'sender@example.test',smtpFrom:'sender@example.test',mailArchiveFolder:'Archive',outboundAllowedDomains:'example.test',aiPriorityDetection:true};
+  const overrides={'imapflow':{ImapFlow},'nodemailer':mailer,'mailparser':{simpleParser:async()=>({text:'test',attachments:[]})},'postal-mime':{parse:async()=>({text:'test',headers:[],attachments:[]})},'@/lib/admin-data':{getSettings:async()=>settings},'@/lib/service-secrets':{getServiceSecret:async()=>null}};
   return { overrides, events, rawFetches:()=>rawFetches, sends:()=>sends };
 }
 Object.assign(process.env,{MAIL_USERNAME:'sender@example.test',MAIL_PASSWORD:'test-only',IMAP_HOST:'imap.example.test',SMTP_HOST:'smtp.example.test',OUTBOUND_ALLOWED_DOMAINS:'example.test'});
