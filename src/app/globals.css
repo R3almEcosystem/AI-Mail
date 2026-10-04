@@ -447,6 +447,11 @@ textarea:focus-visible {
 .toggle--active { background: #3775df; }
 .toggle--active span { transform: translateX(16px); }
 .settings-footnote { margin: 11px 3px 0; color: #919ba9; font-size: 8px; }
+.rule-row--persistent { min-height: 92px; padding-top: 11px; padding-bottom: 11px; }
+.rule-copy em { color: #62748e; font-size: 7px; line-height: 1.45; font-style: normal; font-weight: 700; }
+.rule-loading { min-height: 76px; display: flex; align-items: center; justify-content: center; gap: 8px; color: #8290a3; font-size: 8px; }
+.settings-footnote--error { color: #b34a58; }
+.rule-row .toggle:disabled { opacity: .55; cursor: not-allowed; }
 .settings-list { overflow: hidden; }
 .settings-list button { width: 100%; min-height: 76px; display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; padding: 0 18px; background: #fff; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; text-align: left; }
 .settings-list button:last-child { border-bottom: 0; }
