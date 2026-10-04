@@ -154,6 +154,12 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       });
       if (!response.ok) throw new Error("The message could not be updated.");
 
+      if (selected.direction !== "outbound") {
+        if (action === "read" && selected.unread) setInboxUnread((current) => Math.max(0, current - 1));
+        if (action === "unread" && !selected.unread) setInboxUnread((current) => current + 1);
+        if (action === "archive" && selected.unread) setInboxUnread((current) => Math.max(0, current - 1));
+      }
+
       if (action === "archive") {
         const nextMessages = messages.filter((message) => message.uid !== targetUid);
         setMessages(nextMessages);
