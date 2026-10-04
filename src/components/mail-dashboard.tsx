@@ -40,6 +40,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const selectionVersion = useRef(0);
   const aiVersion = useRef(0);
   const loadVersion = useRef(0);
+  const autoSummarySeen = useRef<Set<number>>(new Set());
 
   const loadData = useCallback(async () => {
     const version = ++loadVersion.current;
@@ -88,6 +89,14 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     const timeout = window.setTimeout(() => setToast(""), 4200);
     return () => window.clearTimeout(timeout);
   }, [toast]);
+
+  useEffect(() => {
+    const body = selected?.body?.trim();
+    if (!body || !selected || !status?.openai || !status.aiAutoSummarize || aiLoading || aiResult) return;
+    if (body.split(/\s+/).length <= 250 || autoSummarySeen.current.has(selected.uid)) return;
+    autoSummarySeen.current.add(selected.uid);
+    void runAiAction("summarize");
+  }, [selected, status?.openai, status?.aiAutoSummarize, aiLoading, aiResult]);
 
   const unread = messages.filter((message) => message.unread).length;
   const unreadAlerts = alerts.filter((alert) => alert.unread && alert.status === "active").length;
