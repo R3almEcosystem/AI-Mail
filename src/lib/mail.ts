@@ -3,6 +3,8 @@ import { MailGateway, type MessageSummary, type ParsedMessage } from "../mail/cl
 import { browserMailConfig, serviceHost, type MailAction, type MailServiceConfig } from "../mail/policy";
 import { getSettings } from "@/lib/admin-data";
 import { getServiceSecret } from "@/lib/service-secrets";
+import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
+import type { AiRule } from "@/lib/types";
 import type { MailListResponse, MailMessage, MailPriority } from "@/lib/types";
 
 function domainList(value: string): string[] {
@@ -76,10 +78,17 @@ function inferPriority(subject: string, unread: boolean, enabled: boolean): Mail
   return "normal";
 }
 
-function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean): MailMessage {
+function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean, rules: AiRule[]): MailMessage {
   const from = message.from[0];
   const unread = !message.flags.includes("\\Seen");
   const parsed = "text" in message ? message : null;
+  const ruleEvaluation = evaluateAiRules(rules, {
+    senderEmail: from?.address || "",
+    recipients: message.to.map((recipient) => recipient.address),
+    subject: message.subject,
+    body: parsed?.text,
+    isReply: /^(re|fw|fwd):/i.test(message.subject.trim()),
+  });
   return {
     uid: message.uid,
     sender: from?.name || from?.address || "Unknown sender",
@@ -90,20 +99,27 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
     receivedAt: message.date || new Date(0).toISOString(),
     unread,
     flagged: message.flags.includes("\\Flagged"),
-    priority: inferPriority(message.subject, unread, priorityDetection),
-    category: inferCategory(from?.address || "", message.subject),
+    priority: ruleEvaluation.priority || inferPriority(message.subject, unread, priorityDetection),
+    category: ruleEvaluation.category || inferCategory(from?.address || "", message.subject),
     attachments: parsed?.attachments.length || 0,
+    aiRuleMatches: ruleEvaluation.matches.map((rule) => rule.id),
+    aiAutoSummary: ruleEvaluation.autoSummary,
+    aiSuggestReply: ruleEvaluation.suggestReply,
+    aiExtractActions: ruleEvaluation.extractActions,
+    aiExtractDeadline: ruleEvaluation.extractDeadline,
+    aiEscalate: ruleEvaluation.escalate,
   };
 }
 
 export async function listMail(folder = "INBOX", limit = 50): Promise<MailListResponse> {
   const { gateway, config, settings } = await runtime();
-  const [messages, status] = await Promise.all([
+  const [messages, status, rules] = await Promise.all([
     gateway.listMessages(folder, Math.min(limit, config.limits.maxSearchResults), false),
     gateway.mailboxStatus(folder),
+    listAiRules(true),
   ]);
   return {
-    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection)),
+    messages: messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules)),
     unread: status.unseen,
     total: status.messages,
     demo: false,
@@ -112,7 +128,11 @@ export async function listMail(folder = "INBOX", limit = 50): Promise<MailListRe
 
 export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessage> {
   const { gateway, settings } = await runtime();
-  return toMessage(await gateway.getMessage(folder, uid), settings.aiPriorityDetection);
+  const [message, rules] = await Promise.all([
+    gateway.getMessage(folder, uid),
+    listAiRules(true),
+  ]);
+  return toMessage(message, settings.aiPriorityDetection, rules);
 }
 
 export async function updateMail(uid: number, action: MailAction, folder = "INBOX") {
