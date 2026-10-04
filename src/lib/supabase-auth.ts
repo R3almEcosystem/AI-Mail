@@ -5,16 +5,22 @@ export type SupabasePasswordUser = {
   email: string;
 };
 
+const AI_MAIL_SUPABASE_URL = "https://cvrihauikkflnvunmvma.supabase.co";
+const AI_MAIL_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_iW6JYQBMR_DoWptPrd4KUQ_6HGK4zNI";
+
 function configuration() {
-  const url = process.env.AI_MAIL_SUPABASE_URL || process.env.SUPABASE_URL;
+  const url =
+    process.env.AI_MAIL_SUPABASE_URL
+    || process.env.SUPABASE_URL
+    || AI_MAIL_SUPABASE_URL;
   const publishableKey =
     process.env.AI_MAIL_SUPABASE_PUBLISHABLE_KEY
     || process.env.SUPABASE_PUBLISHABLE_KEY
     || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
     || process.env.SUPABASE_ANON_KEY
-    || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    || AI_MAIL_SUPABASE_PUBLISHABLE_KEY;
 
-  if (!url || !publishableKey) return null;
   return { url: url.replace(/\/$/, ""), publishableKey };
 }
 
