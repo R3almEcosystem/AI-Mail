@@ -36,6 +36,9 @@ export type AppStatus = {
   smtp: boolean;
   openai: boolean;
   model: string | null;
+  aiTone: "concise" | "balanced" | "detailed";
+  aiAutoSummarize: boolean;
+  aiPriorityDetection: boolean;
 };
 
 export type AiAction = "summarize" | "draft" | "prioritize" | "extract";
