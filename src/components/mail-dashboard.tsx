@@ -28,6 +28,11 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [inboxUnread, setInboxUnread] = useState(0);
+  const [mailboxTotal, setMailboxTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextBeforeUid, setNextBeforeUid] = useState<number | null>(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [activeFolder, setActiveFolder] = useState<"INBOX" | "INBOX.Sent">("INBOX");
   const [filter, setFilter] = useState<"all" | "unread" | "flagged">("all");
   const [search, setSearch] = useState("");
   const [aiResult, setAiResult] = useState("");
@@ -64,6 +69,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
 
       if (version !== loadVersion.current) return;
       setMessages(mailData.messages);
+      setMailboxTotal(mailData.total);
+      setHasMore(mailData.hasMore);
+      setNextBeforeUid(mailData.nextBeforeUid);
+      setActiveFolder(folder === "INBOX.Sent" ? "INBOX.Sent" : "INBOX");
       if (folder === "INBOX") setInboxUnread(mailData.unread);
       setDemo(mailData.demo);
       setStatus(statusData);
@@ -86,6 +95,37 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   useEffect(() => {
     void loadData("INBOX");
   }, [loadData]);
+
+  const loadMore = useCallback(async () => {
+    if (loading || loadingMore || !hasMore || nextBeforeUid === null) return;
+    const folder = activeFolder;
+    const cursor = nextBeforeUid;
+    setLoadingMore(true);
+    try {
+      const response = await fetch(
+        `${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}&beforeUid=${cursor}`,
+        { cache: "no-store" },
+      );
+      const data = (await response.json().catch(() => null)) as MailListResponse | { error?: string } | null;
+      if (!response.ok || !data || !("messages" in data)) {
+        throw new Error(data && "error" in data && data.error ? data.error : "Unable to load older messages.");
+      }
+      if (folder !== activeFolder) return;
+      setMessages((current) => {
+        const seen = new Set(current.map((message) => `${message.folder || folder}:${message.uid}`));
+        const older = data.messages.filter((message) => !seen.has(`${message.folder || folder}:${message.uid}`));
+        return [...current, ...older];
+      });
+      setMailboxTotal(data.total);
+      setHasMore(data.hasMore);
+      setNextBeforeUid(data.nextBeforeUid);
+      if (folder === "INBOX") setInboxUnread(data.unread);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to load older messages.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [activeFolder, hasMore, loading, loadingMore, nextBeforeUid]);
 
   useEffect(() => {
     if (!toast) return;
@@ -306,6 +346,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               aiConfigured={Boolean(status?.openai)}
               mailboxLabel="Inbox"
               mailboxEyebrow="PRIMARY"
+              loadedCount={messages.length}
+              totalCount={mailboxTotal}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onSelect={(message) => void selectMessage(message, false)}
@@ -313,6 +357,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX")}
+              onLoadMore={() => void loadMore()}
             />
           ) : null}
           {section === "sent" ? (
@@ -328,6 +373,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               aiConfigured={Boolean(status?.openai)}
               mailboxLabel="Sent"
               mailboxEyebrow="OUTBOUND"
+              loadedCount={messages.length}
+              totalCount={mailboxTotal}
+              hasMore={hasMore}
+              loadingMore={loadingMore}
               sentMode
               onFilterChange={setFilter}
               onSearchChange={setSearch}
@@ -336,6 +385,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX.Sent")}
+              onLoadMore={() => void loadMore()}
             />
           ) : null}
           {section === "ai" ? <AiRulesView /> : null}
