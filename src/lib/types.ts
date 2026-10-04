@@ -16,6 +16,12 @@ export type MailMessage = {
   priority: MailPriority;
   category: string;
   attachments?: number;
+  aiRuleMatches?: string[];
+  aiAutoSummary?: boolean;
+  aiSuggestReply?: boolean;
+  aiExtractActions?: boolean;
+  aiExtractDeadline?: boolean;
+  aiEscalate?: boolean;
   security?: SecurityAssessment;
   attachmentInspection?: AttachmentInspection;
 };
