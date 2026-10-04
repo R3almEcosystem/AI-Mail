@@ -245,8 +245,8 @@ textarea:focus-visible {
 
 .setup-banner { display: flex; align-items: center; gap: 9px; margin: 16px 32px 0; padding: 10px 13px; color: #805d1a; background: #fff8e8; border: 1px solid #f0e1b9; border-radius: 10px; font-size: 10px; }
 .page-content { padding: 24px 32px 36px; }
-.page-content--inbox { height: calc(100vh - 78px); min-height: 650px; padding: 18px 22px 22px; }
-.setup-banner + .page-content--inbox { height: calc(100vh - 126px); }
+.page-content--inbox, .page-content--sent { height: calc(100vh - 78px); min-height: 650px; padding: 18px 22px 22px; }
+.setup-banner + .page-content--inbox, .setup-banner + .page-content--sent { height: calc(100vh - 126px); }
 
 .overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 18px; }
 .welcome-card { grid-column: 1 / -1; min-height: 190px; display: flex; justify-content: space-between; overflow: hidden; position: relative; padding: 30px 34px; color: #fff; background: radial-gradient(circle at 86% 20%, rgba(115, 104, 234, 0.35), transparent 26%), linear-gradient(125deg, #132d58, #234d94 56%, #4a55b5); border-radius: 19px; box-shadow: 0 18px 38px rgba(24, 58, 111, 0.18); }
@@ -529,9 +529,9 @@ textarea:focus-visible {
   .topbar-title .eyebrow { font-size: 8px; }
   .global-search, .live-status { display: none; }
   .page-content { padding: 16px; }
-  .page-content--inbox { height: calc(100vh - 68px); min-height: 600px; padding: 0; }
+  .page-content--inbox, .page-content--sent { height: calc(100vh - 68px); min-height: 600px; padding: 0; }
   .setup-banner { margin: 10px 16px 0; }
-  .setup-banner + .page-content--inbox { height: calc(100vh - 114px); }
+  .setup-banner + .page-content--inbox, .setup-banner + .page-content--sent { height: calc(100vh - 114px); }
   .welcome-card { min-height: 220px; padding: 24px; }
   .welcome-orbit { display: none; }
   .metrics-row { grid-template-columns: 1fr; }
