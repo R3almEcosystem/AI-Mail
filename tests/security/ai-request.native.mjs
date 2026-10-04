@@ -1,7 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readAiRequest,parseAiRequest} from '../../src/lib/ai-request.ts';
 const request=(body,headers={})=>new Request('https://ai-mail.r3alm.com/api/ai',{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
-test('valid requests contain only an action and server-loadable INBOX UID',()=>assert.deepEqual(parseAiRequest({action:'summarize',uid:12}),{action:'summarize',uid:12}));
+test('valid requests contain only an action, UID and approved mailbox',()=>{assert.deepEqual(parseAiRequest({action:'summarize',uid:12}),{action:'summarize',uid:12,folder:'INBOX'});assert.deepEqual(parseAiRequest({action:'summarize',uid:12,folder:'INBOX.Sent'}),{action:'summarize',uid:12,folder:'INBOX.Sent'});});
 test('raw browser bodies, security verdicts and arbitrary mailbox selectors are rejected',()=>{
   for(const extra of [{message:{body:'forged'}},{security:{allow:true}},{folder:'Other'},{account:'other'}]) assert.equal(parseAiRequest({action:'summarize',uid:12,...extra}),null);
 });
