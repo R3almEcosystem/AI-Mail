@@ -89,8 +89,32 @@ export class MailGateway {
       return { path: folder, messages: status.messages ?? 0, unseen: status.unseen ?? 0, uidNext: status.uidNext ?? null, uidValidity: status.uidValidity?.toString() ?? null };
     });
   }
+  async listMessagesPage(folder: string, limit: number, unreadOnly: boolean, since?: Date, beforeUid?: number): Promise<{ messages: MessageSummary[]; hasMore: boolean }> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.limits.maxSearchResults) throw new Error('Invalid search limit');
+    if (beforeUid !== undefined && (!Number.isSafeInteger(beforeUid) || beforeUid <= 1)) return { messages: [], hasMore: false };
+
+    return this.withMailbox(folder, async client => {
+      const query: SearchObject = {};
+      if (unreadOnly) query.seen = false;
+      if (since) query.since = since;
+      if (beforeUid !== undefined) query.uid = `1:${beforeUid - 1}`;
+      if (!Object.keys(query).length) query.all = true;
+
+      const found = await client.search(query, { uid: true });
+      const uids = Array.isArray(found) ? found : [];
+      const selected = uids.slice(-limit);
+      if (!selected.length) return { messages: [], hasMore: false };
+
+      const messages = await client.fetchAll(selected, { envelope: true, flags: true, internalDate: true }, { uid: true });
+      return {
+        messages: messages.map(message => this.toSummary(message)).sort((a, b) => b.uid - a.uid),
+        hasMore: uids.length > selected.length,
+      };
+    });
+  }
+
   async listMessages(folder: string, limit: number, unreadOnly: boolean, since?: Date): Promise<MessageSummary[]> {
-    return this.searchMessages(folder, { unreadOnly, ...(since ? { since } : {}) }, limit);
+    return (await this.listMessagesPage(folder, limit, unreadOnly, since)).messages;
   }
   async searchMessages(folder: string, criteria: SearchCriteria, limit: number): Promise<MessageSummary[]> {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.limits.maxSearchResults) throw new Error('Invalid search limit');
