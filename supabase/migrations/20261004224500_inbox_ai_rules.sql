@@ -74,7 +74,7 @@ VALUES
  ARRAY['charges','cost explorer','cost and usage report','billing'],
  ARRAY['cost allocation tags','cost reporting automation','budgets filters','chargeback jobs','resourceid'],
  ARRAY[]::text[], false,
- '{"autoSummary":true,"suggestReply":false,"extractActions":true,"extractDeadline":true,"escalate":true}'::jsonb,true,true,70),
+ '{"autoSummary":true,"suggestReply":false,"extractActions":true,"extractDeadline":true,"escalate":true}'::jsonb,true,true,55),
 
 ('monitor-human-reply','Human reply to r3alm Monitor','Prioritize stakeholder replies to automated market, readiness, distribution, or monitoring reports.','Monitor Feedback','important',
  ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[],
@@ -109,6 +109,18 @@ VALUES
  ARRAY['private offerings','auction','bid'], ARRAY['offering','auction','bid'],
  ARRAY[]::text[], false,
  '{"autoSummary":true,"suggestReply":false,"extractActions":false,"extractDeadline":true,"escalate":false}'::jsonb,true,true,130),
+
+('stakeholder-concern','Stakeholder concern / negative sentiment','Escalate human replies expressing material concern, frustration, or risk around a monitored position or operating issue.','Stakeholder Concern','urgent',
+ ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[],
+ ARRAY['concerned','worried','frustrated','i don''t need','bad shit','biggest position','this is a problem'],
+ ARRAY['re:'], true,
+ '{"autoSummary":true,"suggestReply":true,"extractActions":true,"extractDeadline":false,"escalate":true,"sentiment":true}'::jsonb,true,true,75),
+
+('stakeholder-directive','Stakeholder directive / requested change','Detect direct instructions in human replies and turn them into an actionable executive request.','Executive Requests','important',
+ ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[], ARRAY[]::text[],
+ ARRAY['you should','please add','please update','please change','can you','could you','i need','we need'],
+ ARRAY['re:'], true,
+ '{"autoSummary":true,"suggestReply":true,"extractActions":true,"extractDeadline":true,"escalate":true}'::jsonb,true,true,78),
 
 ('identity-verification','Identity / verification code','Recognize verification codes and confirmation messages; keep them high visibility but short-lived.','Identity','important',
  ARRAY['coinbase.com','supabase.io','supabase.com'], ARRAY[]::text[], ARRAY[]::text[],
