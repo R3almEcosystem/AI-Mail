@@ -20,9 +20,14 @@ export async function createDatabaseSession(user: SessionUser, durationSeconds: 
   const rows = await sql`
     INSERT INTO ai_mail_sessions (id_hash, user_id, auth_version, expires_at)
     SELECT ${digest(id)}, u.id, u.auth_version, NOW() + ${durationSeconds} * INTERVAL '1 second'
-    FROM ai_mail_users u JOIN ai_mail_settings s ON s.id = 'default'
+    FROM ai_mail_users u
+    JOIN ai_mail_settings s ON s.id = 'default'
+    JOIN auth.users au ON au.id::text = u.id
     WHERE u.id = ${user.id} AND u.status = 'active' AND u.role = ${user.role}
-      AND u.email = ${user.email} AND u.password_hash = ${verifiedPasswordHash} AND s.require_mfa = FALSE
+      AND u.email = ${user.email} AND LOWER(au.email) = u.email
+      AND au.email_confirmed_at IS NOT NULL AND au.deleted_at IS NULL
+      AND (au.banned_until IS NULL OR au.banned_until <= NOW())
+      AND s.require_mfa = FALSE
     RETURNING id_hash
   `;
   if (rows.length !== 1) throw new Error("UNAUTHORIZED");
@@ -38,9 +43,13 @@ export async function findActiveSession(claims: SessionClaims): Promise<SessionU
     FROM ai_mail_sessions session
     JOIN ai_mail_users u ON u.id = session.user_id AND u.auth_version = session.auth_version
     JOIN ai_mail_settings settings ON settings.id = 'default'
+    JOIN auth.users au ON au.id::text = u.id
     WHERE session.id_hash = ${digest(claims.sessionId)} AND u.id = ${claims.id}
       AND session.revoked_at IS NULL AND session.expires_at > NOW()
-      AND u.status = 'active' AND settings.require_mfa = FALSE
+      AND u.status = 'active' AND LOWER(au.email) = u.email
+      AND au.email_confirmed_at IS NOT NULL AND au.deleted_at IS NULL
+      AND (au.banned_until IS NULL OR au.banned_until <= NOW())
+      AND settings.require_mfa = FALSE
     LIMIT 1
   `;
   if (!rows[0]) return null;
