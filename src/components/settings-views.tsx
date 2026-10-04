@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bot,
   Check,
@@ -9,12 +9,14 @@ import {
   KeyRound,
   MailCheck,
   Network,
+  LoaderCircle,
   Server,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
 } from "lucide-react";
-import type { AppStatus } from "@/lib/types";
+import type { AiRule, AppStatus } from "@/lib/types";
+import { webPath } from "@/lib/web-path";
 
 function StatusRow({ label, detail, ready }: { label: string; detail: string; ready: boolean }) {
   return (
@@ -61,38 +63,99 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
   );
 }
 
-const initialRules = [
-  { id: "priority", title: "Priority detection", text: "Elevate deadlines, board matters, legal requests, and capital-market actions.", active: true },
-  { id: "summary", title: "Automatic summaries", text: "Prepare concise executive summaries for messages longer than 250 words.", active: true },
-  { id: "draft", title: "Reply suggestions", text: "Offer a response draft when an email contains a direct question or request.", active: true },
-  { id: "risk", title: "Risk and compliance scan", text: "Flag unusual payment instructions, credential requests, and high-risk language.", active: true },
-  { id: "newsletter", title: "Newsletter compression", text: "Reduce newsletters and notifications to a one-line digest.", active: false },
-];
+function ruleMatchSummary(rule: AiRule) {
+  const parts: string[] = [];
+  if (rule.senderDomains.length) parts.push(`sender: ${rule.senderDomains.join(", ")}`);
+  if (rule.senderAddresses.length) parts.push(`from: ${rule.senderAddresses.join(", ")}`);
+  if (rule.subjectPrefixes.length) parts.push(`subject starts: ${rule.subjectPrefixes.join(", ")}`);
+  if (rule.subjectTerms.length) parts.push(`subject: ${rule.subjectTerms.slice(0, 3).join(", ")}`);
+  if (rule.bodyTerms.length) parts.push(`body: ${rule.bodyTerms.slice(0, 3).join(", ")}`);
+  if (rule.requireReply) parts.push("reply/thread response");
+  return parts.slice(0, 3).join(" · ");
+}
 
 export function AiRulesView() {
-  const [rules, setRules] = useState(initialRules);
+  const [rules, setRules] = useState<AiRule[]>([]);
+  const [canManage, setCanManage] = useState(false);
+  const [loadingRules, setLoadingRules] = useState(true);
+  const [savingRule, setSavingRule] = useState<string | null>(null);
+  const [ruleError, setRuleError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadRules() {
+      setLoadingRules(true);
+      setRuleError("");
+      try {
+        const response = await fetch(webPath("/api/ai-rules"), { cache: "no-store" });
+        const result = (await response.json().catch(() => null)) as { rules?: AiRule[]; canManage?: boolean; error?: string } | null;
+        if (!response.ok || !result?.rules) throw new Error(result?.error || "Unable to load AI rules.");
+        if (!cancelled) {
+          setRules(result.rules);
+          setCanManage(Boolean(result.canManage));
+        }
+      } catch (error) {
+        if (!cancelled) setRuleError(error instanceof Error ? error.message : "Unable to load AI rules.");
+      } finally {
+        if (!cancelled) setLoadingRules(false);
+      }
+    }
+    void loadRules();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function toggleRule(rule: AiRule) {
+    if (!canManage || savingRule) return;
+    setSavingRule(rule.id);
+    setRuleError("");
+    try {
+      const response = await fetch(webPath("/api/ai-rules"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: rule.id, active: !rule.active }),
+      });
+      const result = (await response.json().catch(() => null)) as { rule?: AiRule; error?: string } | null;
+      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to update AI rule.");
+      setRules((current) => current.map((item) => item.id === result.rule?.id ? result.rule as AiRule : item));
+    } catch (error) {
+      setRuleError(error instanceof Error ? error.message : "Unable to update AI rule.");
+    } finally {
+      setSavingRule(null);
+    }
+  }
+
+  const activeCount = rules.filter((rule) => rule.active).length;
+
   return (
     <div className="settings-page">
-      <div className="settings-intro"><p className="eyebrow">AUTOMATION</p><h2>AI rules</h2><p>Control how AI-Mail classifies and assists with incoming messages.</p></div>
+      <div className="settings-intro"><p className="eyebrow">AUTOMATION</p><h2>AI rules</h2><p>Persistent inbox rules derived from real r3alm mail patterns. They classify, prioritize, summarize, and surface actions without sending mail automatically.</p></div>
       <section className="rules-hero">
-        <span><Bot size={23} /></span><div><h3>Executive triage policy</h3><p>Rules guide the assistant; they never send mail automatically.</p></div><b>{rules.filter((rule) => rule.active).length} active</b>
+        <span><Bot size={23} /></span><div><h3>Executive triage policy</h3><p>Rules run before heuristic classification and stay server-side across sessions.</p></div><b>{activeCount} active</b>
       </section>
       <section className="panel rules-panel">
-        {rules.map((rule) => (
-          <div className="rule-row" key={rule.id}>
+        {loadingRules ? <div className="rule-loading"><LoaderCircle className="spin" size={18} /><span>Loading persistent AI rules…</span></div> : null}
+        {!loadingRules && rules.map((rule) => (
+          <div className="rule-row rule-row--persistent" key={rule.id}>
             <span className="rule-icon"><SlidersHorizontal size={17} /></span>
-            <span><strong>{rule.title}</strong><small>{rule.text}</small></span>
+            <span className="rule-copy">
+              <strong>{rule.title}</strong>
+              <small>{rule.description}</small>
+              <em>{rule.category} · {rule.priority.toUpperCase()}{ruleMatchSummary(rule) ? ` · ${ruleMatchSummary(rule)}` : ""}</em>
+            </span>
             <button
               type="button"
               className={rule.active ? "toggle toggle--active" : "toggle"}
               aria-pressed={rule.active}
               aria-label={`${rule.active ? "Disable" : "Enable"} ${rule.title}`}
-              onClick={() => setRules((current) => current.map((item) => item.id === rule.id ? { ...item, active: !item.active } : item))}
-            ><span /></button>
+              disabled={!canManage || savingRule !== null}
+              onClick={() => void toggleRule(rule)}
+            >{savingRule === rule.id ? <LoaderCircle className="spin" size={13} /> : <span />}</button>
           </div>
         ))}
+        {!loadingRules && rules.length === 0 ? <div className="rule-loading"><span>No AI rules are configured.</span></div> : null}
       </section>
-      <p className="settings-footnote">Rule changes in this preview are local to your browser until persistent storage is connected.</p>
+      {ruleError ? <p className="settings-footnote settings-footnote--error">{ruleError}</p> : null}
+      <p className="settings-footnote">{canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "Rules are active workspace policy. An administrator can change their status."}</p>
     </div>
   );
 }
