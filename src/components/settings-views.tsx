@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import {
   Bot,
   Check,
@@ -10,10 +10,13 @@ import {
   MailCheck,
   Network,
   LoaderCircle,
+  Pencil,
+  Save,
   Server,
   ShieldCheck,
   SlidersHorizontal,
   Sparkles,
+  X,
 } from "lucide-react";
 import type { AiRule, AppStatus } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
@@ -76,12 +79,125 @@ function ruleMatchSummary(rule: AiRule) {
   return parts.slice(0, 3).join(" · ");
 }
 
-export function AiRulesView({ onChanged }: { onChanged?: () => void | Promise<void> } = {}) {
+function listText(values: string[]) {
+  return values.join("\n");
+}
+
+function parseList(value: string): string[] {
+  return [...new Set(value.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+function AiRuleEditor({
+  rule,
+  saving,
+  onClose,
+  onSave,
+}: {
+  rule: AiRule;
+  saving: boolean;
+  onClose: () => void;
+  onSave: (rule: AiRule) => void;
+}) {
+  const [draft, setDraft] = useState(rule);
+  const [senderDomains, setSenderDomains] = useState(listText(rule.senderDomains));
+  const [senderAddresses, setSenderAddresses] = useState(listText(rule.senderAddresses));
+  const [recipientTerms, setRecipientTerms] = useState(listText(rule.recipientTerms));
+  const [subjectTerms, setSubjectTerms] = useState(listText(rule.subjectTerms));
+  const [bodyTerms, setBodyTerms] = useState(listText(rule.bodyTerms));
+  const [subjectPrefixes, setSubjectPrefixes] = useState(listText(rule.subjectPrefixes));
+
+  function setAction(key: keyof AiRule["actions"], value: boolean) {
+    setDraft((current) => ({ ...current, actions: { ...current.actions, [key]: value } }));
+  }
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    onSave({
+      ...draft,
+      senderDomains: parseList(senderDomains),
+      senderAddresses: parseList(senderAddresses),
+      recipientTerms: parseList(recipientTerms),
+      subjectTerms: parseList(subjectTerms),
+      bodyTerms: parseList(bodyTerms),
+      subjectPrefixes: parseList(subjectPrefixes),
+    });
+  }
+
+  const actions: Array<{ key: keyof AiRule["actions"]; label: string; detail: string }> = [
+    { key: "autoSummary", label: "Automatic summary", detail: "Prepare a brief when the rule matches." },
+    { key: "suggestReply", label: "Suggest reply", detail: "Surface a draft-reply recommendation." },
+    { key: "extractActions", label: "Extract actions", detail: "Identify tasks, owners, and next steps." },
+    { key: "extractDeadline", label: "Extract deadline", detail: "Look for due dates and timing commitments." },
+    { key: "escalate", label: "Escalate", detail: "Mark the message for heightened attention." },
+    { key: "sentiment", label: "Sentiment analysis", detail: "Include tone/sentiment analysis when relevant." },
+    { key: "compress", label: "Compress", detail: "Prefer a shortened executive representation." },
+    { key: "sensitive", label: "Sensitive", detail: "Treat matches as sensitive content." },
+  ];
+
+  return (
+    <div className="rule-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
+      <form className="rule-editor-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="rule-editor-title">
+        <header>
+          <div><p className="eyebrow">AI RULE GOVERNANCE</p><h2 id="rule-editor-title">Edit rule</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
+          <button type="button" className="icon-button" aria-label="Close AI rule editor" onClick={onClose} disabled={saving}><X size={17} /></button>
+        </header>
+
+        <div className="rule-editor-scroll">
+          <section className="rule-editor-section">
+            <div className="rule-editor-section-heading"><strong>Identity & behavior</strong><small>Human-readable rule metadata and base classification.</small></div>
+            <div className="rule-editor-grid">
+              <label className="field-wide"><span>Rule name</span><input value={draft.title} onChange={(event) => setDraft({ ...draft, title: event.target.value })} maxLength={120} required /></label>
+              <label className="field-wide"><span>Description</span><textarea value={draft.description} onChange={(event) => setDraft({ ...draft, description: event.target.value })} maxLength={500} rows={3} /></label>
+              <label><span>Category</span><input value={draft.category} onChange={(event) => setDraft({ ...draft, category: event.target.value })} maxLength={80} required /></label>
+              <label><span>Priority</span><select value={draft.priority} onChange={(event) => setDraft({ ...draft, priority: event.target.value as AiRule["priority"] })}><option value="urgent">Urgent</option><option value="important">Important</option><option value="normal">Normal</option><option value="low">Low</option></select></label>
+              <label><span>Direction</span><select value={draft.direction} onChange={(event) => setDraft({ ...draft, direction: event.target.value as AiRule["direction"] })}><option value="both">Inbound & outbound</option><option value="inbound">Inbound only</option><option value="outbound">Outbound only</option></select></label>
+              <label className="rule-editor-checkbox"><input type="checkbox" checked={draft.active} onChange={(event) => setDraft({ ...draft, active: event.target.checked })} /><span><strong>Rule enabled</strong><small>Apply this rule during live classification.</small></span></label>
+              <label className="rule-editor-checkbox field-wide"><input type="checkbox" checked={draft.requireReply} onChange={(event) => setDraft({ ...draft, requireReply: event.target.checked })} /><span><strong>Require reply/thread context</strong><small>Only match messages that are replies or forwards.</small></span></label>
+            </div>
+          </section>
+
+          <section className="rule-editor-section">
+            <div className="rule-editor-section-heading"><strong>Match conditions</strong><small>Enter one value per line or separate values with commas. Empty fields do not restrict matching.</small></div>
+            <div className="rule-editor-grid rule-editor-grid--criteria">
+              <label><span>Sender domains</span><textarea value={senderDomains} onChange={(event) => setSenderDomains(event.target.value)} rows={4} placeholder="example.com" /></label>
+              <label><span>Sender addresses</span><textarea value={senderAddresses} onChange={(event) => setSenderAddresses(event.target.value)} rows={4} placeholder="person@example.com" /></label>
+              <label><span>Recipient terms</span><textarea value={recipientTerms} onChange={(event) => setRecipientTerms(event.target.value)} rows={4} placeholder="finance@, board@" /></label>
+              <label><span>Subject prefixes</span><textarea value={subjectPrefixes} onChange={(event) => setSubjectPrefixes(event.target.value)} rows={4} placeholder="RE:, Approval:" /></label>
+              <label><span>Subject terms</span><textarea value={subjectTerms} onChange={(event) => setSubjectTerms(event.target.value)} rows={4} placeholder="approval, deadline" /></label>
+              <label><span>Body terms</span><textarea value={bodyTerms} onChange={(event) => setBodyTerms(event.target.value)} rows={4} placeholder="wire instructions, term sheet" /></label>
+            </div>
+          </section>
+
+          <section className="rule-editor-section">
+            <div className="rule-editor-section-heading"><strong>AI actions</strong><small>Choose what AI Mail should surface when this rule matches.</small></div>
+            <div className="rule-action-grid">
+              {actions.map((action) => (
+                <label key={action.key} className={draft.actions[action.key] ? "rule-action-card rule-action-card--active" : "rule-action-card"}>
+                  <input type="checkbox" checked={Boolean(draft.actions[action.key])} onChange={(event) => setAction(action.key, event.target.checked)} />
+                  <span><strong>{action.label}</strong><small>{action.detail}</small></span>
+                  <Check size={14} />
+                </label>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <footer>
+          <span>Protected metadata such as rule ID, system status, and sort order cannot be changed here.</span>
+          <div><button type="button" className="secondary-button" onClick={onClose} disabled={saving}>Cancel</button><button type="submit" className="primary-button" disabled={saving}>{saving ? <LoaderCircle className="spin" size={14} /> : <Save size={14} />} Save rule</button></div>
+        </footer>
+      </form>
+    </div>
+  );
+}
+
+export function AiRulesView({ onChanged, editable = false }: { onChanged?: () => void | Promise<void>; editable?: boolean } = {}) {
   const [rules, setRules] = useState<AiRule[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [loadingRules, setLoadingRules] = useState(true);
   const [savingRule, setSavingRule] = useState<string | null>(null);
   const [ruleError, setRuleError] = useState("");
+  const [editingRule, setEditingRule] = useState<AiRule | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,6 +243,45 @@ export function AiRulesView({ onChanged }: { onChanged?: () => void | Promise<vo
     }
   }
 
+
+  async function saveRule(rule: AiRule) {
+    if (!canManage || savingRule) return;
+    setSavingRule(rule.id);
+    setRuleError("");
+    try {
+      const response = await fetch(webPath("/api/ai-rules"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: rule.id,
+          title: rule.title,
+          description: rule.description,
+          category: rule.category,
+          priority: rule.priority,
+          senderDomains: rule.senderDomains,
+          senderAddresses: rule.senderAddresses,
+          recipientTerms: rule.recipientTerms,
+          subjectTerms: rule.subjectTerms,
+          bodyTerms: rule.bodyTerms,
+          subjectPrefixes: rule.subjectPrefixes,
+          requireReply: rule.requireReply,
+          direction: rule.direction,
+          actions: rule.actions,
+          active: rule.active,
+        }),
+      });
+      const result = (await response.json().catch(() => null)) as { rule?: AiRule; error?: string } | null;
+      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to save the AI rule.");
+      setRules((current) => current.map((item) => item.id === result.rule?.id ? result.rule as AiRule : item));
+      setEditingRule(null);
+      await onChanged?.();
+    } catch (error) {
+      setRuleError(error instanceof Error ? error.message : "Unable to save the AI rule.");
+    } finally {
+      setSavingRule(null);
+    }
+  }
+
   const activeCount = rules.filter((rule) => rule.active).length;
 
   return (
@@ -145,20 +300,24 @@ export function AiRulesView({ onChanged }: { onChanged?: () => void | Promise<vo
               <small>{rule.description}</small>
               <em>{rule.category} · {rule.priority.toUpperCase()}{ruleMatchSummary(rule) ? ` · ${ruleMatchSummary(rule)}` : ""}</em>
             </span>
-            <button
-              type="button"
-              className={rule.active ? "toggle toggle--active" : "toggle"}
-              aria-pressed={rule.active}
-              aria-label={`${rule.active ? "Disable" : "Enable"} ${rule.title}`}
-              disabled={!canManage || savingRule !== null}
-              onClick={() => void toggleRule(rule)}
-            >{savingRule === rule.id ? <LoaderCircle className="spin" size={13} /> : <span />}</button>
+            <span className="rule-row-actions">
+              {editable && canManage ? <button type="button" className="rule-edit-button" onClick={() => setEditingRule(rule)} disabled={savingRule !== null} aria-label={`Edit ${rule.title}`}><Pencil size={14} /> Edit</button> : null}
+              <button
+                type="button"
+                className={rule.active ? "toggle toggle--active" : "toggle"}
+                aria-pressed={rule.active}
+                aria-label={`${rule.active ? "Disable" : "Enable"} ${rule.title}`}
+                disabled={!canManage || savingRule !== null}
+                onClick={() => void toggleRule(rule)}
+              >{savingRule === rule.id && !editingRule ? <LoaderCircle className="spin" size={13} /> : <span />}</button>
+            </span>
           </div>
         ))}
         {!loadingRules && rules.length === 0 ? <div className="rule-loading"><span>No AI rules are configured.</span></div> : null}
       </section>
       {ruleError ? <p className="settings-footnote settings-footnote--error">{ruleError}</p> : null}
       <p className="settings-footnote">{canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "Rules are active workspace policy. An administrator can change their status."}</p>
+      {editingRule ? <AiRuleEditor rule={editingRule} saving={savingRule === editingRule.id} onClose={() => setEditingRule(null)} onSave={(rule) => void saveRule(rule)} /> : null}
     </div>
   );
 }
