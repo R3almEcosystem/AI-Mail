@@ -42,3 +42,19 @@ test("research results generate canonical warnings for incomplete coverage", () 
   assert.ok(research.includes("The newest matches are included"));
   assert.ok(research.includes("processing or security limits"));
 });
+
+
+test("Markdown report formatting renders headings and separators between included emails", () => {
+  const research = read("src/lib/mail-research.ts");
+  const component = read("src/components/mail-research-modal.tsx");
+  const css = read("src/app/globals.css");
+
+  assert.ok(research.includes('"## Report Summary"'));
+  assert.ok(research.includes('"## Included Emails"'));
+  assert.ok(research.includes('lines.push("", "---", "")'));
+  assert.ok(research.includes('"## Coverage & Warnings"'));
+  assert.ok(component.includes("function MarkdownReport("));
+  assert.ok(component.includes('nodes.push(<hr key={"hr-" + nodes.length} />)'));
+  assert.ok(component.includes("<MarkdownReport markdown={result.markdown} />"));
+  assert.ok(css.includes(".research-markdown hr"));
+});
