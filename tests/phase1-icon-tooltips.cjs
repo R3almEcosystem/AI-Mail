@@ -26,7 +26,7 @@ test("icon-only controls expose accessible labels used by global tooltips", () =
     "Back to messages",
     "Archive",
     "Flag message",
-    "More options",
+    "More message actions",
     "Open alerts",
     "Attach file",
     "Write with AI",
