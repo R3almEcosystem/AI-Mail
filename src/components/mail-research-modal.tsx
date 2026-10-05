@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useEffect, useState } from "react";
-import { Bot, Download, FileText, History, LoaderCircle, RefreshCw, Search, Sparkles, X } from "lucide-react";
+import { Bot, Download, FileText, History, LoaderCircle, Maximize2, Minimize2, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import { webPath } from "@/lib/web-path";
 
 export type ResearchScope = "inbox" | "sent" | "both";
@@ -224,6 +224,7 @@ function MailResearchSurface({
   const [selectedHistory, setSelectedHistory] = useState<ResearchHistorySummary | null>(null);
   const [selectedHistoryDetail, setSelectedHistoryDetail] = useState<ResearchHistoryDetail | null>(null);
   const [historyDetailLoading, setHistoryDetailLoading] = useState(false);
+  const [expandedReport, setExpandedReport] = useState<"research" | "history" | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -245,6 +246,7 @@ function MailResearchSurface({
     setError("");
     setHistorySaveWarning("");
     setResult(null);
+    setExpandedReport(null);
     try {
       const response = await fetch(webPath("/api/ai/research"), {
         method: "POST",
@@ -330,6 +332,8 @@ function MailResearchSurface({
   const titleId = panel ? "mail-research-panel-title" : "mail-research-title";
   const showingHistory = panel && activeTab === "history";
   const selectedHistoryView = selectedHistoryDetail || selectedHistory;
+  const expandedResearch = expandedReport === "research" && result ? result : null;
+  const expandedHistory = expandedReport === "history" && selectedHistoryDetail ? selectedHistoryDetail : null;
 
   const researchContent = (
     <section
@@ -349,7 +353,7 @@ function MailResearchSurface({
         ) : null}
       </header>
 
-      {panel ? (
+      {panel && !expandedResearch && !expandedHistory ? (
         <div className="research-workspace-tabs" role="tablist" aria-label="AI Mail Research views">
           <button type="button" role="tab" aria-selected={activeTab === "research"} className={activeTab === "research" ? "active" : ""} onClick={() => setActiveTab("research")}>
             <Sparkles size={15} /> Research
@@ -360,7 +364,49 @@ function MailResearchSurface({
         </div>
       ) : null}
 
-      {!showingHistory ? (
+      {expandedResearch || expandedHistory ? (
+        <div className="research-expanded-view">
+          <div className="research-expanded-toolbar">
+            <div>
+              <span className="research-expanded-kicker">{expandedResearch ? "CURRENT RESEARCH REPORT" : "SAVED RESEARCH REPORT"}</span>
+              <strong>{(expandedResearch || expandedHistory)?.title}</strong>
+              {expandedHistory ? <small>{formatResearchDate(expandedHistory.createdAt)}</small> : null}
+            </div>
+            <div className="research-expanded-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={() => downloadMarkdown(
+                  (expandedResearch || expandedHistory)!.title,
+                  (expandedResearch || expandedHistory)!.markdown,
+                )}
+              >
+                <Download size={15} /> Download Markdown
+              </button>
+              <button
+                type="button"
+                className="icon-button research-expand-button"
+                onClick={() => setExpandedReport(null)}
+                aria-label="Collapse report to standard panel view"
+                title="Collapse report"
+              >
+                <Minimize2 size={17} />
+              </button>
+            </div>
+          </div>
+          {(expandedResearch || expandedHistory)!.warnings.length ? (
+            <div className="research-expanded-warnings" aria-label="Research warnings">
+              {(expandedResearch || expandedHistory)!.warnings.map((warning) => (
+                <p className="research-warning" key={warning}>{warning}</p>
+              ))}
+            </div>
+          ) : null}
+          <MarkdownReport
+            markdown={(expandedResearch || expandedHistory)!.markdown}
+            className="research-expanded-document"
+          />
+        </div>
+      ) : !showingHistory ? (
         <div className="research-modal-body">
           <div className="research-scope-row">
             <span><strong>Search scope</strong><small>The AI searches the complete server mailbox, not just messages currently loaded on screen.</small></span>
@@ -412,6 +458,17 @@ function MailResearchSurface({
                   <b>{result.included}</b><small>included</small>
                   <b>{result.mode === "collection" ? "Collection" : "Report"}</b><small>output</small>
                 </div>
+                {panel ? (
+                  <button
+                    type="button"
+                    className="icon-button research-expand-button"
+                    onClick={() => setExpandedReport("research")}
+                    aria-label="Expand report to full panel view"
+                    title="Expand report"
+                  >
+                    <Maximize2 size={16} />
+                  </button>
+                ) : null}
               </div>
               {result.warnings.map((warning) => <p className="research-warning" key={warning}>{warning}</p>)}
               <MarkdownReport markdown={result.markdown} />
@@ -476,7 +533,20 @@ function MailResearchSurface({
                 <>
                   <header>
                     <span><FileText size={16} /><strong>{selectedHistoryView.title}</strong></span>
-                    <time>{formatResearchDate(selectedHistoryView.createdAt)}</time>
+                    <div className="research-history-header-actions">
+                      <time>{formatResearchDate(selectedHistoryView.createdAt)}</time>
+                      {selectedHistoryDetail ? (
+                        <button
+                          type="button"
+                          className="icon-button research-expand-button"
+                          onClick={() => setExpandedReport("history")}
+                          aria-label="Expand saved report to full panel view"
+                          title="Expand report"
+                        >
+                          <Maximize2 size={15} />
+                        </button>
+                      ) : null}
+                    </div>
                   </header>
                   <div className="research-history-query-card">
                     <span>Original query</span>
@@ -509,7 +579,7 @@ function MailResearchSurface({
         </div>
       )}
 
-      <footer className="research-modal-footer">
+      {!expandedResearch && !expandedHistory ? <footer className="research-modal-footer">
         <span><Bot size={14} /> Research never sends, deletes, or modifies email.</span>
         {!showingHistory ? (
           <div>
@@ -529,7 +599,7 @@ function MailResearchSurface({
             <button type="button" className="primary-button" onClick={() => setActiveTab("research")}><Sparkles size={15} /> New research</button>
           </div>
         )}
-      </footer>
+      </footer> : null}
     </section>
   );
 
