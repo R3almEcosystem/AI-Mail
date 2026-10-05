@@ -4,8 +4,20 @@ import type { AttachmentInspection } from "../security/attachment-scan";
 export type MailPriority = "urgent" | "important" | "normal" | "low";
 export type MailTag = "follow-up" | "waiting" | "finance" | "legal" | "technology" | "personal";
 
+export type MailAccountSummary = {
+  id: string;
+  label: string;
+  email: string;
+  primary: boolean;
+  active: boolean;
+  imapReady: boolean;
+  smtpReady: boolean;
+};
+
 export type MailMessage = {
   uid: number;
+  accountId?: string;
+  accountLabel?: string;
   direction?: "inbound" | "outbound";
   folder?: string;
   recipientLabel?: string;
@@ -40,6 +52,9 @@ export type MailListResponse = {
   total: number;
   hasMore: boolean;
   nextBeforeUid: number | null;
+  nextCursor?: string | null;
+  accountId?: string;
+  accounts?: MailAccountSummary[];
   demo: boolean;
 };
 
