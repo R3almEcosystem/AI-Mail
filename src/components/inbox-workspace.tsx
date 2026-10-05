@@ -323,8 +323,8 @@ export function InboxWorkspace({
                 </dl>
               ) : null}
             </header>
-            <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
             <div className="message-body-region">
+              <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
               {selectedHasSecureHtmlFallback ? (
                 <div className="message-body-tabs" role="tablist" aria-label="Message body format">
                   <button
