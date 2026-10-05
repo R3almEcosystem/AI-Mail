@@ -1,5 +1,6 @@
 import type { SecurityAssessment } from "../security/email-security";
 import type { AttachmentInspection } from "../security/attachment-scan";
+import type { MailTag } from "@/lib/mail-tags";
 
 export type MailPriority = "urgent" | "important" | "normal" | "low";
 
@@ -16,6 +17,7 @@ export type MailMessage = {
   receivedAt: string;
   unread: boolean;
   flagged: boolean;
+  tags?: MailTag[];
   priority: MailPriority;
   category: string;
   attachments?: number;
