@@ -154,6 +154,28 @@ export class MailGateway {
     });
   }
 
+  async searchMessageUidGroups(folder: string, criteriaList: SearchCriteria[]): Promise<number[][]> {
+    if (!Array.isArray(criteriaList) || criteriaList.length > 100) throw new Error('Invalid research search batch');
+    return this.withMailbox(folder, async client => {
+      const results: number[][] = [];
+      for (const criteria of criteriaList) {
+        const query: SearchObject = {};
+        if (criteria.from) query.from = criteria.from;
+        if (criteria.to) query.to = criteria.to;
+        if (criteria.cc) query.cc = criteria.cc;
+        if (criteria.subject) query.subject = criteria.subject;
+        if (criteria.text) query.text = criteria.text;
+        if (criteria.unreadOnly) query.seen = false;
+        if (criteria.since) query.since = criteria.since;
+        if (criteria.before) query.before = criteria.before;
+        if (!Object.keys(query).length) query.all = true;
+        const found = await client.search(query, { uid: true });
+        results.push(Array.isArray(found) ? [...found].sort((a, b) => b - a) : []);
+      }
+      return results;
+    });
+  }
+
   async loadResearchMessages(folder: string, uids: number[], limit = 300): Promise<Array<{
     uid: number;
     subject: string;
