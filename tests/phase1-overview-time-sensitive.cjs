@@ -34,3 +34,12 @@ test("time-sensitive ordering favors escalated or urgent then unread messages", 
   assert.match(view, /Date\.parse\(right\.receivedAt\) - Date\.parse\(left\.receivedAt\)/);
   assert.match(view, /\.slice\(0, 4\)/);
 });
+
+
+test("Focus Queue and AI Intelligence stack vertically at full Overview width", () => {
+  const css = read("src/app/globals.css");
+
+  assert.match(css, /\.overview-grid \{ display: grid; grid-template-columns: 1fr; gap: 18px; \}/);
+  assert.match(css, /\.priority-panel, \.intelligence-panel \{ grid-column: 1 \/ -1; \}/);
+  assert.doesNotMatch(css, /\.overview-grid \{ display: grid; grid-template-columns: minmax\(0, 1fr\) 310px;/);
+});
