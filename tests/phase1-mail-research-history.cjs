@@ -58,3 +58,18 @@ test("Markdown report formatting renders headings and separators between include
   assert.ok(component.includes("<MarkdownReport markdown={result.markdown} />"));
   assert.ok(css.includes(".research-markdown hr"));
 });
+
+
+test("AI Mail Research supports full panel expansion for current and saved reports", () => {
+  const component = read("src/components/mail-research-modal.tsx");
+  const css = read("src/app/globals.css");
+
+  assert.ok(component.includes('setExpandedReport("research")'));
+  assert.ok(component.includes('setExpandedReport("history")'));
+  assert.ok(component.includes("<Maximize2"));
+  assert.ok(component.includes("<Minimize2"));
+  assert.ok(component.includes('className="research-expanded-view"'));
+  assert.ok(component.includes('className="research-expanded-document"'));
+  assert.ok(css.includes(".research-expanded-view"));
+  assert.ok(css.includes(".research-expanded-document.research-markdown"));
+});
