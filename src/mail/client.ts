@@ -136,6 +136,91 @@ export class MailGateway {
       return messages.map(message => this.toSummary(message)).sort((a, b) => b.uid - a.uid);
     });
   }
+
+  async searchMessageUids(folder: string, criteria: SearchCriteria): Promise<number[]> {
+    return this.withMailbox(folder, async client => {
+      const query: SearchObject = {};
+      if (criteria.from) query.from = criteria.from;
+      if (criteria.to) query.to = criteria.to;
+      if (criteria.cc) query.cc = criteria.cc;
+      if (criteria.subject) query.subject = criteria.subject;
+      if (criteria.text) query.text = criteria.text;
+      if (criteria.unreadOnly) query.seen = false;
+      if (criteria.since) query.since = criteria.since;
+      if (criteria.before) query.before = criteria.before;
+      if (!Object.keys(query).length) query.all = true;
+      const found = await client.search(query, { uid: true });
+      return Array.isArray(found) ? [...found].sort((a, b) => b - a) : [];
+    });
+  }
+
+  async loadResearchMessages(folder: string, uids: number[], limit = 300): Promise<Array<{
+    uid: number;
+    subject: string;
+    date?: string;
+    from: Array<{ name?: string; address: string }>;
+    to: Array<{ name?: string; address: string }>;
+    cc: Array<{ name?: string; address: string }>;
+    text: string;
+    security: SecurityAssessment;
+    truncated: boolean;
+  }>> {
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 500) throw new Error('Invalid research limit');
+    const selected = [...new Set(uids.filter(uid => Number.isSafeInteger(uid) && uid > 0 && uid <= 4294967295))].slice(0, limit);
+    if (!selected.length) return [];
+
+    return this.withMailbox(folder, async client => {
+      const metadata = await client.fetchAll(selected, { envelope: true, internalDate: true, size: true }, { uid: true });
+      const allowed = metadata
+        .filter(message => typeof message.size === 'number' && message.size >= 0 && message.size <= this.config.limits.maxRawMessageBytes)
+        .map(message => message.uid);
+      if (!allowed.length) return [];
+
+      const loaded = await client.fetchAll(allowed, { envelope: true, internalDate: true, source: true }, { uid: true });
+      const results: Array<{
+        uid: number;
+        subject: string;
+        date?: string;
+        from: Array<{ name?: string; address: string }>;
+        to: Array<{ name?: string; address: string }>;
+        cc: Array<{ name?: string; address: string }>;
+        text: string;
+        security: SecurityAssessment;
+        truncated: boolean;
+      }> = [];
+
+      for (const message of loaded) {
+        if (!message.source || message.source.byteLength > this.config.limits.maxRawMessageBytes) continue;
+        const parsed = await PostalMime.parse(message.source, { maxNestingDepth: 50 });
+        const rawText = parsed.text || '';
+        const maxBody = Math.min(this.config.limits.maxMessageBodyChars, 16000);
+        const text = clampText(rawText, maxBody);
+        const security = assessEmailSecurity({
+          direction: folder === 'INBOX.Sent' ? 'outbound' : 'inbound',
+          subject: message.envelope?.subject || '',
+          text: rawText.slice(0, 50000),
+          from: envelopeAddresses(message.envelope?.from)[0]?.address,
+          attachments: parsed.attachments.map(attachment => ({
+            filename: attachment.filename ?? undefined,
+            mimeType: attachment.mimeType,
+          })),
+        });
+        results.push({
+          uid: message.uid,
+          subject: message.envelope?.subject || '(no subject)',
+          ...(message.internalDate instanceof Date ? { date: message.internalDate.toISOString() } : {}),
+          from: envelopeAddresses(message.envelope?.from),
+          to: envelopeAddresses(message.envelope?.to),
+          cc: envelopeAddresses(message.envelope?.cc),
+          text,
+          security,
+          truncated: rawText.length > text.length,
+        });
+      }
+
+      return results.sort((a, b) => b.uid - a.uid);
+    });
+  }
   async getMessage(folder: string, uid: number): Promise<ParsedMessage> {
     assertMessageIdentity(folder, uid);
     const loaded = await this.withMailbox(folder, async client => {
