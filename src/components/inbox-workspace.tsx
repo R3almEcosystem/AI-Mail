@@ -20,6 +20,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { AiAction, MailMessage } from "@/lib/types";
+import { MAIL_TAG_OPTIONS, mailTagLabel, type MailTag } from "@/lib/mail-tags";
 import { MessageSecurityPanel } from "./message-security-panel";
 
 function initials(name: string) {
@@ -43,6 +44,7 @@ export function InboxWorkspace({
   search,
   loading,
   aiLoading,
+  actionLoading = false,
   aiResult,
   demo,
   aiConfigured = false,
@@ -69,6 +71,7 @@ export function InboxWorkspace({
   search: string;
   loading: boolean;
   aiLoading: boolean;
+  actionLoading?: boolean;
   aiResult: string;
   demo: boolean;
   aiConfigured?: boolean;
@@ -82,7 +85,7 @@ export function InboxWorkspace({
   onFilterChange: (filter: "all" | "unread" | "flagged") => void;
   onSearchChange: (value: string) => void;
   onSelect: (message: MailMessage) => void;
-  onAction: (action: "read" | "unread" | "flag" | "unflag" | "archive") => void;
+  onAction: (action: "read" | "unread" | "flag" | "unflag" | "archive" | "tag" | "untag", tag?: MailTag) => void;
   onAiAction: (action: AiAction) => void;
   onCompose: () => void;
   onRefresh: () => void;
@@ -90,7 +93,16 @@ export function InboxWorkspace({
   onOpenResearch: () => void;
 }) {
   const [mobileDetail, setMobileDetail] = useState(false);
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const mailListRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setTagMenuOpen(false);
+    setMoreMenuOpen(false);
+    setDetailsOpen(false);
+  }, [selected?.folder, selected?.uid]);
 
   useEffect(() => {
     const list = mailListRef.current;
@@ -118,7 +130,7 @@ export function InboxWorkspace({
           <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search mail" aria-label="Search mail" />
         </div>
         <div className="filter-tabs" role="tablist" aria-label="Inbox filters">
-          {(sentMode ? (["all", "flagged"] as const) : (["all", "unread", "flagged"] as const)).map((item) => (
+          {(["all", "unread", "flagged"] as const).map((item) => (
             <button type="button" role="tab" aria-selected={filter === item} className={filter === item ? "active" : ""} onClick={() => onFilterChange(item)} key={item}>
               {item[0].toUpperCase() + item.slice(1)}
             </button>
@@ -151,6 +163,9 @@ export function InboxWorkspace({
                 <span className="mail-item-meta">
                   <i className={`priority-dot priority-dot--${message.priority}`} />
                   <em>{message.category}</em>
+                  {message.flagged ? <span className="mail-item-state"><Star size={11} /> Flagged</span> : null}
+                  {(message.tags || []).slice(0, 2).map((tag) => <span className="mail-item-tag" key={tag}>{mailTagLabel(tag)}</span>)}
+                  {(message.tags || []).length > 2 ? <span className="mail-item-tag">+{(message.tags || []).length - 2}</span> : null}
                   {message.attachments ? <span><Paperclip size={12} />{message.attachments}</span> : null}
                 </span>
               </span>
@@ -176,22 +191,111 @@ export function InboxWorkspace({
           <>
             <div className="message-toolbar">
               <button type="button" className="icon-button mobile-back" onClick={() => setMobileDetail(false)} aria-label="Back to messages"><ArrowLeft size={17} /></button>
-              {!sentMode ? <button type="button" className="icon-button" onClick={() => onAction(selected.unread ? "read" : "unread")} aria-label={selected.unread ? "Mark as read" : "Mark as unread"}><MailOpen size={17} /></button> : null}
-              <button type="button" className="icon-button" onClick={() => onAction("archive")} aria-label="Archive"><Archive size={17} /></button>
-              <button type="button" className={`icon-button ${selected.flagged ? "icon-button--active" : ""}`} onClick={() => onAction(selected.flagged ? "unflag" : "flag")} aria-label="Flag message"><Star size={17} /></button>
+              <button
+                type="button"
+                className={`icon-button ${selected.unread ? "" : "icon-button--active"}`}
+                onClick={() => onAction(selected.unread ? "read" : "unread")}
+                aria-label={selected.unread ? "Mark as read" : "Mark as unread"}
+                disabled={actionLoading}
+              ><MailOpen size={17} /></button>
+              <button type="button" className="icon-button" onClick={() => onAction("archive")} aria-label="Archive message" disabled={actionLoading}><Archive size={17} /></button>
+              <button
+                type="button"
+                className={`icon-button ${selected.flagged ? "icon-button--active" : ""}`}
+                onClick={() => onAction(selected.flagged ? "unflag" : "flag")}
+                aria-label={selected.flagged ? "Unflag message" : "Flag message"}
+                disabled={actionLoading}
+              ><Star size={17} /></button>
               <span className="toolbar-divider" />
-              <button type="button" className="icon-button" aria-label="Tag"><Tag size={17} /></button>
-              <button type="button" className="icon-button" aria-label="More options"><MoreHorizontal size={18} /></button>
+              <div className="message-toolbar-menu">
+                <button
+                  type="button"
+                  className={`icon-button ${(selected.tags || []).length ? "icon-button--active" : ""}`}
+                  aria-label="Manage message tags"
+                  aria-expanded={tagMenuOpen}
+                  onClick={() => { setTagMenuOpen((open) => !open); setMoreMenuOpen(false); }}
+                  disabled={actionLoading}
+                ><Tag size={17} /></button>
+                {tagMenuOpen ? (
+                  <div className="message-popover message-tag-menu" role="menu" aria-label="Message tags">
+                    <header><strong>Message tags</strong><small>Saved to the mailbox</small></header>
+                    {MAIL_TAG_OPTIONS.map((option) => {
+                      const active = (selected.tags || []).includes(option.id);
+                      return (
+                        <button
+                          type="button"
+                          role="menuitemcheckbox"
+                          aria-checked={active}
+                          key={option.id}
+                          onClick={() => onAction(active ? "untag" : "tag", option.id)}
+                          disabled={actionLoading}
+                        >
+                          <span className={`message-tag-dot message-tag-dot--${option.id}`} />
+                          <span>{option.label}</span>
+                          {active ? <Check size={14} /> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+              <div className="message-toolbar-menu">
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="More message actions"
+                  aria-expanded={moreMenuOpen}
+                  onClick={() => { setMoreMenuOpen((open) => !open); setTagMenuOpen(false); }}
+                  disabled={actionLoading}
+                ><MoreHorizontal size={18} /></button>
+                {moreMenuOpen ? (
+                  <div className="message-popover message-more-menu" role="menu" aria-label="More message actions">
+                    <button type="button" role="menuitem" onClick={() => { onAction(selected.unread ? "read" : "unread"); setMoreMenuOpen(false); }}>
+                      <MailOpen size={14} /> {selected.unread ? "Mark as read" : "Mark as unread"}
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { onAction(selected.flagged ? "unflag" : "flag"); setMoreMenuOpen(false); }}>
+                      <Star size={14} /> {selected.flagged ? "Remove flag" : "Flag message"}
+                    </button>
+                    <button type="button" role="menuitem" onClick={() => { setMoreMenuOpen(false); setTagMenuOpen(true); }}>
+                      <Tag size={14} /> Manage tags
+                    </button>
+                    <button type="button" role="menuitem" className="message-menu-danger" onClick={() => { onAction("archive"); setMoreMenuOpen(false); }}>
+                      <Archive size={14} /> Archive message
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             </div>
             <header className="message-header">
-              <span className={`priority-pill priority-pill--${selected.priority}`}>{selected.priority}</span>
+              <div className="message-status-row">
+                <span className={`priority-pill priority-pill--${selected.priority}`}>{selected.priority}</span>
+                <span className={selected.unread ? "message-state-pill message-state-pill--unread" : "message-state-pill"}>{selected.unread ? "Unread" : "Read"}</span>
+                {selected.flagged ? <span className="message-state-pill message-state-pill--flagged"><Star size={10} /> Flagged</span> : null}
+                {(selected.tags || []).map((tag) => <span className="message-tag-pill" key={tag}>{mailTagLabel(tag)}</span>)}
+              </div>
               <h1>{selected.subject}</h1>
               <div className="sender-line">
                 <span className={`sender-avatar sender-avatar--${selected.uid % 4}`}>{initials(selected.sender)}</span>
                 <span><strong>{sentMode ? `To: ${selected.recipientLabel || "Recipient"}` : selected.sender}</strong><small>{sentMode ? selected.senderEmail : selected.senderEmail}</small></span>
                 <time>{formatDate(selected.receivedAt)}</time>
-                <button type="button" className="icon-button" aria-label="Message details"><ChevronDown size={15} /></button>
+                <button
+                  type="button"
+                  className={`icon-button message-details-toggle ${detailsOpen ? "icon-button--active" : ""}`}
+                  aria-label={detailsOpen ? "Hide message details" : "Show message details"}
+                  aria-expanded={detailsOpen}
+                  onClick={() => setDetailsOpen((open) => !open)}
+                ><ChevronDown size={15} /></button>
               </div>
+              {detailsOpen ? (
+                <dl className="message-details-card">
+                  <div><dt>From</dt><dd>{selected.sender}{selected.senderEmail ? ` <${selected.senderEmail}>` : ""}</dd></div>
+                  <div><dt>To</dt><dd>{selected.recipientLabel || (sentMode ? "Recipient" : "Current mailbox")}</dd></div>
+                  <div><dt>Date</dt><dd>{new Date(selected.receivedAt).toLocaleString()}</dd></div>
+                  <div><dt>Mailbox</dt><dd>{sentMode ? "Sent" : "Inbox"}</dd></div>
+                  <div><dt>Status</dt><dd>{selected.unread ? "Unread" : "Read"} · {selected.flagged ? "Flagged" : "Not flagged"}</dd></div>
+                  <div><dt>Tags</dt><dd>{(selected.tags || []).length ? (selected.tags || []).map(mailTagLabel).join(", ") : "None"}</dd></div>
+                </dl>
+              ) : null}
             </header>
             <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
             <div className="message-body">
@@ -236,6 +340,9 @@ export function InboxWorkspace({
               <span><strong>Context signals</strong><small>Derived from this message</small></span>
               <div><span>Category</span><b>{selected.category}</b></div>
               <div><span>Priority</span><b>{selected.priority}</b></div>
+              <div><span>Mailbox status</span><b>{selected.unread ? "Unread" : "Read"}</b></div>
+              <div><span>Flag</span><b>{selected.flagged ? "Flagged" : "None"}</b></div>
+              <div><span>Tags</span><b>{(selected.tags || []).length ? (selected.tags || []).map(mailTagLabel).join(", ") : "None"}</b></div>
               <div><span>Response</span><b>{sentMode ? "Sent" : selected.unread ? "Pending" : "Reviewed"}</b></div>
             </div>
           </>
