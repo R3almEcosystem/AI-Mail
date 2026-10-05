@@ -5,7 +5,8 @@ export type MailServiceConfig = {
   limits: { maxMessageBodyChars: number; maxRawMessageBytes: number; maxSearchResults: number; maxRecipients: number; outboundAllowedDomains: readonly string[] };
 };
 export type MailAction = 'read' | 'unread' | 'flag' | 'unflag' | 'archive' | 'tag' | 'untag';
-export type MailTag = 'follow-up' | 'waiting' | 'finance' | 'legal' | 'technology' | 'personal';
+export const MAIL_TAG_IDS = ['follow-up', 'waiting', 'finance', 'legal', 'technology', 'personal'] as const;
+export type MailTag = (typeof MAIL_TAG_IDS)[number];
 const MAIL_TAG_FLAGS: Record<MailTag, string> = {
   'follow-up': 'R3almFollowUp',
   waiting: 'R3almWaiting',
@@ -18,6 +19,10 @@ export function mailTagFlag(tag: MailTag): string {
   const flag = MAIL_TAG_FLAGS[tag];
   if (!flag) throw new Error('Invalid mail tag');
   return flag;
+}
+export function mailTagsFromFlags(flags: readonly string[]): MailTag[] {
+  const normalized = new Set(flags.map(flag => flag.toLowerCase()));
+  return MAIL_TAG_IDS.filter(tag => normalized.has(MAIL_TAG_FLAGS[tag].toLowerCase()));
 }
 export function checkedNumber(value: string | undefined, fallback: number, min: number, max: number): number {
   const number = value === undefined ? fallback : Number(value);
