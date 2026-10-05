@@ -44,6 +44,17 @@ const MAX_MESSAGES_PER_FOLDER = 250;
 const MAX_COLLECTION_CHARS = 1500000;
 const MAX_REPORT_CORPUS_CHARS = 150000;
 
+export function buildMailResearchWarnings(capped: boolean, excluded: number): string[] {
+  const warnings: string[] = [];
+  if (capped) {
+    warnings.push("This search found more matching messages than one research request can safely process. The newest matches are included; narrow the query or date range for older results.");
+  }
+  if (excluded > 0) {
+    warnings.push(excluded + " matching message(s) were not included in the generated output because of processing or security limits.");
+  }
+  return warnings;
+}
+
 function responseText(payload: unknown): string {
   if (!payload || typeof payload !== "object") return "";
   const output = (payload as { output?: Array<{ content?: Array<{ type?: string; text?: string }> }> }).output;
@@ -457,10 +468,12 @@ export async function runMailResearch(query: string, selectedScope: MailResearch
       excluded: 0,
       capped: false,
       model: null as string | null,
+      warnings: [],
     };
   }
 
   if (plan.mode === "collection") {
+    const excluded = Math.max(0, matchedCount - messages.length);
     return {
       title: plan.title,
       markdown: collectionDocument(plan, messages, matchedCount, capped),
@@ -468,13 +481,15 @@ export async function runMailResearch(query: string, selectedScope: MailResearch
       mode: plan.mode,
       matched: matchedCount,
       included: messages.length,
-      excluded: Math.max(0, matchedCount - messages.length),
+      excluded,
       capped,
       model: null as string | null,
+      warnings: buildMailResearchWarnings(capped, excluded),
     };
   }
 
   const report = await analyticalReport(query, plan, messages, matchedCount, capped);
+  const excluded = report.excluded + Math.max(0, matchedCount - messages.length);
   return {
     title: plan.title,
     markdown: report.markdown,
@@ -482,8 +497,9 @@ export async function runMailResearch(query: string, selectedScope: MailResearch
     mode: plan.mode,
     matched: matchedCount,
     included: report.included,
-    excluded: report.excluded + Math.max(0, matchedCount - messages.length),
+    excluded,
     capped,
     model: report.model,
+    warnings: buildMailResearchWarnings(capped, excluded),
   };
 }
