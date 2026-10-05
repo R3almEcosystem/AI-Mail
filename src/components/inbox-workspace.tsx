@@ -111,13 +111,18 @@ export function InboxWorkspace({
   const [tagMenuOpen, setTagMenuOpen] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [bodyView, setBodyView] = useState<"text" | "html">("text");
   const mailListRef = useRef<HTMLDivElement | null>(null);
+
+  const selectedHasPlainText = Boolean(selected?.hasPlainTextBody ?? selected?.body?.trim());
+  const selectedHasSecureHtmlFallback = Boolean(selected && !selectedHasPlainText && selected.safeHtmlBody);
 
   useEffect(() => {
     setTagMenuOpen(false);
     setMoreMenuOpen(false);
     setDetailsOpen(false);
-  }, [selected?.folder, selected?.uid]);
+    setBodyView(selectedHasSecureHtmlFallback ? "html" : "text");
+  }, [selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
 
   useEffect(() => {
     const list = mailListRef.current;
@@ -319,10 +324,59 @@ export function InboxWorkspace({
               ) : null}
             </header>
             <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
-            <div className="message-body">
-              {(selected.body || selected.preview).split("\n").map((paragraph, index) => (
-                <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>
-              ))}
+            <div className="message-body-region">
+              {selectedHasSecureHtmlFallback ? (
+                <div className="message-body-tabs" role="tablist" aria-label="Message body format">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={bodyView === "text"}
+                    className={bodyView === "text" ? "active" : ""}
+                    onClick={() => setBodyView("text")}
+                  >
+                    Plain text
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={bodyView === "html"}
+                    className={bodyView === "html" ? "active" : ""}
+                    onClick={() => setBodyView("html")}
+                  >
+                    Secure HTML
+                  </button>
+                  <span>Scripts, forms, remote images, links, and network access blocked</span>
+                </div>
+              ) : null}
+              {selectedHasSecureHtmlFallback && bodyView === "html" && selected.safeHtmlBody ? (
+                <div className="secure-html-message">
+                  <div className="secure-html-notice">
+                    <strong>Protected HTML view</strong>
+                    <span>Active content and external tracking resources are disabled.</span>
+                  </div>
+                  <iframe
+                    className="secure-html-frame"
+                    title={`Secure HTML body for ${selected.subject}`}
+                    sandbox=""
+                    referrerPolicy="no-referrer"
+                    srcDoc={selected.safeHtmlBody}
+                  />
+                </div>
+              ) : (
+                <div className="message-body">
+                  {selectedHasPlainText ? (
+                    (selected.body || selected.preview).split("\n").map((paragraph, index) => (
+                      <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>
+                    ))
+                  ) : (
+                    <div className="message-body-unavailable">
+                      <MailOpen size={22} />
+                      <strong>No plain-text body</strong>
+                      <span>{selected.safeHtmlBody ? "Use the Secure HTML tab to view this message." : "This message does not contain a displayable plain-text or HTML body."}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="message-actions">
               {!sentMode ? <button type="button" className="secondary-button" onClick={onCompose}><Reply size={16} /> Reply</button> : null}
