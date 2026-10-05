@@ -4,7 +4,7 @@ export type MailServiceConfig = {
   smtp: { host: string; port: number; secure: boolean; username?: string; password?: string; from?: string };
   limits: { maxMessageBodyChars: number; maxRawMessageBytes: number; maxSearchResults: number; maxRecipients: number; outboundAllowedDomains: readonly string[] };
 };
-export type MailAction = 'read' | 'unread' | 'flag' | 'unflag' | 'archive';
+export type MailAction = 'read' | 'unread' | 'flag' | 'unflag' | 'archive' | 'tag' | 'untag';
 export function checkedNumber(value: string | undefined, fallback: number, min: number, max: number): number {
   const number = value === undefined ? fallback : Number(value);
   if (!Number.isSafeInteger(number) || number < min || number > max) throw new Error('Invalid mail limit or port configuration');
