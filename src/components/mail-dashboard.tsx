@@ -195,7 +195,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     setSelected(message);
     setAiResult("");
     if (openInbox) setSection(message.direction === "outbound" ? "sent" : "inbox");
-    if (message.body) return;
+    if (message.bodyLoaded || message.body) return;
 
     try {
       const folder = message.folder || (message.direction === "outbound" ? "INBOX.Sent" : "INBOX");
