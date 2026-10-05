@@ -2480,3 +2480,27 @@ button[aria-label]:disabled::after {
 .global-mail-policy-card .setting-row > span.status-text {
   flex: 0 0 auto;
 }
+
+
+/* Admin AI Rules */
+.admin-ai-rules-page {
+  width: 100%;
+  min-width: 0;
+}
+.admin-ai-rules-page .settings-page {
+  max-width: none;
+  margin: 0;
+}
+.admin-ai-rules-page .settings-intro {
+  margin-bottom: 16px;
+}
+.admin-ai-rules-page .rules-hero,
+.admin-ai-rules-page .rules-panel {
+  width: 100%;
+}
+.admin-ai-rules-page .rule-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+}
+.admin-ai-rules-page .rule-copy {
+  min-width: 0;
+}
