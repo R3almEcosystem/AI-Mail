@@ -1,12 +1,11 @@
 import "server-only";
 import { MailGateway, type MessageSummary, type ParsedMessage, type SearchCriteria } from "../mail/client";
-import { browserMailConfig, serviceHost, type MailAction, type MailServiceConfig } from "../mail/policy";
+import { browserMailConfig, mailTagsFromFlags, serviceHost, type MailAction, type MailServiceConfig, type MailTag } from "../mail/policy";
 import { getSettings } from "@/lib/admin-data";
 import { getServiceSecret } from "@/lib/service-secrets";
 import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
 import type { AiRule } from "@/lib/types";
 import type { MailListResponse, MailMessage, MailPriority } from "@/lib/types";
-import { mailTagsFromFlags, type MailTag } from "@/lib/mail-tags";
 
 function domainList(value: string): string[] {
   return value.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
