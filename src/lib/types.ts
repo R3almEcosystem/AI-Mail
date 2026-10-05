@@ -1,8 +1,8 @@
 import type { SecurityAssessment } from "../security/email-security";
 import type { AttachmentInspection } from "../security/attachment-scan";
-import type { MailTag } from "@/lib/mail-tags";
 
 export type MailPriority = "urgent" | "important" | "normal" | "low";
+export type MailTag = "follow-up" | "waiting" | "finance" | "legal" | "technology" | "personal";
 
 export type MailMessage = {
   uid: number;
