@@ -177,3 +177,37 @@ export type AuditEvent = {
   target: string;
   createdAt: string;
 };
+
+export type AiCallStatus = "succeeded" | "failed";
+
+export type AiCallAuditEntry = {
+  id: string;
+  provider: string;
+  operation: string;
+  endpoint: string;
+  model: string | null;
+  actorName: string | null;
+  accountId: string | null;
+  status: AiCallStatus;
+  inputTokens: number | null;
+  cachedInputTokens: number | null;
+  cacheWriteTokens: number | null;
+  outputTokens: number | null;
+  totalTokens: number | null;
+  estimatedCostUsd: number | null;
+  responseTimeMs: number;
+  providerRequestId: string | null;
+  errorCode: string | null;
+  createdAt: string;
+};
+
+export type AiCallAuditSummary = {
+  calls: number;
+  successes: number;
+  failures: number;
+  tokenizedCalls: number;
+  pricedCalls: number;
+  totalTokens: number;
+  estimatedCostUsd: number;
+  averageResponseTimeMs: number;
+};
