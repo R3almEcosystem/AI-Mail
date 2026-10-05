@@ -9,10 +9,35 @@ import { MailResearchModal, MailResearchPanel } from "@/components/mail-research
 import { OverviewView } from "@/components/overview-view";
 import { Sidebar, type DashboardSection } from "@/components/sidebar";
 import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-views";
-import type { AiAction, AlertGroup, AppStatus, MailListResponse, MailMessage, SessionUser } from "@/lib/types";
+import type { AiAction, AlertGroup, AppStatus, MailListResponse, MailMessage, MailTag, SessionUser } from "@/lib/types";
 import { initialAlerts, type AlertRecord } from "@/lib/alerts";
 import { webPath } from "@/lib/web-path";
-import { mailTagLabel, mailTagsFromFlags, type MailTag } from "@/lib/mail-tags";
+
+const mailTagLabels: Record<MailTag, string> = {
+  "follow-up": "Follow Up",
+  waiting: "Waiting",
+  finance: "Finance",
+  legal: "Legal",
+  technology: "Technology",
+  personal: "Personal",
+};
+
+function mailTagLabel(tag: MailTag) {
+  return mailTagLabels[tag];
+}
+
+function mailTagsFromFlags(flags: readonly string[]): MailTag[] {
+  const map: Array<[MailTag, string]> = [
+    ["follow-up", "r3almfollowup"],
+    ["waiting", "r3almwaiting"],
+    ["finance", "r3almfinance"],
+    ["legal", "r3almlegal"],
+    ["technology", "r3almtechnology"],
+    ["personal", "r3almpersonal"],
+  ];
+  const normalized = new Set(flags.map((flag) => flag.toLowerCase()));
+  return map.filter(([, flag]) => normalized.has(flag)).map(([tag]) => tag);
+}
 
 const sectionTitles: Record<DashboardSection, { kicker: string; title: string }> = {
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
