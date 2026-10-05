@@ -9,7 +9,7 @@ import { MailResearchModal, MailResearchPanel } from "@/components/mail-research
 import { OverviewView } from "@/components/overview-view";
 import { Sidebar, type DashboardSection } from "@/components/sidebar";
 import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-views";
-import type { AiAction, AlertGroup, AppStatus, MailListResponse, MailMessage, MailTag, SessionUser } from "@/lib/types";
+import type { AiAction, AlertGroup, AppStatus, MailAccountSummary, MailListResponse, MailMessage, MailTag, SessionUser } from "@/lib/types";
 import { initialAlerts, type AlertRecord } from "@/lib/alerts";
 import { webPath } from "@/lib/web-path";
 
@@ -74,20 +74,23 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [researchOpen, setResearchOpen] = useState(false);
   const [researchScope, setResearchScope] = useState<"inbox" | "sent" | "both">("both");
   const [demo, setDemo] = useState(true);
+  const [mailAccounts, setMailAccounts] = useState<MailAccountSummary[]>([]);
+  const [activeAccountId, setActiveAccountId] = useState("all");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const selectionVersion = useRef(0);
   const aiVersion = useRef(0);
   const loadVersion = useRef(0);
   const autoSummarySeen = useRef<Set<string>>(new Set());
   const mailActionInFlight = useRef(false);
 
-  const loadData = useCallback(async (folder = "INBOX") => {
+  const loadData = useCallback(async (folder = "INBOX", accountId = "all") => {
     const version = ++loadVersion.current;
     const selectionAtStart = ++selectionVersion.current;
     aiVersion.current++; setAiLoading(false); setAiResult("");
     setLoading(true);
     try {
       const [mailResponse, statusResponse, groupsResponse] = await Promise.all([
-        fetch(`${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}`, { cache: "no-store" }),
+        fetch(`${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}&accountId=${encodeURIComponent(accountId)}`, { cache: "no-store" }),
         fetch(webPath("/api/status"), { cache: "no-store" }),
         fetch(webPath("/api/alert-groups"), { cache: "no-store" }),
       ]);
@@ -103,6 +106,9 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       setMailboxTotal(mailData.total);
       setHasMore(mailData.hasMore);
       setNextBeforeUid(mailData.nextBeforeUid);
+      setNextCursor(mailData.nextCursor || null);
+      setMailAccounts(mailData.accounts || []);
+      setActiveAccountId(mailData.accountId || accountId);
       setActiveFolder(folder === "INBOX.Sent" ? "INBOX.Sent" : "INBOX");
       if (folder === "INBOX") setInboxUnread(mailData.unread);
       setDemo(mailData.demo);
@@ -114,7 +120,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       setSelected((current) => {
         if (selectionAtStart !== selectionVersion.current) return current;
         if (!current) return mailData.messages[0] || null;
-        return mailData.messages.find((message) => message.uid === current.uid) || mailData.messages[0] || null;
+        return mailData.messages.find((message) => message.uid === current.uid && (message.accountId || "primary") === (current.accountId || "primary")) || mailData.messages[0] || null;
       });
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Unable to load AI-Mail.");
@@ -124,18 +130,18 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }, []);
 
   useEffect(() => {
-    void loadData("INBOX");
+    void loadData("INBOX", "all");
   }, [loadData]);
 
   const loadMore = useCallback(async () => {
-    if (loading || loadingMore || !hasMore || nextBeforeUid === null) return;
+    if (loading || loadingMore || !hasMore || (activeAccountId === "all" ? !nextCursor : nextBeforeUid === null)) return;
     const folder = activeFolder;
-    const cursor = nextBeforeUid;
+    const cursor = activeAccountId === "all" ? nextCursor : String(nextBeforeUid);
     const version = loadVersion.current;
     setLoadingMore(true);
     try {
       const response = await fetch(
-        `${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}&beforeUid=${cursor}`,
+        `${webPath("/api/mail")}?limit=50&folder=${encodeURIComponent(folder)}&accountId=${encodeURIComponent(activeAccountId)}&${activeAccountId === "all" ? "cursor=" + encodeURIComponent(cursor || "") : "beforeUid=" + cursor}`,
         { cache: "no-store" },
       );
       const data = (await response.json().catch(() => null)) as MailListResponse | { error?: string } | null;
@@ -144,20 +150,22 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       }
       if (version !== loadVersion.current) return;
       setMessages((current) => {
-        const seen = new Set(current.map((message) => `${message.folder || folder}:${message.uid}`));
-        const older = data.messages.filter((message) => !seen.has(`${message.folder || folder}:${message.uid}`));
+        const seen = new Set(current.map((message) => `${message.accountId || "primary"}:${message.folder || folder}:${message.uid}`));
+        const older = data.messages.filter((message) => !seen.has(`${message.accountId || "primary"}:${message.folder || folder}:${message.uid}`));
         return [...current, ...older];
       });
       setMailboxTotal(data.total);
       setHasMore(data.hasMore);
       setNextBeforeUid(data.nextBeforeUid);
+      setNextCursor(data.nextCursor || null);
+      if (data.accounts) setMailAccounts(data.accounts);
       if (folder === "INBOX") setInboxUnread(data.unread);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Unable to load older messages.");
     } finally {
       setLoadingMore(false);
     }
-  }, [activeFolder, hasMore, loading, loadingMore, nextBeforeUid]);
+  }, [activeAccountId, activeFolder, hasMore, loading, loadingMore, nextBeforeUid, nextCursor]);
 
   useEffect(() => {
     if (!toast) return;
@@ -169,7 +177,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     const body = selected?.body?.trim();
     if (!body || !selected || !status?.openai || (!status.aiAutoSummarize && !selected.aiAutoSummary) || aiLoading || aiResult) return;
     const ruleRequestedSummary = Boolean(selected.aiAutoSummary);
-    const summaryKey = `${selected.folder || "INBOX"}:${selected.uid}`;
+    const summaryKey = `${selected.accountId || "primary"}:${selected.folder || "INBOX"}:${selected.uid}`;
     if ((!ruleRequestedSummary && body.split(/\s+/).length <= 250) || autoSummarySeen.current.has(summaryKey)) return;
     autoSummarySeen.current.add(summaryKey);
     void runAiAction("summarize");
@@ -199,13 +207,14 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
 
     try {
       const folder = message.folder || (message.direction === "outbound" ? "INBOX.Sent" : "INBOX");
-      const response = await fetch(`${webPath(`/api/mail/${message.uid}`)}?folder=${encodeURIComponent(folder)}`, { cache: "no-store" });
+      const accountId = message.accountId || "primary";
+      const response = await fetch(`${webPath(`/api/mail/${message.uid}`)}?folder=${encodeURIComponent(folder)}&accountId=${encodeURIComponent(accountId)}`, { cache: "no-store" });
       if (!response.ok) throw new Error("Unable to load the full message.");
       const data = (await response.json()) as { message: MailMessage };
       if (version !== selectionVersion.current) return;
       if (data?.message?.uid !== message.uid) throw new Error("The message identity could not be confirmed.");
       setMessages((current) =>
-        current.map((item) => (item.uid === message.uid ? data.message : item)),
+        current.map((item) => (item.uid === message.uid && (item.accountId || "primary") === (message.accountId || "primary") ? data.message : item)),
       );
       setSelected(data.message);
     } catch (error) {
@@ -216,6 +225,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   async function applyAction(action: "read" | "unread" | "flag" | "unflag" | "archive" | "tag" | "untag", tag?: MailTag) {
     if (!selected || mailActionInFlight.current) return;
     const targetUid = selected.uid;
+    const targetAccountId = selected.accountId || "primary";
     const selectionAtAction = selectionVersion.current;
     const wasUnread = selected.unread;
     const folder = selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX");
@@ -225,7 +235,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       const response = await fetch(webPath(`/api/mail/${targetUid}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, folder, ...(tag ? { tag } : {}) }),
+        body: JSON.stringify({ action, folder, accountId: targetAccountId, ...(tag ? { tag } : {}) }),
       });
       const payload = (await response.json().catch(() => null)) as {
         error?: string;
@@ -240,7 +250,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       if (action === "archive") {
         if (selected.direction !== "outbound" && wasUnread) setInboxUnread((current) => Math.max(0, current - 1));
         setMailboxTotal((current) => Math.max(0, current - 1));
-        const nextMessages = messages.filter((message) => message.uid !== targetUid);
+        const nextMessages = messages.filter((message) => !(message.uid === targetUid && (message.accountId || "primary") === targetAccountId));
         setMessages(nextMessages);
         if (selectionAtAction === selectionVersion.current) {
           selectionVersion.current++; aiVersion.current++; setAiLoading(false); setAiResult("");
@@ -252,7 +262,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
 
       const canonicalFlags = payload?.result?.flags;
       const update = (message: MailMessage): MailMessage => {
-        if (message.uid !== targetUid) return message;
+        if (message.uid !== targetUid || (message.accountId || "primary") !== targetAccountId) return message;
         if (canonicalFlags) {
           return {
             ...message,
@@ -275,7 +285,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         setInboxUnread((current) => Math.max(0, current + (updatedSelected.unread ? 1 : -1)));
       }
       setMessages((current) => current.map(update));
-      setSelected((current) => (current && current.uid === targetUid ? update(current) : current));
+      setSelected((current) => (current && current.uid === targetUid && (current.accountId || "primary") === targetAccountId ? update(current) : current));
 
       if (action === "read") setToast("Message marked as read.");
       else if (action === "unread") setToast("Message marked as unread.");
@@ -301,7 +311,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       const response = await fetch(webPath("/api/ai"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, uid, folder: selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX") }),
+        body: JSON.stringify({ action, uid, folder: selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX"), accountId: selected.accountId || "primary" }),
       });
       const result = (await response.json().catch(() => null)) as { text?: string; error?: string; demo?: boolean; uid?: number; truncated?: boolean } | null;
       if (version !== aiVersion.current || selectionAtStart !== selectionVersion.current) return;
@@ -322,12 +332,22 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     if (nextSection === "inbox" || nextSection === "overview") {
       setFilter("all");
       setSearch("");
-      void loadData("INBOX");
+      void loadData("INBOX", activeAccountId);
     } else if (nextSection === "sent") {
       setFilter("all");
       setSearch("");
-      void loadData("INBOX.Sent");
+      void loadData("INBOX.Sent", activeAccountId);
     }
+  }
+
+  function changeMailAccount(accountId: string) {
+    setActiveAccountId(accountId);
+    setFilter("all");
+    setSearch("");
+    setSelected(null);
+    setNextBeforeUid(null);
+    setNextCursor(null);
+    void loadData(activeFolder, accountId);
   }
 
   const closeAlerts = useCallback(() => setAlertsOpen(false), []);
@@ -410,7 +430,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
               mailboxLabel="Inbox"
-              mailboxEyebrow="PRIMARY"
+              mailboxEyebrow={activeAccountId === "all" ? "ALL ACCOUNTS" : (mailAccounts.find((account) => account.id === activeAccountId)?.label || "MAILBOX")}
+              accounts={mailAccounts}
+              activeAccountId={activeAccountId}
+              onAccountChange={changeMailAccount}
               loadedCount={messages.length}
               totalCount={mailboxTotal}
               hasMore={hasMore}
@@ -421,7 +444,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onAction={(action, tag) => void applyAction(action, tag)}
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
-              onRefresh={() => void loadData("INBOX")}
+              onRefresh={() => void loadData("INBOX", activeAccountId)}
               onLoadMore={() => void loadMore()}
               onOpenResearch={() => { setResearchScope("both"); setResearchOpen(true); }}
             />
@@ -438,7 +461,10 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
               mailboxLabel="Sent"
-              mailboxEyebrow="OUTBOUND"
+              mailboxEyebrow={activeAccountId === "all" ? "ALL ACCOUNTS" : (mailAccounts.find((account) => account.id === activeAccountId)?.label || "OUTBOUND")}
+              accounts={mailAccounts}
+              activeAccountId={activeAccountId}
+              onAccountChange={changeMailAccount}
               loadedCount={messages.length}
               totalCount={mailboxTotal}
               hasMore={hasMore}
@@ -450,12 +476,12 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onAction={(action, tag) => void applyAction(action, tag)}
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
-              onRefresh={() => void loadData("INBOX.Sent")}
+              onRefresh={() => void loadData("INBOX.Sent", activeAccountId)}
               onLoadMore={() => void loadMore()}
               onOpenResearch={() => { setResearchScope("both"); setResearchOpen(true); }}
             />
           ) : null}
-          {section === "research" ? <MailResearchPanel defaultScope="both" /> : null}
+          {section === "research" ? <MailResearchPanel defaultScope="both" defaultAccountId={activeAccountId} /> : null}
           {section === "ai" ? <AiRulesView /> : null}
           {section === "accounts" ? <AccountsView status={status} /> : null}
           {section === "settings" ? <SettingsView status={status} /> : null}
@@ -465,12 +491,15 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       <ComposeModal
         open={composeOpen}
         replyTo={section === "inbox" ? selected : null}
+        accounts={mailAccounts}
+        defaultAccountId={selected?.accountId || (activeAccountId === "all" ? "primary" : activeAccountId)}
         onClose={() => setComposeOpen(false)}
         onSent={(isDemo) => setToast(isDemo ? "Message preview completed. Configure SMTP for delivery." : "Message sent.")}
       />
       <MailResearchModal
         open={researchOpen}
         defaultScope={researchScope}
+        defaultAccountId={activeAccountId}
         onClose={() => setResearchOpen(false)}
       />
       <div id="alerts-panel">
