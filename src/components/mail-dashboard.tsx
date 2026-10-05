@@ -12,6 +12,7 @@ import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-v
 import type { AiAction, AlertGroup, AppStatus, MailListResponse, MailMessage, SessionUser } from "@/lib/types";
 import { initialAlerts, type AlertRecord } from "@/lib/alerts";
 import { webPath } from "@/lib/web-path";
+import { mailTagLabel, mailTagsFromFlags, type MailTag } from "@/lib/mail-tags";
 
 const sectionTitles: Record<DashboardSection, { kicker: string; title: string }> = {
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
@@ -39,6 +40,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [search, setSearch] = useState("");
   const [aiResult, setAiResult] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [mailActionLoading, setMailActionLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((alert) => ({ ...alert })));
@@ -186,26 +188,32 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     }
   }
 
-  async function applyAction(action: "read" | "unread" | "flag" | "unflag" | "archive") {
-    if (!selected) return;
+  async function applyAction(action: "read" | "unread" | "flag" | "unflag" | "archive" | "tag" | "untag", tag?: MailTag) {
+    if (!selected || mailActionLoading) return;
     const targetUid = selected.uid;
     const selectionAtAction = selectionVersion.current;
+    const wasUnread = selected.unread;
+    const folder = selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX");
+    setMailActionLoading(true);
 
     try {
       const response = await fetch(webPath(`/api/mail/${targetUid}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, folder: selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX") }),
+        body: JSON.stringify({ action, folder, ...(tag ? { tag } : {}) }),
       });
-      if (!response.ok) throw new Error("The message could not be updated.");
-
-      if (selected.direction !== "outbound") {
-        if (action === "read" && selected.unread) setInboxUnread((current) => Math.max(0, current - 1));
-        if (action === "unread" && !selected.unread) setInboxUnread((current) => current + 1);
-        if (action === "archive" && selected.unread) setInboxUnread((current) => Math.max(0, current - 1));
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+        demo?: boolean;
+        result?: { uid?: number; flags?: string[] };
+      } | null;
+      if (!response.ok) throw new Error(payload?.error || "The message could not be updated.");
+      if (payload?.result?.uid !== undefined && payload.result.uid !== targetUid) {
+        throw new Error("The mailbox update could not be matched to this message.");
       }
 
       if (action === "archive") {
+        if (selected.direction !== "outbound" && wasUnread) setInboxUnread((current) => Math.max(0, current - 1));
         setMailboxTotal((current) => Math.max(0, current - 1));
         const nextMessages = messages.filter((message) => message.uid !== targetUid);
         setMessages(nextMessages);
@@ -213,21 +221,47 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
           selectionVersion.current++; aiVersion.current++; setAiLoading(false); setAiResult("");
           setSelected(nextMessages[0] || null);
         }
-        setToast(demo ? "Archive preview completed." : "Message archived.");
+        setToast(demo ? "Archive preview completed." : folder === "INBOX.Sent" ? "Sent message archived." : "Message archived.");
         return;
       }
 
+      const canonicalFlags = payload?.result?.flags;
       const update = (message: MailMessage): MailMessage => {
         if (message.uid !== targetUid) return message;
+        if (canonicalFlags) {
+          return {
+            ...message,
+            unread: !canonicalFlags.includes("\\Seen"),
+            flagged: canonicalFlags.includes("\\Flagged"),
+            tags: mailTagsFromFlags(canonicalFlags),
+          };
+        }
         if (action === "read") return { ...message, unread: false };
         if (action === "unread") return { ...message, unread: true };
         if (action === "flag") return { ...message, flagged: true };
-        return { ...message, flagged: false };
+        if (action === "unflag") return { ...message, flagged: false };
+        if (action === "tag" && tag) return { ...message, tags: [...new Set([...(message.tags || []), tag])] };
+        if (action === "untag" && tag) return { ...message, tags: (message.tags || []).filter((item) => item !== tag) };
+        return message;
       };
+
+      const updatedSelected = update(selected);
+      if (selected.direction !== "outbound" && updatedSelected.unread !== wasUnread) {
+        setInboxUnread((current) => Math.max(0, current + (updatedSelected.unread ? 1 : -1)));
+      }
       setMessages((current) => current.map(update));
-      setSelected((current) => (current ? update(current) : current));
+      setSelected((current) => (current && current.uid === targetUid ? update(current) : current));
+
+      if (action === "read") setToast("Message marked as read.");
+      else if (action === "unread") setToast("Message marked as unread.");
+      else if (action === "flag") setToast("Message flagged.");
+      else if (action === "unflag") setToast("Message flag removed.");
+      else if (action === "tag" && tag) setToast(`${mailTagLabel(tag)} tag added.`);
+      else if (action === "untag" && tag) setToast(`${mailTagLabel(tag)} tag removed.`);
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Unable to update the message.");
+    } finally {
+      setMailActionLoading(false);
     }
   }
 
@@ -347,6 +381,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               search={search}
               loading={loading}
               aiLoading={aiLoading}
+              actionLoading={mailActionLoading}
               aiResult={aiResult}
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
@@ -359,7 +394,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onSelect={(message) => void selectMessage(message, false)}
-              onAction={(action) => void applyAction(action)}
+              onAction={(action, tag) => void applyAction(action, tag)}
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX")}
@@ -375,6 +410,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               search={search}
               loading={loading}
               aiLoading={aiLoading}
+              actionLoading={mailActionLoading}
               aiResult={aiResult}
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
@@ -388,7 +424,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onFilterChange={setFilter}
               onSearchChange={setSearch}
               onSelect={(message) => void selectMessage(message, false)}
-              onAction={(action) => void applyAction(action)}
+              onAction={(action, tag) => void applyAction(action, tag)}
               onAiAction={(action) => void runAiAction(action)}
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX.Sent")}
