@@ -100,8 +100,17 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
     sender: from?.name || from?.address || "Unknown sender",
     senderEmail: from?.address || "",
     subject: message.subject,
-    preview: parsed ? parsed.text.slice(0, 220) : "Open this message to load its contents securely.",
-    ...(parsed ? { body: parsed.text || "This message does not contain a plain-text body.", security: parsed.security, attachmentInspection: parsed.attachmentInspection } : {}),
+    preview: parsed
+      ? (parsed.text.trim() ? parsed.text.slice(0, 220) : parsed.safeHtmlBody ? "HTML message — open to view securely." : "This message does not contain a displayable body.")
+      : "Open this message to load its contents securely.",
+    ...(parsed ? {
+      bodyLoaded: true,
+      hasPlainTextBody: Boolean(parsed.text.trim()),
+      ...(parsed.text.trim() ? { body: parsed.text } : {}),
+      ...(parsed.safeHtmlBody ? { safeHtmlBody: parsed.safeHtmlBody } : {}),
+      security: parsed.security,
+      attachmentInspection: parsed.attachmentInspection,
+    } : {}),
     receivedAt: message.date || new Date(0).toISOString(),
     unread,
     flagged: message.flags.includes("\\Flagged"),
