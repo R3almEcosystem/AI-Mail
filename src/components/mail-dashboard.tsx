@@ -67,7 +67,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [aiLoading, setAiLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
-  const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((alert) => ({ ...alert })));
+  const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialUser.demo ? initialAlerts.map((alert) => ({ ...alert })) : []);
   const [alertGroups, setAlertGroups] = useState<AlertGroup[]>([]);
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
@@ -82,6 +82,46 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const loadVersion = useRef(0);
   const autoSummarySeen = useRef<Set<string>>(new Set());
   const mailActionInFlight = useRef(false);
+  const [alertAccounts, setAlertAccounts] = useState<MailAccountSummary[]>([]);
+  const [alertCoverage, setAlertCoverage] = useState({ total: 0, covered: 0, failed: 0 });
+  const [alertsLoading, setAlertsLoading] = useState(false);
+
+  const loadAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    try {
+      const response = await fetch(webPath("/api/alerts"), { cache: "no-store" });
+      const data = (await response.json().catch(() => null)) as {
+        alerts?: AlertRecord[];
+        accounts?: MailAccountSummary[];
+        coverage?: { total: number; covered: number; failed: number };
+        error?: string;
+      } | null;
+      if (!response.ok || !data?.alerts || !data.accounts || !data.coverage) {
+        throw new Error(data?.error || "Unable to refresh Activity Center alerts.");
+      }
+
+      setAlerts((current) => {
+        const prior = new Map(current.map((alert) => [alert.id, alert]));
+        return data.alerts!.map((alert) => {
+          const previous = prior.get(alert.id);
+          if (!previous) return alert;
+          return {
+            ...alert,
+            status: previous.status,
+            unread: previous.unread,
+            ...(previous.escalatedToGroupId ? { escalatedToGroupId: previous.escalatedToGroupId } : {}),
+            ...(previous.escalatedAt ? { escalatedAt: previous.escalatedAt } : {}),
+          };
+        });
+      });
+      setAlertAccounts(data.accounts);
+      setAlertCoverage(data.coverage);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to refresh Activity Center alerts.");
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, []);
 
   const loadData = useCallback(async (folder = "INBOX", accountId = "all") => {
     const version = ++loadVersion.current;
@@ -131,7 +171,8 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
 
   useEffect(() => {
     void loadData("INBOX", "all");
-  }, [loadData]);
+    void loadAlerts();
+  }, [loadAlerts, loadData]);
 
   const loadMore = useCallback(async () => {
     if (loading || loadingMore || !hasMore || (activeAccountId === "all" ? !nextCursor : nextBeforeUid === null)) return;
@@ -356,14 +397,48 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     setAlerts((current) => current.map((alert) => alert.id === id ? { ...alert, ...update } : alert));
   }
 
-  function openAlertMessage(uid: number) {
-    const message = messages.find((item) => item.uid === uid);
-    if (!message) {
-      setToast("The linked email is not available in the current mailbox view.");
+  async function openAlertMessage(alert: AlertRecord) {
+    if (!alert.messageUid) return;
+    const accountId = alert.accountId || "primary";
+    const folder = alert.messageFolder || "INBOX";
+    const message = messages.find((item) =>
+      item.uid === alert.messageUid
+      && (item.accountId || "primary") === accountId
+      && (item.folder || (item.direction === "outbound" ? "INBOX.Sent" : "INBOX")) === folder
+    );
+
+    closeAlerts();
+    setFilter("all");
+    setSearch("");
+    setActiveAccountId(accountId);
+    setActiveFolder(folder);
+    setSection(folder === "INBOX.Sent" ? "sent" : "inbox");
+
+    if (message) {
+      await selectMessage(message, false);
       return;
     }
-    closeAlerts();
-    void selectMessage(message);
+
+    try {
+      await loadData(folder, accountId);
+      const response = await fetch(
+        `${webPath(`/api/mail/${alert.messageUid}`)}?folder=${encodeURIComponent(folder)}&accountId=${encodeURIComponent(accountId)}`,
+        { cache: "no-store" },
+      );
+      const data = (await response.json().catch(() => null)) as { message?: MailMessage; error?: string } | null;
+      if (!response.ok || !data?.message) throw new Error(data?.error || "Unable to open the alert email.");
+      setMessages((current) => {
+        const exists = current.some((item) =>
+          item.uid === data.message!.uid
+          && (item.accountId || "primary") === (data.message!.accountId || "primary")
+          && (item.folder || "INBOX") === (data.message!.folder || "INBOX")
+        );
+        return exists ? current : [data.message!, ...current];
+      });
+      setSelected(data.message);
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Unable to open the alert email.");
+    }
   }
 
   function openAlertSettings() {
@@ -398,7 +473,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               aria-label={`Open alerts${unreadAlerts ? `, ${unreadAlerts} unread` : ""}`}
               aria-expanded={alertsOpen}
               aria-controls="alerts-panel"
-              onClick={() => setAlertsOpen(true)}
+              onClick={() => { setAlertsOpen(true); void loadAlerts(); }}
             ><Bell size={18} />{unreadAlerts ? <span>{unreadAlerts}</span> : null}</button>
             <button type="button" className="primary-button" onClick={() => setComposeOpen(true)}><PenLine size={16} /> Compose</button>
           </div>
@@ -507,6 +582,9 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
           open={alertsOpen}
           alerts={alerts}
           groups={alertGroups}
+          accounts={alertAccounts}
+          coverage={alertCoverage}
+          loading={alertsLoading}
           onClose={closeAlerts}
           onUpdate={updateAlert}
           onOpenMessage={openAlertMessage}
