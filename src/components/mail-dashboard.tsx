@@ -5,6 +5,7 @@ import { Bell, Menu, PenLine, Search, ShieldCheck, X } from "lucide-react";
 import { ComposeModal } from "@/components/compose-modal";
 import { AlertsPanel } from "@/components/alerts-panel";
 import { InboxWorkspace } from "@/components/inbox-workspace";
+import { MailResearchModal } from "@/components/mail-research-modal";
 import { OverviewView } from "@/components/overview-view";
 import { Sidebar, type DashboardSection } from "@/components/sidebar";
 import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-views";
@@ -43,6 +44,8 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [alertGroups, setAlertGroups] = useState<AlertGroup[]>([]);
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
+  const [researchOpen, setResearchOpen] = useState(false);
+  const [researchScope, setResearchScope] = useState<"inbox" | "sent" | "both">("inbox");
   const [demo, setDemo] = useState(true);
   const selectionVersion = useRef(0);
   const aiVersion = useRef(0);
@@ -360,6 +363,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX")}
               onLoadMore={() => void loadMore()}
+              onOpenResearch={() => { setResearchScope("inbox"); setResearchOpen(true); }}
             />
           ) : null}
           {section === "sent" ? (
@@ -388,6 +392,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX.Sent")}
               onLoadMore={() => void loadMore()}
+              onOpenResearch={() => { setResearchScope("sent"); setResearchOpen(true); }}
             />
           ) : null}
           {section === "ai" ? <AiRulesView /> : null}
@@ -401,6 +406,11 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         replyTo={section === "inbox" ? selected : null}
         onClose={() => setComposeOpen(false)}
         onSent={(isDemo) => setToast(isDemo ? "Message preview completed. Configure SMTP for delivery." : "Message sent.")}
+      />
+      <MailResearchModal
+        open={researchOpen}
+        defaultScope={researchScope}
+        onClose={() => setResearchOpen(false)}
       />
       <div id="alerts-panel">
         <AlertsPanel
