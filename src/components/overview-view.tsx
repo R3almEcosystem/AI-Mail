@@ -8,6 +8,7 @@ import {
   Inbox,
   MailWarning,
   ShieldCheck,
+  Tag,
   Sparkles,
 } from "lucide-react";
 import type { AppStatus, MailMessage } from "@/lib/types";
@@ -47,6 +48,17 @@ export function OverviewView({
   const important = messages.filter(
     (message) => message.priority === "urgent" || message.priority === "important",
   ).length;
+
+  const timeSensitiveMessages = [...messages]
+    .filter((message) => message.priority === "urgent" || message.priority === "important" || message.aiEscalate)
+    .sort((left, right) => {
+      const priorityRank = (message: MailMessage) => message.aiEscalate || message.priority === "urgent" ? 0 : 1;
+      const priorityDifference = priorityRank(left) - priorityRank(right);
+      if (priorityDifference) return priorityDifference;
+      if (left.unread !== right.unread) return left.unread ? -1 : 1;
+      return Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
+    })
+    .slice(0, 4);
 
   return (
     <div className="overview-grid">
@@ -115,12 +127,47 @@ export function OverviewView({
         </div>
         <div className="intelligence-score">
           <div className="score-ring"><strong>82</strong><span>focus</span></div>
-          <p>Your inbox is under control. Two messages are time-sensitive.</p>
+          <p>{timeSensitiveMessages.length ? `${timeSensitiveMessages.length} time-sensitive message${timeSensitiveMessages.length === 1 ? "" : "s"} currently need attention.` : "No urgent or important messages are currently in the loaded inbox view."}</p>
         </div>
         <div className="insight-list">
-          <div><Clock3 size={16} /><span><strong>Best response window</strong><small>Before 10:00 AM tomorrow</small></span></div>
-          <div><CheckCircle2 size={16} /><span><strong>Likely quick wins</strong><small>3 messages can close today</small></span></div>
-          <div><MailWarning size={16} /><span><strong>Watch item</strong><small>North Capital follow-up</small></span></div>
+          <div><Clock3 size={16} /><span><strong>Best response window</strong><small>Prioritize urgent and unread important messages first.</small></span></div>
+          <div><CheckCircle2 size={16} /><span><strong>Likely quick wins</strong><small>{messages.filter((message) => message.unread && message.priority === "important").length} unread important messages can be reviewed next.</small></span></div>
+          <div><MailWarning size={16} /><span><strong>Watch item</strong><small>{timeSensitiveMessages[0]?.subject || "No current urgent watch item"}</small></span></div>
+        </div>
+
+        <div className="time-sensitive-section">
+          <div className="time-sensitive-heading">
+            <div><p className="eyebrow">TIME SENSITIVE</p><h4>Emails needing attention</h4></div>
+            <span>{timeSensitiveMessages.length}</span>
+          </div>
+          <div className="time-sensitive-list">
+            {timeSensitiveMessages.length ? timeSensitiveMessages.map((message) => (
+              <button
+                type="button"
+                className={`time-sensitive-item time-sensitive-item--${message.aiEscalate || message.priority === "urgent" ? "urgent" : "important"}`}
+                key={`${message.accountId || "primary"}:${message.uid}`}
+                onClick={() => onSelect(message)}
+              >
+                <span className="time-sensitive-topline">
+                  <strong>{message.sender}</strong>
+                  <small>{relativeTime(message.receivedAt)}</small>
+                </span>
+                <b>{message.subject}</b>
+                <span className="time-sensitive-meta">
+                  <em className={`priority-pill priority-pill--${message.aiEscalate ? "urgent" : message.priority}`}>{message.aiEscalate ? "escalated" : message.priority}</em>
+                  <em><Inbox size={11} /> {message.accountLabel || "Primary mailbox"}</em>
+                  <em><Tag size={11} /> {message.category}</em>
+                </span>
+                <span className="time-sensitive-preview">{message.preview}</span>
+                <span className="time-sensitive-context">
+                  <small>{message.unread ? "Unread" : "Read"}</small>
+                  <small>{message.aiRuleMatches?.length ? `${message.aiRuleMatches.length} AI rule${message.aiRuleMatches.length === 1 ? "" : "s"} matched` : "Priority detection"}</small>
+                </span>
+              </button>
+            )) : (
+              <div className="time-sensitive-empty"><CheckCircle2 size={18} /><span><strong>No time-sensitive email</strong><small>Urgent and important messages will appear here automatically.</small></span></div>
+            )}
+          </div>
         </div>
       </aside>
     </div>
