@@ -2,6 +2,12 @@ import "server-only";
 
 import { z } from "zod";
 import { aiConfiguration } from "@/lib/ai";
+import {
+  aiErrorCode,
+  normalizeAiUsage,
+  recordAiCall,
+  type AiTelemetryContext,
+} from "@/lib/ai-telemetry";
 import { loadMailResearchMessages, searchMailUidGroups, searchMailUids } from "@/lib/mail";
 import type { SearchCriteria } from "../mail/client";
 import { assessEmailSecurity } from "../security/email-security";
@@ -123,34 +129,112 @@ export function buildResearchCriteria(plan: MailResearchPlan, folder: "INBOX" | 
   return criteria;
 }
 
-async function callResponses(input: string, maxOutputTokens: number, timeoutMs: number) {
+async function callResponses(
+  input: string,
+  maxOutputTokens: number,
+  timeoutMs: number,
+  operation: "research.plan" | "research.report",
+  context: AiTelemetryContext = {},
+) {
   const configuration = await aiConfiguration();
   if (!configuration.configured || !configuration.model || !configuration.apiKey) {
     throw new Error("OpenAI is not configured.");
   }
-  const response = await fetch("https://api.openai.com/v1/responses", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + configuration.apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: configuration.model,
-      input,
-      max_output_tokens: maxOutputTokens,
-      store: false,
-    }),
-    cache: "no-store",
-    signal: AbortSignal.timeout(timeoutMs),
-  });
-  if (!response.ok) throw new Error("OpenAI research request failed (" + response.status + ").");
-  const payload = await response.json();
-  const text = responseText(payload);
-  if (!text) throw new Error("OpenAI returned no research result.");
-  return { text, model: configuration.model };
+
+  const startedAt = Date.now();
+  let response: Response | null = null;
+  let logged = false;
+  try {
+    response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer " + configuration.apiKey,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: configuration.model,
+        input,
+        max_output_tokens: maxOutputTokens,
+        store: false,
+      }),
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (!response.ok) {
+      await recordAiCall({
+        ...context,
+        provider: "openai",
+        operation,
+        endpoint: "/v1/responses",
+        model: configuration.model,
+        status: "failed",
+        responseTimeMs: Date.now() - startedAt,
+        providerRequestId: response.headers.get("x-request-id"),
+        errorCode: "HTTP_" + response.status,
+        metadata: { maxOutputTokens },
+      });
+      logged = true;
+      throw new Error("OpenAI research request failed (" + response.status + ").");
+    }
+
+    const payload = await response.json() as Record<string, unknown>;
+    const text = responseText(payload);
+    const providerModel = typeof payload.model === "string" ? payload.model : configuration.model;
+    const usage = normalizeAiUsage(payload.usage);
+
+    if (!text) {
+      await recordAiCall({
+        ...context,
+        provider: "openai",
+        operation,
+        endpoint: "/v1/responses",
+        model: providerModel,
+        status: "failed",
+        usage,
+        responseTimeMs: Date.now() - startedAt,
+        providerRequestId: response.headers.get("x-request-id"),
+        errorCode: "EMPTY_RESPONSE",
+        metadata: { maxOutputTokens },
+      });
+      logged = true;
+      throw new Error("OpenAI returned no research result.");
+    }
+
+    await recordAiCall({
+      ...context,
+      provider: "openai",
+      operation,
+      endpoint: "/v1/responses",
+      model: providerModel,
+      status: "succeeded",
+      usage,
+      responseTimeMs: Date.now() - startedAt,
+      providerRequestId: response.headers.get("x-request-id"),
+      metadata: { maxOutputTokens },
+    });
+    logged = true;
+    return { text, model: providerModel };
+  } catch (error) {
+    if (!logged) {
+      await recordAiCall({
+        ...context,
+        provider: "openai",
+        operation,
+        endpoint: "/v1/responses",
+        model: configuration.model,
+        status: "failed",
+        responseTimeMs: Date.now() - startedAt,
+        providerRequestId: response?.headers.get("x-request-id") || null,
+        errorCode: aiErrorCode(error),
+        metadata: { maxOutputTokens },
+      });
+    }
+    throw error;
+  }
 }
 
-export async function planMailResearch(query: string, selectedScope: MailResearchScope): Promise<MailResearchPlan> {
+export async function planMailResearch(query: string, selectedScope: MailResearchScope, context: AiTelemetryContext = {}): Promise<MailResearchPlan> {
   const prompt = [
     "You are the query planner for r3alm AI-Mail. Convert the user's natural-language mailbox research request into strict JSON only.",
     "",
@@ -189,7 +273,7 @@ export async function planMailResearch(query: string, selectedScope: MailResearc
     query,
   ].join("\n");
 
-  const planned = await callResponses(prompt, 700, 25000);
+  const planned = await callResponses(prompt, 700, 25000, "research.plan", context);
   let raw: unknown;
   try { raw = JSON.parse(cleanJson(planned.text)); }
   catch { throw new Error("The AI could not convert this instruction into a safe mailbox search."); }
@@ -418,7 +502,7 @@ function reportCorpus(messages: ResearchMessage[]) {
   return { corpus: chunks.join("\n\n---\n\n"), included, excluded: messages.length - included };
 }
 
-async function analyticalReport(query: string, plan: MailResearchPlan, messages: ResearchMessage[], matchedCount: number, capped: boolean) {
+async function analyticalReport(query: string, plan: MailResearchPlan, messages: ResearchMessage[], matchedCount: number, capped: boolean, context: AiTelemetryContext = {}) {
   const { corpus, included, excluded } = reportCorpus(messages);
   if (!corpus) {
     return {
@@ -485,7 +569,7 @@ async function analyticalReport(query: string, plan: MailResearchPlan, messages:
     corpus,
   ].join("\n");
 
-  const generated = await callResponses(prompt, 6000, 45000);
+  const generated = await callResponses(prompt, 6000, 45000, "research.report", context);
   return {
     markdown: validateAiOutput(generated.text),
     model: generated.model,
@@ -494,8 +578,9 @@ async function analyticalReport(query: string, plan: MailResearchPlan, messages:
   };
 }
 
-export async function runMailResearch(query: string, selectedScope: MailResearchScope, accountId = "primary") {
-  const plan = await planMailResearch(query, selectedScope);
+export async function runMailResearch(query: string, selectedScope: MailResearchScope, accountId = "primary", context: AiTelemetryContext = {}) {
+  const telemetryContext = { ...context, accountId };
+  const plan = await planMailResearch(query, selectedScope, telemetryContext);
   const { messages, matchedCount, capped } = await loadMatches(plan, accountId);
 
   if (!matchedCount) {
@@ -543,7 +628,7 @@ export async function runMailResearch(query: string, selectedScope: MailResearch
     };
   }
 
-  const report = await analyticalReport(query, plan, messages, matchedCount, capped);
+  const report = await analyticalReport(query, plan, messages, matchedCount, capped, telemetryContext);
   const excluded = report.excluded + Math.max(0, matchedCount - messages.length);
   return {
     title: plan.title,
