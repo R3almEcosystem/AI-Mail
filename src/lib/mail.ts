@@ -204,26 +204,36 @@ async function listSingleAccount(
 
 async function listAllAccounts(folder: string, limit: number, cursorValue?: string): Promise<MailListResponse> {
   const accounts = await listActiveMailAccounts();
-  const selected = accounts.slice(0, 12);
-  if (!selected.length) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
+  if (!accounts.length) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
   const cursors = decodeCursor(cursorValue);
   const rules = await listAiRules(true);
 
-  const pages = await Promise.all(selected.map(async (summary) => {
-    const { gateway, config, settings, account } = await runtime(summary.id);
-    const pageLimit = Math.min(limit, config.limits.maxSearchResults);
-    const resolvedFolder = actualFolder(account, folder);
-    const [page, status] = await Promise.all([
-      gateway.listMessagesPage(resolvedFolder, pageLimit, false, undefined, cursors[summary.id]),
-      gateway.mailboxStatus(resolvedFolder),
-    ]);
-    return {
-      account,
-      status,
-      page,
-      messages: page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder, account)),
-    };
-  }));
+  const pages: Array<{
+    account: MailAccountRuntime;
+    status: { messages: number; unseen: number };
+    page: { messages: MessageSummary[]; hasMore: boolean };
+    messages: MailMessage[];
+  }> = [];
+  const concurrency = 4;
+  for (let index = 0; index < accounts.length; index += concurrency) {
+    const batch = accounts.slice(index, index + concurrency);
+    const loaded = await Promise.all(batch.map(async (summary) => {
+      const { gateway, config, settings, account } = await runtime(summary.id);
+      const pageLimit = Math.min(limit, config.limits.maxSearchResults);
+      const resolvedFolder = actualFolder(account, folder);
+      const [page, status] = await Promise.all([
+        gateway.listMessagesPage(resolvedFolder, pageLimit, false, undefined, cursors[summary.id]),
+        gateway.mailboxStatus(resolvedFolder),
+      ]);
+      return {
+        account,
+        status,
+        page,
+        messages: page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder, account)),
+      };
+    }));
+    pages.push(...loaded);
+  }
 
   const candidates = pages.flatMap((page) => page.messages).sort((left, right) => {
     const time = Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
