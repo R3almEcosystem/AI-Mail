@@ -6,6 +6,7 @@ import { getServiceSecret } from "@/lib/service-secrets";
 import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
 import type { AiRule } from "@/lib/types";
 import type { MailListResponse, MailMessage, MailPriority } from "@/lib/types";
+import { mailTagsFromFlags, type MailTag } from "@/lib/mail-tags";
 
 function domainList(value: string): string[] {
   return value.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
@@ -105,6 +106,7 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
     receivedAt: message.date || new Date(0).toISOString(),
     unread,
     flagged: message.flags.includes("\\Flagged"),
+    tags: mailTagsFromFlags(message.flags),
     priority: ruleEvaluation.priority || inferPriority(message.subject, unread, priorityDetection),
     category: ruleEvaluation.category || inferCategory(from?.address || "", message.subject),
     attachments: parsed?.attachments.length || 0,
@@ -160,9 +162,9 @@ export async function loadMailResearchMessages(folder: "INBOX" | "INBOX.Sent", u
   return gateway.loadResearchMessages(folder, uids, limit);
 }
 
-export async function updateMail(uid: number, action: MailAction, folder = "INBOX") {
+export async function updateMail(uid: number, action: MailAction, folder = "INBOX", tag?: MailTag) {
   const { gateway, settings } = await runtime();
-  return gateway.updateMessage(folder, uid, action, settings.mailArchiveFolder);
+  return gateway.updateMessage(folder, uid, action, settings.mailArchiveFolder, tag);
 }
 
 export async function sendMail(input: { to: string; cc?: string; subject: string; text: string }) {
