@@ -212,7 +212,10 @@ export function MailAccountsManager() {
       }
 
       const saved = payload.account;
-      closeEditor();
+      setEditorOpen(false);
+      setEditingId(null);
+      setEditorLoading(false);
+      setForm(initialForm);
       setMessage(
         editing
           ? saved.label + " was updated. Mailbox monitoring and research will use the new settings immediately."
