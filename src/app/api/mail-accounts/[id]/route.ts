@@ -38,7 +38,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
-    await requireCapability("mail:read");
+    await requireCapability("admin:manage");
     const id = (await context.params).id;
     const account = await getMailAccountDetails(id);
     return NextResponse.json({ account }, { headers: privateHeaders });
