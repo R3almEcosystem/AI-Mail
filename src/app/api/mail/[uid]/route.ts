@@ -4,9 +4,18 @@ import { getMail, mailConfiguration, updateMail } from "@/lib/mail";
 import { mockMessages } from "@/lib/mock-mail";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
+import { MAIL_TAG_IDS } from "@/lib/mail-tags";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-const actionSchema = z.object({ action: z.enum(["read", "unread", "flag", "unflag", "archive"]), folder: z.enum(["INBOX", "INBOX.Sent"]).optional() });
+const actionSchema = z.object({
+  action: z.enum(["read", "unread", "flag", "unflag", "archive", "tag", "untag"]),
+  folder: z.enum(["INBOX", "INBOX.Sent"]).optional(),
+  tag: z.enum(MAIL_TAG_IDS).optional(),
+}).superRefine((value, ctx) => {
+  if ((value.action === "tag" || value.action === "untag") && !value.tag) {
+    ctx.addIssue({ code: "custom", message: "A message tag is required.", path: ["tag"] });
+  }
+});
 type RouteContext = { params: Promise<{ uid: string }> };
 const validUid = (uid: number) => Number.isSafeInteger(uid) && uid >= 1 && uid <= 4294967295;
 export async function GET(request: NextRequest, context: RouteContext) {
@@ -31,9 +40,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     if (!validUid(uid)) return NextResponse.json({ error: "Invalid message identifier." }, { status: 400 });
     const parsed = actionSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Invalid mailbox action." }, { status: 400 });
-    if (user.demo) return NextResponse.json({ ok: true, demo: true }, { headers: privateHeaders });
+    if (user.demo) return NextResponse.json({ ok: true, demo: true, action: parsed.data.action, tag: parsed.data.tag || null }, { headers: privateHeaders });
     if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
-    await updateMail(uid, parsed.data.action, parsed.data.folder || "INBOX");
-    return NextResponse.json({ ok: true, demo: false }, { headers: privateHeaders });
+    const result = await updateMail(uid, parsed.data.action, parsed.data.folder || "INBOX", parsed.data.tag);
+    return NextResponse.json({ ok: true, demo: false, result }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The mail server did not confirm the change."); }
 }
