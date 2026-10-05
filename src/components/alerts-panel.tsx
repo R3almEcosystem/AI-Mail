@@ -188,43 +188,47 @@ export function AlertsPanel({
               <button type="button" role="tab" aria-selected={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All <span>{mailboxScopedAlerts.length}</span></button>
               <button type="button" role="tab" aria-selected={filter === "unread"} className={filter === "unread" ? "active" : ""} onClick={() => setFilter("unread")}>Unread <span>{mailboxScopedAlerts.filter((alert) => alert.unread).length}</span></button>
             </div>
-            <label className="alert-mailbox-sorter">
-              <span>Mailbox</span>
-              <select
-                aria-label="Filter alerts by mailbox"
-                value={mailboxFilter}
-                onChange={(event) => {
-                  setMailboxFilter(event.target.value);
-                  setExpandedId(null);
-                  setEscalatingId(null);
-                }}
-              >
-                <option value="all">All mailboxes ({alerts.filter((alert) => Boolean(alert.accountId)).length})</option>
-                {accounts.map((account) => (
-                  <option value={account.id} key={account.id}>{account.label} ({alerts.filter((alert) => alert.accountId === account.id).length})</option>
-                ))}
-                {workspaceAlertCount ? <option value="workspace">Workspace / system ({workspaceAlertCount})</option> : null}
-              </select>
-              <ChevronDown size={13} aria-hidden="true" />
+            <label className="alert-filter-field">
+              <span>Mailbox filter</span>
+              <span className="alert-select-control">
+                <select
+                  aria-label="Filter alerts by mailbox"
+                  value={mailboxFilter}
+                  onChange={(event) => {
+                    setMailboxFilter(event.target.value);
+                    setExpandedId(null);
+                    setEscalatingId(null);
+                  }}
+                >
+                  <option value="all">All mailboxes ({alerts.filter((alert) => Boolean(alert.accountId)).length})</option>
+                  {accounts.map((account) => (
+                    <option value={account.id} key={account.id}>{account.label} ({alerts.filter((alert) => alert.accountId === account.id).length})</option>
+                  ))}
+                  {workspaceAlertCount ? <option value="workspace">Workspace / system ({workspaceAlertCount})</option> : null}
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </span>
             </label>
-            <label className="alert-priority-sorter">
-              <span>Detected priority</span>
-              <select
-                aria-label="Sort alerts by detected priority"
-                value={priorityFilter}
-                onChange={(event) => {
-                  setPriorityFilter(event.target.value as AlertPriorityFilter);
-                  setExpandedId(null);
-                  setEscalatingId(null);
-                }}
-              >
-                <option value="all">All priorities ({mailboxScopedAlerts.length})</option>
-                <option value="critical">Critical ({priorityCounts.critical})</option>
-                <option value="warning">Warning ({priorityCounts.warning})</option>
-                <option value="info">Info ({priorityCounts.info})</option>
-                <option value="success">Success ({priorityCounts.success})</option>
-              </select>
-              <ChevronDown size={13} aria-hidden="true" />
+            <label className="alert-filter-field">
+              <span>Priority filter</span>
+              <span className="alert-select-control">
+                <select
+                  aria-label="Sort alerts by detected priority"
+                  value={priorityFilter}
+                  onChange={(event) => {
+                    setPriorityFilter(event.target.value as AlertPriorityFilter);
+                    setExpandedId(null);
+                    setEscalatingId(null);
+                  }}
+                >
+                  <option value="all">All priorities ({mailboxScopedAlerts.length})</option>
+                  <option value="critical">Critical ({priorityCounts.critical})</option>
+                  <option value="warning">Warning ({priorityCounts.warning})</option>
+                  <option value="info">Info ({priorityCounts.info})</option>
+                  <option value="success">Success ({priorityCounts.success})</option>
+                </select>
+                <ChevronDown size={14} aria-hidden="true" />
+              </span>
             </label>
           </div>
           <button type="button" className="mark-read-button" onClick={() => alerts.forEach((alert) => alert.unread && onUpdate(alert.id, { unread: false }))}><Check size={14} /> Mark all read</button>
