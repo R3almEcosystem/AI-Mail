@@ -13,7 +13,7 @@ test("mail detail actions persist read, flag and tag state through the authentic
   const policy = read("src/mail/policy.ts");
 
   assert.ok(route.includes('"tag", "untag"'));
-  assert.ok(route.includes("MAIL_TAG_IDS"));
+  assert.ok(route.includes('z.enum(["follow-up", "waiting", "finance", "legal", "technology", "personal"])'));
   assert.ok(route.includes('requireCapability("mail:write"'));
   assert.ok(gateway.includes("messageFlagsAdd"));
   assert.ok(gateway.includes("messageFlagsRemove"));
