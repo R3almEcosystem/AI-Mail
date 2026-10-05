@@ -57,3 +57,24 @@ test("Inbox Sent and Compose expose mailbox identity selection", () => {
   assert.match(manager, /Test IMAP/);
   assert.match(manager, /Test SMTP/);
 });
+
+
+test("connected mailbox cards expose edit controls without returning stored passwords", () => {
+  const manager = read("src/components/mail-accounts-manager.tsx");
+  const route = read("src/app/api/mail-accounts/[id]/route.ts");
+  const accounts = read("src/lib/mail-accounts.ts");
+
+  assert.match(manager, /openEdit\(account\)/);
+  assert.match(manager, /> Edit<\/button>/);
+  assert.match(manager, /Save changes/);
+  assert.match(manager, /Leave blank to keep current password/);
+  assert.match(manager, /Monitor this account/);
+  assert.match(route, /export async function GET/);
+  assert.match(route, /requireCapability\("admin:manage"\)/);
+  assert.match(route, /id === "primary"/);
+  assert.match(route, /setServiceSecret\("ai_mail_imap_password"/);
+  assert.match(accounts, /export type MailAccountDetails/);
+  assert.match(accounts, /getMailAccountDetails/);
+  assert.doesNotMatch(accounts, /MailAccountDetails[^}]*imapPassword/s);
+  assert.doesNotMatch(accounts, /MailAccountDetails[^}]*smtpPassword/s);
+});
