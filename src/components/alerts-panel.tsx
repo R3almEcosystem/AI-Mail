@@ -14,10 +14,18 @@ import {
   UsersRound,
   X,
 } from "lucide-react";
-import type { AlertRecord } from "@/lib/alerts";
+import type { AlertRecord, AlertSeverity } from "@/lib/alerts";
 import type { AlertGroup } from "@/lib/types";
 
 type AlertFilter = "all" | "unread";
+type AlertPriorityFilter = "all" | AlertSeverity;
+
+const alertPriorityRank: Record<AlertSeverity, number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+  success: 3,
+};
 
 function AlertIcon({ alert }: { alert: AlertRecord }) {
   if (alert.severity === "critical") return <ShieldAlert size={17} />;
@@ -47,6 +55,7 @@ export function AlertsPanel({
   const [escalatingId, setEscalatingId] = useState<string | null>(null);
   const [selectedGroupId, setSelectedGroupId] = useState("");
   const [filter, setFilter] = useState<AlertFilter>("all");
+  const [priorityFilter, setPriorityFilter] = useState<AlertPriorityFilter>("all");
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -89,9 +98,21 @@ export function AlertsPanel({
     };
   }, [onClose, open]);
 
+  const priorityCounts = useMemo(() => ({
+    critical: alerts.filter((alert) => alert.severity === "critical").length,
+    warning: alerts.filter((alert) => alert.severity === "warning").length,
+    info: alerts.filter((alert) => alert.severity === "info").length,
+    success: alerts.filter((alert) => alert.severity === "success").length,
+  }), [alerts]);
+
   const visibleAlerts = useMemo(
-    () => alerts.filter((alert) => filter === "all" || alert.unread),
-    [alerts, filter],
+    () => alerts
+      .filter((alert) => filter === "all" || alert.unread)
+      .filter((alert) => priorityFilter === "all" || alert.severity === priorityFilter)
+      .map((alert, index) => ({ alert, index }))
+      .sort((left, right) => alertPriorityRank[left.alert.severity] - alertPriorityRank[right.alert.severity] || left.index - right.index)
+      .map(({ alert }) => alert),
+    [alerts, filter, priorityFilter],
   );
   const unreadCount = alerts.filter((alert) => alert.unread && alert.status === "active").length;
 
@@ -144,9 +165,30 @@ export function AlertsPanel({
         </header>
 
         <div className="alerts-toolbar">
-          <div role="tablist" aria-label="Alert filters">
-            <button type="button" role="tab" aria-selected={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All <span>{alerts.length}</span></button>
-            <button type="button" role="tab" aria-selected={filter === "unread"} className={filter === "unread" ? "active" : ""} onClick={() => setFilter("unread")}>Unread <span>{alerts.filter((alert) => alert.unread).length}</span></button>
+          <div className="alerts-toolbar-left">
+            <div role="tablist" aria-label="Alert filters">
+              <button type="button" role="tab" aria-selected={filter === "all"} className={filter === "all" ? "active" : ""} onClick={() => setFilter("all")}>All <span>{alerts.length}</span></button>
+              <button type="button" role="tab" aria-selected={filter === "unread"} className={filter === "unread" ? "active" : ""} onClick={() => setFilter("unread")}>Unread <span>{alerts.filter((alert) => alert.unread).length}</span></button>
+            </div>
+            <label className="alert-priority-sorter">
+              <span>Detected priority</span>
+              <select
+                aria-label="Sort alerts by detected priority"
+                value={priorityFilter}
+                onChange={(event) => {
+                  setPriorityFilter(event.target.value as AlertPriorityFilter);
+                  setExpandedId(null);
+                  setEscalatingId(null);
+                }}
+              >
+                <option value="all">All priorities ({alerts.length})</option>
+                <option value="critical">Critical ({priorityCounts.critical})</option>
+                <option value="warning">Warning ({priorityCounts.warning})</option>
+                <option value="info">Info ({priorityCounts.info})</option>
+                <option value="success">Success ({priorityCounts.success})</option>
+              </select>
+              <ChevronDown size={13} aria-hidden="true" />
+            </label>
           </div>
           <button type="button" className="mark-read-button" onClick={() => alerts.forEach((alert) => alert.unread && onUpdate(alert.id, { unread: false }))}><Check size={14} /> Mark all read</button>
         </div>
@@ -191,7 +233,7 @@ export function AlertsPanel({
               );
             })}
           </div>
-          {visibleAlerts.length === 0 ? <div className="alerts-empty"><CheckCircle2 size={24} /><strong>No unread alerts</strong><span>New alerts will appear here when something needs your attention.</span></div> : null}
+          {visibleAlerts.length === 0 ? <div className="alerts-empty"><CheckCircle2 size={24} /><strong>{priorityFilter !== "all" ? `No ${priorityFilter} alerts` : filter === "unread" ? "No unread alerts" : "No alerts"}</strong><span>{priorityFilter !== "all" ? "Choose another detected priority or return to All priorities." : "New alerts will appear here when something needs your attention."}</span></div> : null}
         </div>
 
         <footer className="alerts-footer"><ShieldAlert size={15} /><span>Alert actions in this preview are local to your session.</span></footer>
