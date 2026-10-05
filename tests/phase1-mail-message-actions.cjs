@@ -76,3 +76,22 @@ test("HTML-only email bodies use a sandboxed secure tab", () => {
   assert.ok(workspace.includes("srcDoc={selected.safeHtmlBody}"));
   assert.ok(css.includes(".secure-html-frame"));
 });
+
+
+test("message actions remain below body format tabs", () => {
+  const workspace = read("src/components/inbox-workspace.tsx");
+  const css = read("src/app/globals.css");
+
+  const bodyRegionIndex = workspace.indexOf('className="message-body-region"');
+  const actionsIndex = workspace.indexOf('className="message-actions"');
+  assert.ok(bodyRegionIndex >= 0);
+  assert.ok(actionsIndex > bodyRegionIndex);
+  assert.ok(css.includes(".message-panel { display: flex; flex-direction: column; overflow: hidden;"));
+  assert.ok(css.includes(".message-body-region {"));
+  assert.ok(css.includes("overflow: hidden;"));
+  assert.ok(css.includes(".message-actions {"));
+  assert.ok(css.includes("flex: 0 0 auto;"));
+  assert.ok(css.includes("border-top: 1px solid var(--line);"));
+  assert.ok(css.includes(".secure-html-frame"));
+  assert.ok(css.includes("min-height: 0;"));
+});
