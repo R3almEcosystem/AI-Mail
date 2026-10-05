@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { mailConfiguration } from "@/lib/mail";
 import { runMailResearch } from "@/lib/mail-research";
+import { saveResearchHistory } from "@/lib/mail-research-history";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
 
@@ -27,7 +28,22 @@ export async function POST(request: NextRequest) {
     }
 
     const result = await runMailResearch(parsed.data.query, parsed.data.scope);
-    return NextResponse.json(result, { headers: privateHeaders });
+    let history: { id: string; createdAt: string } | null = null;
+    try {
+      history = await saveResearchHistory(user, parsed.data.query, parsed.data.scope, result);
+    } catch (historyError) {
+      const historyMessage = historyError instanceof Error ? historyError.message : "";
+      console.error("[mail-research-history] save failed", {
+        name: historyError instanceof Error ? historyError.name : "UnknownError",
+        code: historyMessage.slice(0, 120),
+      });
+    }
+    return NextResponse.json({
+      ...result,
+      historySaved: Boolean(history),
+      historyId: history?.id || null,
+      historyCreatedAt: history?.createdAt || null,
+    }, { headers: privateHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     console.error("[mail-research] request failed", {
