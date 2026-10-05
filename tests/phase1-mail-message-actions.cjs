@@ -95,3 +95,17 @@ test("message actions remain below body format tabs", () => {
   assert.ok(css.includes(".secure-html-frame"));
   assert.ok(css.includes("min-height: 0;"));
 });
+
+
+test("message body remains scrollable with compact action footer", () => {
+  const css = read("src/app/globals.css");
+
+  assert.ok(css.includes("flex: 1 1 0%;"));
+  assert.ok(css.includes("overflow-y: auto;"));
+  assert.ok(css.includes("overscroll-behavior: contain;"));
+  assert.ok(css.includes("scrollbar-gutter: stable;"));
+  assert.ok(css.includes('.message-panel > [aria-label="Email security"] { flex: 0 0 auto; }'));
+  assert.ok(css.includes(".message-actions .secondary-button"));
+  assert.ok(css.includes("min-height: 30px;"));
+  assert.ok(css.includes("padding: 7px 18px 9px;"));
+});
