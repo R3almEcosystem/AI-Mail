@@ -32,15 +32,22 @@ function accountFailureAlert(account: MailAccountSummary, reason: unknown): Aler
   };
 }
 
-async function loadAccountMessages(account: MailAccountSummary): Promise<MailMessage[]> {
+async function loadAccountMessages(account: MailAccountSummary) {
   const folders = ["INBOX", "INBOX.Sent"] as const;
-  const results = await Promise.all(
+  const results = await Promise.allSettled(
     folders.map(async (folder) => {
       const page = await listMail(folder, 30, undefined, account.id);
-      return page.messages;
+      return { folder, messages: page.messages };
     }),
   );
-  return results.flat();
+
+  const messages: MailMessage[] = [];
+  const failedFolders: string[] = [];
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled") messages.push(...result.value.messages);
+    else failedFolders.push(folders[index]);
+  });
+  return { messages, failedFolders };
 }
 
 export async function GET() {
@@ -75,18 +82,36 @@ export async function GET() {
       const batch = activeAccounts.slice(index, index + concurrency);
       const results = await Promise.all(batch.map(async (account) => {
         try {
-          return { account, messages: await loadAccountMessages(account), error: null as unknown };
+          const loaded = await loadAccountMessages(account);
+          return { account, messages: loaded.messages, failedFolders: loaded.failedFolders, error: null as unknown };
         } catch (error) {
-          return { account, messages: [] as MailMessage[], error };
+          return { account, messages: [] as MailMessage[], failedFolders: ["INBOX", "INBOX.Sent"], error };
         }
       }));
 
       for (const result of results) {
-        if (result.error) {
-          failureAlerts.push(accountFailureAlert(result.account, result.error));
-        } else {
-          covered += 1;
-          messages.push(...result.messages);
+        if (result.error || !result.messages.length && result.failedFolders.length === 2) {
+          failureAlerts.push(accountFailureAlert(result.account, result.error || new Error("INBOX_AND_SENT_UNAVAILABLE")));
+          continue;
+        }
+
+        covered += 1;
+        messages.push(...result.messages);
+        if (result.failedFolders.length) {
+          failureAlerts.push({
+            id: "mailbox-monitor-partial:" + result.account.id,
+            title: "Mailbox monitoring is partially available",
+            summary: result.account.label + " could not scan " + result.failedFolders.join(" and ") + ".",
+            detail: "Activity Center is still monitoring the available folder(s) for this mailbox. Review the Sent folder name and IMAP account settings if outbound monitoring is expected.",
+            source: "Mailbox monitor",
+            time: "Now",
+            severity: "warning",
+            status: "active",
+            unread: true,
+            destination: "settings",
+            accountId: result.account.id,
+            accountLabel: result.account.label,
+          });
         }
       }
     }
