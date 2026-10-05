@@ -55,3 +55,24 @@ test("message toolbar states use distinct shapes and colors", () => {
   assert.ok(css.includes(".message-status-button--flagged"));
   assert.ok(css.includes(".message-status-button--tagged"));
 });
+
+
+test("HTML-only email bodies use a sandboxed secure tab", () => {
+  const workspace = read("src/components/inbox-workspace.tsx");
+  const client = read("src/mail/client.ts");
+  const mail = read("src/lib/mail.ts");
+  const css = read("src/app/globals.css");
+
+  assert.ok(client.includes("function buildSafeEmailHtml"));
+  assert.ok(client.includes("default-src 'none'"));
+  assert.ok(client.includes("img-src data:"));
+  assert.ok(client.includes("form-action 'none'"));
+  assert.ok(mail.includes("hasPlainTextBody"));
+  assert.ok(mail.includes("safeHtmlBody"));
+  assert.ok(workspace.includes("selectedHasSecureHtmlFallback"));
+  assert.ok(workspace.includes(">Secure HTML<") || workspace.includes("Secure HTML"));
+  assert.ok(workspace.includes('sandbox=""'));
+  assert.ok(workspace.includes('referrerPolicy="no-referrer"'));
+  assert.ok(workspace.includes("srcDoc={selected.safeHtmlBody}"));
+  assert.ok(css.includes(".secure-html-frame"));
+});
