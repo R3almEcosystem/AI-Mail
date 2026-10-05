@@ -13,6 +13,7 @@ const plan = (overrides = {}) => ({
   from: null,
   to: null,
   participant: null,
+  identities: [],
   subject: null,
   text: null,
   keywords: [],
@@ -48,4 +49,14 @@ test('phrase and date filters become bounded IMAP criteria', () => {
   assert.equal(criteria.text, 'R3EQ');
   assert.equal(criteria.since.toISOString(), '2026-09-01T00:00:00.000Z');
   assert.equal(criteria.before.toISOString(), '2026-10-01T00:00:00.000Z');
+});
+
+test('combined and/or identities are split into independent OR terms', () => {
+  const identities = research.researchIdentities(plan({ participant: 'Gopaid and / or Greg Rotman' }));
+  assert.deepEqual(identities, ['Gopaid', 'Greg Rotman']);
+});
+
+test('explicit identities remain independent even when one identity has no mailbox match', () => {
+  const identities = research.researchIdentities(plan({ identities: ['Gopaid', 'Greg Rotman'], participant: null }));
+  assert.deepEqual(identities, ['Gopaid', 'Greg Rotman']);
 });
