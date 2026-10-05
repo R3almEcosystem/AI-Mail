@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import {
   Bot,
   Check,
+  ChevronDown,
   ChevronRight,
   Database,
   Eye,
@@ -23,13 +24,36 @@ import type { AiRule, AppStatus } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
 import { MailAccountsManager } from "@/components/mail-accounts-manager";
 
-function StatusRow({ label, detail, ready }: { label: string; detail: string; ready: boolean }) {
+function StatusRow({
+  label,
+  detail,
+  ready,
+  details,
+}: {
+  label: string;
+  detail: string;
+  ready: boolean;
+  details: Array<{ label: string; value: string }>;
+}) {
   return (
-    <div className="status-row">
-      <span className={ready ? "status-check status-check--ready" : "status-check"}>{ready ? <Check size={14} /> : <span />}</span>
-      <span><strong>{label}</strong><small>{detail}</small></span>
-      <b className={ready ? "status-text status-text--ready" : "status-text"}>{ready ? "Configured" : "Required"}</b>
-    </div>
+    <details className="status-row status-row--expandable">
+      <summary className="status-row-summary">
+        <span className={ready ? "status-check status-check--ready" : "status-check"}>{ready ? <Check size={14} /> : <span />}</span>
+        <span className="status-row-copy"><strong>{label}</strong><small>{detail}</small></span>
+        <span className="status-row-end">
+          <b className={ready ? "status-text status-text--ready" : "status-text"}>{ready ? "Configured" : "Required"}</b>
+          <ChevronDown className="status-row-chevron" size={16} aria-hidden="true" />
+        </span>
+      </summary>
+      <div className="status-row-detail-panel">
+        {details.map((item) => (
+          <div className="status-row-detail-item" key={item.label}>
+            <span>{item.label}</span>
+            <strong>{item.value}</strong>
+          </div>
+        ))}
+      </div>
+    </details>
   );
 }
 
@@ -60,10 +84,50 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
       <MailAccountsManager />
       <section className="panel configuration-panel">
         <div className="panel-heading"><div><p className="eyebrow">READINESS</p><h3>Configuration checklist</h3></div><span className="configuration-score">{[status?.imap, status?.smtp, status?.openai, status?.authentication].filter(Boolean).length}/4</span></div>
-        <StatusRow ready={Boolean(status?.imap)} label="Incoming mailbox" detail="At least one active IMAP account is available for Inbox, Sent, and research." />
-        <StatusRow ready={Boolean(status?.smtp)} label="Outbound delivery" detail="At least one connected account can send through SMTP." />
-        <StatusRow ready={Boolean(status?.openai)} label="OpenAI intelligence" detail="OPENAI_API_KEY and OPENAI_MODEL" />
-        <StatusRow ready={Boolean(status?.authentication || status?.demoLogin)} label="Console authentication" detail="Signed user sessions and role-based access" />
+        <StatusRow
+          ready={Boolean(status?.imap)}
+          label="Incoming mailbox"
+          detail="At least one active IMAP account is available for Inbox, Sent, and research."
+          details={[
+            { label: "Current state", value: status?.imap ? "At least one connected mailbox is available for live IMAP access." : "No live IMAP mailbox is currently ready." },
+            { label: "Used by", value: "Inbox, Sent, message actions, secure message loading, and AI Mail Research." },
+            { label: "Required", value: "Active mailbox, IMAP host, port, username, password, and TLS configuration." },
+            { label: "Next check", value: status?.imap ? "Use Test IMAP on each Connected Mailbox to verify account-level connectivity." : "Add or edit a Connected Mailbox and verify its IMAP connection." },
+          ]}
+        />
+        <StatusRow
+          ready={Boolean(status?.smtp)}
+          label="Outbound delivery"
+          detail="At least one connected account can send through SMTP."
+          details={[
+            { label: "Current state", value: status?.smtp ? "At least one connected mailbox is available for outbound SMTP delivery." : "No connected mailbox currently has a complete SMTP configuration." },
+            { label: "Used by", value: "Compose, replies, outbound correspondence, and account-specific From identities." },
+            { label: "Required", value: "SMTP-enabled account, host, port, username, From address, password, and TLS configuration." },
+            { label: "Next check", value: status?.smtp ? "Use Test SMTP on each sending account to confirm delivery authentication." : "Enable SMTP on a Connected Mailbox and complete its outgoing-mail settings." },
+          ]}
+        />
+        <StatusRow
+          ready={Boolean(status?.openai)}
+          label="OpenAI intelligence"
+          detail="Workspace-wide AI provider and model configuration."
+          details={[
+            { label: "Current state", value: status?.openai ? "OpenAI intelligence is available to AI Mail features." : "OpenAI intelligence is not fully configured." },
+            { label: "Model", value: status?.model || "No model selected." },
+            { label: "Used by", value: "Message summaries, AI actions, AI Mail Research, classification assistance, and rule-driven intelligence." },
+            { label: "Required", value: "Encrypted OpenAI API key plus a valid selected model in Admin → AI & Mail Settings." },
+          ]}
+        />
+        <StatusRow
+          ready={Boolean(status?.authentication || status?.demoLogin)}
+          label="Console authentication"
+          detail="Signed user sessions and role-based access."
+          details={[
+            { label: "Current state", value: status?.authentication ? "Live authenticated sessions are enabled." : status?.demoLogin ? "Demo login is available; live authentication is not fully active." : "Console authentication is not configured." },
+            { label: "Protection", value: "Signed sessions, role-based capabilities, server-side authorization, and administrative access boundaries." },
+            { label: "Used by", value: "Mailbox access, Admin Portal, AI Rules governance, settings changes, and protected API operations." },
+            { label: "Next check", value: status?.authentication ? "Review users, roles, and MFA policy in the Admin Portal." : "Complete production authentication before relying on the console for protected mail operations." },
+          ]}
+        />
       </section>
     </div>
   );
