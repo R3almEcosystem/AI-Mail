@@ -104,8 +104,26 @@ test("message body remains scrollable with compact action footer", () => {
   assert.ok(css.includes("overflow-y: auto;"));
   assert.ok(css.includes("overscroll-behavior: contain;"));
   assert.ok(css.includes("scrollbar-gutter: stable;"));
-  assert.ok(css.includes('.message-panel > [aria-label="Email security"] { flex: 0 0 auto; }'));
+  assert.ok(css.includes('.message-body-region > [aria-label="Email security"]'));
   assert.ok(css.includes(".message-actions .secondary-button"));
   assert.ok(css.includes("min-height: 30px;"));
   assert.ok(css.includes("padding: 7px 18px 9px;"));
+});
+
+
+test("security review scrolls with message content", () => {
+  const workspace = read("src/components/inbox-workspace.tsx");
+  const css = read("src/app/globals.css");
+
+  const regionIndex = workspace.indexOf('className="message-body-region"');
+  const securityIndex = workspace.indexOf("<MessageSecurityPanel", regionIndex);
+  const actionsIndex = workspace.indexOf('className="message-actions"', regionIndex);
+
+  assert.ok(regionIndex >= 0);
+  assert.ok(securityIndex > regionIndex);
+  assert.ok(actionsIndex > securityIndex);
+  assert.ok(css.includes(".message-body-region {"));
+  assert.ok(css.includes("overflow-y: auto;"));
+  assert.ok(css.includes('.message-body-region > [aria-label="Email security"]'));
+  assert.ok(!css.includes('.message-panel > [aria-label="Email security"]'));
 });
