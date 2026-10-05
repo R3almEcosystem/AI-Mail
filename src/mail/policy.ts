@@ -5,6 +5,20 @@ export type MailServiceConfig = {
   limits: { maxMessageBodyChars: number; maxRawMessageBytes: number; maxSearchResults: number; maxRecipients: number; outboundAllowedDomains: readonly string[] };
 };
 export type MailAction = 'read' | 'unread' | 'flag' | 'unflag' | 'archive' | 'tag' | 'untag';
+export type MailTag = 'follow-up' | 'waiting' | 'finance' | 'legal' | 'technology' | 'personal';
+const MAIL_TAG_FLAGS: Record<MailTag, string> = {
+  'follow-up': 'R3almFollowUp',
+  waiting: 'R3almWaiting',
+  finance: 'R3almFinance',
+  legal: 'R3almLegal',
+  technology: 'R3almTechnology',
+  personal: 'R3almPersonal',
+};
+export function mailTagFlag(tag: MailTag): string {
+  const flag = MAIL_TAG_FLAGS[tag];
+  if (!flag) throw new Error('Invalid mail tag');
+  return flag;
+}
 export function checkedNumber(value: string | undefined, fallback: number, min: number, max: number): number {
   const number = value === undefined ? fallback : Number(value);
   if (!Number.isSafeInteger(number) || number < min || number > max) throw new Error('Invalid mail limit or port configuration');
