@@ -17,7 +17,7 @@ test("Admin Console exposes the shared AI Rules workspace", () => {
   assert.match(admin, /<AiRulesView onChanged={refreshAudit} editable \/>/);
   assert.match(admin, /Manage AI rules/);
 
-  assert.match(rules, /export function AiRulesView\(\{ onChanged \}/);
+  assert.match(rules, /export function AiRulesView\(\{ onChanged, editable = false \}/);
   assert.match(rules, /await onChanged\?\.\(\)/);
   assert.match(route, /requireCapability\("admin:manage", request\)/);
   assert.match(route, /Enabled AI rule/);
