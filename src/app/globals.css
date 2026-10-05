@@ -1289,3 +1289,100 @@ a.brand-lockup { text-decoration: none; }
   }
   .research-history-preview > header { align-items: flex-start; flex-direction: column; gap: 4px; }
 }
+
+
+/* AI Mail Research rendered Markdown */
+.research-markdown {
+  font-family: inherit;
+  font-size: 9px;
+  line-height: 1.7;
+  white-space: normal;
+}
+.research-markdown h1,
+.research-markdown h2,
+.research-markdown h3,
+.research-markdown h4 {
+  margin: 0;
+  color: #243653;
+  line-height: 1.28;
+  letter-spacing: -.018em;
+}
+.research-markdown h1 { margin-bottom: 18px; font-size: 19px; }
+.research-markdown h2 {
+  margin-top: 24px;
+  margin-bottom: 10px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #e2e7ee;
+  font-size: 13px;
+}
+.research-markdown h3 {
+  margin-top: 20px;
+  margin-bottom: 9px;
+  font-size: 11px;
+}
+.research-markdown h4 {
+  margin-top: 13px;
+  margin-bottom: 7px;
+  color: #53657f;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .045em;
+}
+.research-markdown p {
+  margin: 8px 0;
+  color: #4b5a70;
+}
+.research-markdown ul,
+.research-markdown ol {
+  margin: 8px 0 12px;
+  padding-left: 22px;
+  color: #4b5a70;
+}
+.research-markdown li { margin: 4px 0; }
+.research-markdown strong { color: #304560; font-weight: 790; }
+.research-markdown code {
+  padding: 1px 4px;
+  color: #5d479e;
+  background: #f2eefb;
+  border-radius: 4px;
+  font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+  font-size: .94em;
+}
+.research-markdown blockquote {
+  margin: 9px 0 14px;
+  padding: 12px 14px;
+  color: #56647a;
+  background: #fafbfd;
+  border: 1px solid #e5e9ef;
+  border-left: 3px solid #a7b8d4;
+  border-radius: 0 8px 8px 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.research-markdown hr {
+  height: 1px;
+  margin: 24px 0;
+  background: #cfd8e5;
+  border: 0;
+}
+.research-citation {
+  display: inline-block;
+  margin: 0 1px;
+  padding: 1px 5px;
+  color: #4d62a5;
+  background: #edf1fb;
+  border-radius: 999px;
+  font-size: .9em;
+  font-weight: 760;
+}
+.research-panel .research-markdown { min-height: 320px; }
+.research-history-document.research-markdown {
+  min-height: 0 !important;
+  overflow: auto;
+}
+
+@media (max-width: 760px) {
+  .research-markdown { font-size: 9.5px; }
+  .research-markdown h1 { font-size: 17px; }
+  .research-markdown h2 { font-size: 12px; }
+}
