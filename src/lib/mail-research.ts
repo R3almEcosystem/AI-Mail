@@ -343,20 +343,30 @@ async function loadMatches(plan: MailResearchPlan) {
 function collectionDocument(plan: MailResearchPlan, messages: ResearchMessage[], matchedCount: number, capped: boolean) {
   const available = Math.max(1, messages.length);
   const bodyBudget = Math.max(800, Math.min(16000, Math.floor((MAX_COLLECTION_CHARS - 40000) / available)));
+  const excluded = Math.max(0, matchedCount - messages.length);
+  const warnings = buildMailResearchWarnings(capped, excluded);
   const lines: string[] = [
     "# " + plan.title,
     "",
-    "**Scope:** " + (plan.scope === "both" ? "Inbox + Sent" : plan.scope === "sent" ? "Sent" : "Inbox"),
-    "**Matching messages found:** " + matchedCount,
-    "**Messages included:** " + messages.length,
+    "## Report Summary",
+    "",
+    "- **Scope:** " + (plan.scope === "both" ? "Inbox + Sent" : plan.scope === "sent" ? "Sent" : "Inbox"),
+    "- **Matching emails found:** " + matchedCount,
+    "- **Emails included:** " + messages.length,
+    "- **Report type:** Email collection",
   ];
-  if (capped) lines.push("**Coverage note:** The mailbox search found more matches than the per-request research limit. The newest matching messages are included; narrow the query or date range to retrieve older matches.");
-  lines.push("", "---", "");
+
+  if (warnings.length) {
+    lines.push("", "## Coverage & Warnings", "");
+    warnings.forEach(warning => lines.push("- " + warning));
+  }
+
+  lines.push("", "## Included Emails", "");
 
   messages.forEach((message, index) => {
     const body = message.text.length > bodyBudget ? message.text.slice(0, bodyBudget) + "\n\n[Body truncated in compiled document]" : message.text;
     lines.push(
-      "## " + (index + 1) + ". " + message.subject,
+      "### Email " + (index + 1) + " — " + message.subject,
       "",
       "- **Reference:** " + message.ref,
       "- **Direction:** " + message.direction,
@@ -365,12 +375,14 @@ function collectionDocument(plan: MailResearchPlan, messages: ResearchMessage[],
       "- **To:** " + (addressList(message.to) || "Unknown"),
     );
     if (message.cc.length) lines.push("- **Cc:** " + addressList(message.cc));
-    lines.push("", body || "[No plain-text body]", "", "---", "");
+    lines.push("", "#### Message Body", "");
+    const bodyLines = (body || "[No plain-text body]").split("\n");
+    bodyLines.forEach(line => lines.push("> " + line));
+    if (index < messages.length - 1) lines.push("", "---", "");
   });
 
   return lines.join("\n").slice(0, MAX_COLLECTION_CHARS);
 }
-
 function safeForProvider(message: ResearchMessage) {
   const assessment = assessEmailSecurity({
     direction: "outbound",
@@ -425,12 +437,23 @@ async function analyticalReport(query: string, plan: MailResearchPlan, messages:
     query,
     "",
     'Produce a professional Markdown report titled "' + plan.title + '".',
+    "Use this report format:",
+    "# <report title>",
+    "## Executive Summary",
+    "## Key Findings",
+    "## Chronology / Evidence",
+    "## Coverage & Warnings",
+    "## Source Emails",
+    "",
     "Requirements:",
     "- Answer the user's request using only the supplied email evidence.",
     "- Cite factual findings with the supplied message references, e.g. [M1-3].",
     "- Distinguish sent vs received messages where relevant.",
-    "- Include an Executive Summary, Findings, Chronology or Evidence section when useful, and Source Messages.",
-    "- Mention uncertainty or incomplete coverage.",
+    "- Use clear Markdown headings, short paragraphs, and bullet lists. Do not use Markdown tables.",
+    "- In Source Emails, give each included source its own ### heading and metadata bullets.",
+    "- Put a Markdown horizontal rule (---) between every source email in Source Emails.",
+    "- Put incomplete coverage, result caps, security exclusions, or other cautions under Coverage & Warnings.",
+    "- If there are no warnings, write 'No coverage warnings generated.' under Coverage & Warnings.",
     "- Do not claim that omitted or security-excluded messages were analyzed.",
     "- Keep the report concise enough to be useful but complete enough for business review.",
     "",
