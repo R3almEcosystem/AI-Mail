@@ -979,11 +979,50 @@ a.brand-lockup { text-decoration: none; }
 .alerts-header > div:nth-child(2) > span { margin-top: 3px; color: #8a95a4; font-size: 8px; }
 .alerts-close { width: 33px; height: 33px; display: grid; place-items: center; padding: 0; color: #758195; background: #f5f6f8; border: 1px solid #e9ecf1; border-radius: 9px; cursor: pointer; }
 .alerts-close:hover { color: #315fae; background: #edf3fd; }
-.alerts-toolbar { min-height: 58px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 20px; background: #fff; border-bottom: 1px solid var(--line); }
-.alerts-toolbar > div { display: flex; align-items: center; gap: 4px; }
-.alerts-toolbar > div button { min-height: 29px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: #7a8697; background: transparent; border: 0; border-radius: 8px; cursor: pointer; font-size: 8px; font-weight: 800; }
-.alerts-toolbar > div button.active { color: #2c5daa; background: #edf3fd; }
-.alerts-toolbar > div button span { min-width: 17px; padding: 2px 5px; color: #6b7b91; background: rgba(119, 139, 171, .12); border-radius: 999px; font-size: 7px; text-align: center; }
+.alerts-toolbar { min-height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 20px; background: #fff; border-bottom: 1px solid var(--line); }
+.alerts-toolbar-left { min-width: 0; display: flex; align-items: center; gap: 9px; }
+.alerts-toolbar-left > div { display: flex; align-items: center; gap: 4px; }
+.alerts-toolbar-left > div button { min-height: 29px; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; color: #7a8697; background: transparent; border: 0; border-radius: 8px; cursor: pointer; font-size: 8px; font-weight: 800; }
+.alerts-toolbar-left > div button.active { color: #2c5daa; background: #edf3fd; }
+.alerts-toolbar-left > div button span { min-width: 17px; padding: 2px 5px; color: #6b7b91; background: rgba(119, 139, 171, .12); border-radius: 999px; font-size: 7px; text-align: center; }
+.alert-priority-sorter {
+  min-width: 155px;
+  height: 34px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px;
+  color: #7b8797;
+  background: #f7f9fc;
+  border: 1px solid #e1e6ed;
+  border-radius: 9px;
+}
+.alert-priority-sorter > span {
+  font-size: 6px;
+  font-weight: 850;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.alert-priority-sorter select {
+  min-width: 0;
+  width: 100%;
+  height: 28px;
+  padding: 0 18px 0 5px;
+  color: #46566e;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  appearance: none;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 800;
+}
+.alert-priority-sorter > svg {
+  pointer-events: none;
+  color: #8692a3;
+}
 .mark-read-button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; color: #4770ad; background: transparent; border: 0; cursor: pointer; font-size: 8px; font-weight: 800; }
 .alerts-table { min-height: 0; flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px 22px; }
 .alerts-table-head { min-height: 28px; display: grid; grid-template-columns: minmax(0, 1fr) 76px 48px; align-items: center; padding: 0 14px; color: #99a3b1; font-size: 7px; font-weight: 850; letter-spacing: .09em; text-transform: uppercase; }
@@ -1030,7 +1069,11 @@ a.brand-lockup { text-decoration: none; }
 @media (max-width: 600px) {
   .alerts-drawer { width: 100vw; }
   .alerts-header { min-height: 79px; padding: 0 15px; }
-  .alerts-toolbar { padding: 0 15px; }
+  .alerts-toolbar { align-items: stretch; flex-direction: column; padding: 9px 15px; }
+  .alerts-toolbar-left { align-items: stretch; flex-direction: column; }
+  .alerts-toolbar-left > div { width: 100%; }
+  .alert-priority-sorter { width: 100%; min-width: 0; }
+  .mark-read-button { align-self: flex-start; }
   .alerts-table { padding: 11px 10px 18px; }
   .alerts-table-head { display: none; }
   .alert-row { grid-template-columns: minmax(0, 1fr) 44px; padding: 10px; }
