@@ -3,6 +3,7 @@ export type AiRequest = {
   uid:number;
   folder:'INBOX'|'INBOX.Sent';
   instructions?:string;
+  accountId?:string;
 };
 
 const allowedFolders = new Set(['INBOX','INBOX.Sent']);
@@ -10,16 +11,18 @@ const allowedFolders = new Set(['INBOX','INBOX.Sent']);
 export function parseAiRequest(value:unknown):AiRequest|null {
   if (!value || typeof value!=='object' || Array.isArray(value)) return null;
   const input=value as Record<string,unknown>;
-  if (Object.keys(input).some(key=>!['action','uid','folder','instructions'].includes(key))
+  if (Object.keys(input).some(key=>!['action','uid','folder','instructions','accountId'].includes(key))
     || typeof input.action!=='string' || !['summarize','draft','prioritize','extract'].includes(input.action)
     || typeof input.uid!=='number' || !Number.isSafeInteger(input.uid) || input.uid<1 || input.uid>4294967295
     || (input.folder!==undefined && (typeof input.folder!=='string' || !allowedFolders.has(input.folder)))
-    || (input.instructions!==undefined && (typeof input.instructions!=='string' || input.instructions.length>1000))) return null;
+    || (input.instructions!==undefined && (typeof input.instructions!=='string' || input.instructions.length>1000))
+    || (input.accountId!==undefined && (typeof input.accountId!=='string' || !/^(?:primary|[0-9a-f-]{36})$/i.test(input.accountId)))) return null;
   return {
     action:input.action as AiRequest['action'],
     uid:input.uid,
     folder:(input.folder as AiRequest['folder'] | undefined) ?? 'INBOX',
     ...(input.instructions===undefined?{}:{instructions:input.instructions as string}),
+    ...(input.accountId===undefined?{}:{accountId:input.accountId as string}),
   };
 }
 
