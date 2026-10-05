@@ -47,6 +47,7 @@ import type {
   UserStatus,
 } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
+import { MailAccountsManager } from "@/components/mail-accounts-manager";
 
 type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "audit";
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
@@ -70,7 +71,7 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   groups: { eyebrow: "ESCALATION", title: "Alert groups", detail: "Define the teams that can receive and own escalated alerts." },
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
-  services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Set the assistant policy and review private service connections." },
+  services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Configure workspace AI policy and manage every connected mailbox." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
 
@@ -292,6 +293,20 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     if (response.ok) setEvents(((await response.json()) as { events: AuditEvent[] }).events);
   }
 
+  async function refreshServiceState() {
+    const [settingsResponse, statusResponse] = await Promise.all([
+      fetch(webPath("/api/admin/settings"), { cache: "no-store" }),
+      fetch(webPath("/api/status"), { cache: "no-store" }),
+    ]);
+    if (settingsResponse.ok) {
+      const data = (await settingsResponse.json()) as { settings: AdminSettings; secrets: ServiceSecretStatus; demo: boolean };
+      setSettings(data.settings);
+      setSecretStatus(data.secrets);
+      setDemo(data.demo);
+    }
+    if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
+  }
+
   async function loadOpenAiModels(selected?: string) {
     setModelsLoading(true);
     setModelLoadError("");
@@ -358,11 +373,33 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   async function saveSettings(showToast = true): Promise<boolean> {
     if (!settings) return false;
     setSaving(true);
-    const suppliedCredentials = Object.fromEntries(Object.entries(credentials).filter(([, value]) => Boolean(value)));
+
+    let payloadSettings = settings;
+    let suppliedCredentials = Object.fromEntries(Object.entries(credentials).filter(([, value]) => Boolean(value)));
+
+    if (section === "services") {
+      const currentResponse = await fetch(webPath("/api/admin/settings"), { cache: "no-store" });
+      if (!currentResponse.ok) {
+        setToast("Unable to refresh the current mail configuration before saving AI settings.");
+        setSaving(false);
+        return false;
+      }
+      const current = (await currentResponse.json()) as { settings: AdminSettings };
+      payloadSettings = {
+        ...current.settings,
+        aiModel: settings.aiModel,
+        aiTone: settings.aiTone,
+        aiAutoSummarize: settings.aiAutoSummarize,
+        aiPriorityDetection: settings.aiPriorityDetection,
+        outboundAllowedDomains: settings.outboundAllowedDomains,
+      };
+      suppliedCredentials = credentials.openaiApiKey ? { openaiApiKey: credentials.openaiApiKey } : {};
+    }
+
     const response = await fetch(webPath("/api/admin/settings"), {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...settings, ...(Object.keys(suppliedCredentials).length ? { credentials: suppliedCredentials } : {}) }),
+      body: JSON.stringify({ ...payloadSettings, ...(Object.keys(suppliedCredentials).length ? { credentials: suppliedCredentials } : {}) }),
     });
     const result = (await response.json().catch(() => null)) as { settings?: AdminSettings; secrets?: ServiceSecretStatus; error?: string } | null;
     if (!response.ok || !result?.settings) {
