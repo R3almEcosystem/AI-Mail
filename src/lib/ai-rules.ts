@@ -72,6 +72,53 @@ export async function setAiRuleActive(id: string, active: boolean): Promise<AiRu
   return rows[0] ? mapRule(rows[0]) : null;
 }
 
+
+export type AiRuleUpdateInput = Pick<
+  AiRule,
+  "title" | "description" | "category" | "priority" | "senderDomains" | "senderAddresses"
+  | "recipientTerms" | "subjectTerms" | "bodyTerms" | "subjectPrefixes" | "requireReply"
+  | "direction" | "actions" | "active"
+>;
+
+function normalizeTerms(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+export async function updateAiRule(id: string, input: AiRuleUpdateInput): Promise<AiRule | null> {
+  const sql = database();
+  if (!sql) return null;
+
+  const senderDomains = normalizeTerms(input.senderDomains).map((value) => value.toLowerCase());
+  const senderAddresses = normalizeTerms(input.senderAddresses).map((value) => value.toLowerCase());
+  const recipientTerms = normalizeTerms(input.recipientTerms);
+  const subjectTerms = normalizeTerms(input.subjectTerms);
+  const bodyTerms = normalizeTerms(input.bodyTerms);
+  const subjectPrefixes = normalizeTerms(input.subjectPrefixes);
+
+  const rows = await sql`
+    UPDATE public.ai_mail_ai_rules
+    SET
+      title = ${input.title.trim()},
+      description = ${input.description.trim()},
+      category = ${input.category.trim()},
+      priority = ${input.priority},
+      sender_domains = ${sql.array(senderDomains)},
+      sender_addresses = ${sql.array(senderAddresses)},
+      recipient_terms = ${sql.array(recipientTerms)},
+      subject_terms = ${sql.array(subjectTerms)},
+      body_terms = ${sql.array(bodyTerms)},
+      subject_prefixes = ${sql.array(subjectPrefixes)},
+      require_reply = ${input.requireReply},
+      direction = ${input.direction},
+      actions = ${JSON.stringify(input.actions)}::jsonb,
+      active = ${input.active},
+      updated_at = NOW()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return rows[0] ? mapRule(rows[0]) : null;
+}
+
 export type RuleMessageInput = {
   senderEmail: string;
   recipients?: string[];
