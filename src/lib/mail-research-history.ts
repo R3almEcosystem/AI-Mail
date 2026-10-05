@@ -36,6 +36,7 @@ export type ResearchHistorySummary = {
   excluded: number;
   capped: boolean;
   model: string | null;
+  warnings: string[];
   createdAt: string;
 };
 
@@ -53,6 +54,7 @@ type ResearchResult = {
   excluded: number;
   capped: boolean;
   model: string | null;
+  warnings: string[];
 };
 
 function iso(value: unknown) {
@@ -73,6 +75,7 @@ function mapSummary(row: Record<string, unknown>): ResearchHistorySummary {
     excluded: Number(row.excluded || 0),
     capped: Boolean(row.capped),
     model: row.model ? String(row.model) : null,
+    warnings: Array.isArray(row.warnings) ? row.warnings.map(String) : [],
     createdAt: iso(row.created_at),
   };
 }
@@ -89,11 +92,12 @@ export async function saveResearchHistory(
   const rows = await sql`
     INSERT INTO private.ai_mail_research_history (
       id, user_id, query, requested_scope, result_scope, title, markdown, mode,
-      matched, included, excluded, capped, model
+      matched, included, excluded, capped, model, warnings
     ) VALUES (
       ${id}::uuid, ${user.id}, ${query.trim()}, ${requestedScope}, ${result.scope},
       ${result.title}, ${result.markdown}, ${result.mode}, ${result.matched},
-      ${result.included}, ${result.excluded}, ${result.capped}, ${result.model}
+      ${result.included}, ${result.excluded}, ${result.capped}, ${result.model},
+      ${JSON.stringify(result.warnings)}::jsonb
     )
     RETURNING created_at
   `;
@@ -107,7 +111,7 @@ export async function listResearchHistory(user: SessionUser, offset: number, lim
   const boundedOffset = Math.max(offset, 0);
   const rows = await sql`
     SELECT id, query, requested_scope, result_scope, title, mode, matched, included,
-           excluded, capped, model, created_at
+           excluded, capped, model, warnings, created_at
     FROM private.ai_mail_research_history
     WHERE user_id = ${user.id}
     ORDER BY created_at DESC, id DESC
@@ -128,7 +132,7 @@ export async function getResearchHistory(user: SessionUser, id: string): Promise
   const sql = database();
   const rows = await sql`
     SELECT id, query, requested_scope, result_scope, title, markdown, mode, matched,
-           included, excluded, capped, model, created_at
+           included, excluded, capped, model, warnings, created_at
     FROM private.ai_mail_research_history
     WHERE user_id = ${user.id} AND id = ${id}::uuid
     LIMIT 1
