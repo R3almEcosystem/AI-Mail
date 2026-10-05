@@ -21,7 +21,7 @@ export async function POST(request:NextRequest) {
     if(user.demo)return NextResponse.json({text:demoResponses[input.action],demo:true,model:null,uid:input.uid},{headers:privateHeaders});
     const ai = await aiConfiguration();
     if(!ai.configured)return NextResponse.json({error:"AI processing is not configured."},{status:503,headers:privateHeaders});
-    const message=await getMail(input.uid,input.folder);
+    const message=await getMail(input.uid,input.folder,input.accountId || "primary");
     const result=await analyzeMail(input.action,message,input.instructions);
     return NextResponse.json({text:result.text,usage:result.usage,truncated:result.truncated,demo:false,uid:input.uid,model:ai.model},{headers:privateHeaders});
   }catch(error){return apiError(error,"AI processing failed. No generated result is available.");}
