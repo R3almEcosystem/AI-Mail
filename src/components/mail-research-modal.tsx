@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Bot, Download, FileText, History, LoaderCircle, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import { webPath } from "@/lib/web-path";
 
@@ -86,6 +86,116 @@ function formatResearchDate(value: string) {
     minute: "2-digit",
   }).format(date);
 }
+
+
+function renderInlineMarkdown(text: string): ReactNode[] {
+  const tokens = text.split(/(\*\*[^*]+\*\*|`[^`]+`|\[M\d+-\d+\])/g).filter(Boolean);
+  return tokens.map((token, index) => {
+    if (token.startsWith("**") && token.endsWith("**")) {
+      return <strong key={index}>{token.slice(2, -2)}</strong>;
+    }
+    if (token.startsWith("`") && token.endsWith("`")) {
+      return <code key={index}>{token.slice(1, -1)}</code>;
+    }
+    if (/^\[M\d+-\d+\]$/.test(token)) {
+      return <span className="research-citation" key={index}>{token}</span>;
+    }
+    return token;
+  });
+}
+
+function MarkdownReport({ markdown, className = "" }: { markdown: string; className?: string }) {
+  const lines = markdown.replace(/\r/g, "").split("\n");
+  const nodes: ReactNode[] = [];
+  let paragraph: string[] = [];
+  let list: string[] = [];
+  let ordered = false;
+  let quote: string[] = [];
+
+  function flushParagraph() {
+    if (!paragraph.length) return;
+    nodes.push(<p key={"p-" + nodes.length}>{renderInlineMarkdown(paragraph.join(" "))}</p>);
+    paragraph = [];
+  }
+
+  function flushList() {
+    if (!list.length) return;
+    const items = list.map((item, index) => <li key={index}>{renderInlineMarkdown(item)}</li>);
+    nodes.push(ordered ? <ol key={"ol-" + nodes.length}>{items}</ol> : <ul key={"ul-" + nodes.length}>{items}</ul>);
+    list = [];
+  }
+
+  function flushQuote() {
+    if (!quote.length) return;
+    nodes.push(
+      <blockquote key={"q-" + nodes.length}>
+        {quote.map((line, index) => <span key={index}>{renderInlineMarkdown(line)}{index < quote.length - 1 ? <br /> : null}</span>)}
+      </blockquote>,
+    );
+    quote = [];
+  }
+
+  function flushAll() {
+    flushParagraph();
+    flushList();
+    flushQuote();
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trimEnd();
+    if (!line.trim()) {
+      flushAll();
+      continue;
+    }
+    if (line.trim() === "---" || line.trim() === "***") {
+      flushAll();
+      nodes.push(<hr key={"hr-" + nodes.length} />);
+      continue;
+    }
+    const heading = /^(#{1,4})\s+(.+)$/.exec(line);
+    if (heading) {
+      flushAll();
+      const level = heading[1].length;
+      const body = renderInlineMarkdown(heading[2]);
+      if (level === 1) nodes.push(<h1 key={"h1-" + nodes.length}>{body}</h1>);
+      else if (level === 2) nodes.push(<h2 key={"h2-" + nodes.length}>{body}</h2>);
+      else if (level === 3) nodes.push(<h3 key={"h3-" + nodes.length}>{body}</h3>);
+      else nodes.push(<h4 key={"h4-" + nodes.length}>{body}</h4>);
+      continue;
+    }
+    if (/^>\s?/.test(line)) {
+      flushParagraph();
+      flushList();
+      quote.push(line.replace(/^>\s?/, ""));
+      continue;
+    }
+    const unordered = /^[-*]\s+(.+)$/.exec(line);
+    if (unordered) {
+      flushParagraph();
+      flushQuote();
+      if (list.length && ordered) flushList();
+      ordered = false;
+      list.push(unordered[1]);
+      continue;
+    }
+    const orderedMatch = /^\d+\.\s+(.+)$/.exec(line);
+    if (orderedMatch) {
+      flushParagraph();
+      flushQuote();
+      if (list.length && !ordered) flushList();
+      ordered = true;
+      list.push(orderedMatch[1]);
+      continue;
+    }
+    flushList();
+    flushQuote();
+    paragraph.push(line.trim());
+  }
+  flushAll();
+
+  return <article className={"research-document research-markdown " + className}>{nodes}</article>;
+}
+
 
 function MailResearchSurface({
   open,
@@ -304,7 +414,7 @@ function MailResearchSurface({
                 </div>
               </div>
               {result.warnings.map((warning) => <p className="research-warning" key={warning}>{warning}</p>)}
-              <pre className="research-document">{result.markdown}</pre>
+              <MarkdownReport markdown={result.markdown} />
             </div>
           ) : null}
         </div>
@@ -386,7 +496,7 @@ function MailResearchSurface({
                   {historyDetailLoading ? (
                     <div className="research-history-preview-loading"><LoaderCircle className="spin" size={20} /> Loading Markdown report…</div>
                   ) : selectedHistoryDetail ? (
-                    <pre className="research-document research-history-document">{selectedHistoryDetail.markdown}</pre>
+                    <MarkdownReport markdown={selectedHistoryDetail.markdown} className="research-history-document" />
                   ) : (
                     <div className="research-history-preview-loading">Select the report again to retry loading its Markdown.</div>
                   )}
