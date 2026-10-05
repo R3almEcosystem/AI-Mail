@@ -242,22 +242,22 @@ function criteriaWithIdentity(plan: MailResearchPlan, folder: "INBOX" | "INBOX.S
   ];
 }
 
-async function resolveIdentityAliases(identities: string[]): Promise<IdentityAliasMap> {
+async function resolveIdentityAliases(identities: string[], accountId: string): Promise<IdentityAliasMap> {
   const aliasMap: IdentityAliasMap = new Map(identities.map(identity => [identity, [identity]]));
   const unresolved = identities.filter(identity => !identity.includes("@"));
   if (!unresolved.length) return aliasMap;
 
   const discoveryCriteria = unresolved.map(identity => ({ text: identity } as SearchCriteria));
   const [inboxGroups, sentGroups] = await Promise.all([
-    searchMailUidGroups("INBOX", discoveryCriteria),
-    searchMailUidGroups("INBOX.Sent", discoveryCriteria),
+    searchMailUidGroups("INBOX", discoveryCriteria, accountId),
+    searchMailUidGroups("INBOX.Sent", discoveryCriteria, accountId),
   ]);
 
   const inboxUids = [...new Set(inboxGroups.flatMap(group => group.slice(0, 12)))];
   const sentUids = [...new Set(sentGroups.flatMap(group => group.slice(0, 12)))];
   const [inboxMessages, sentMessages] = await Promise.all([
-    loadMailResearchMessages("INBOX", inboxUids, Math.min(120, Math.max(1, inboxUids.length))),
-    loadMailResearchMessages("INBOX.Sent", sentUids, Math.min(120, Math.max(1, sentUids.length))),
+    loadMailResearchMessages("INBOX", inboxUids, Math.min(120, Math.max(1, inboxUids.length)), accountId),
+    loadMailResearchMessages("INBOX.Sent", sentUids, Math.min(120, Math.max(1, sentUids.length)), accountId),
   ]);
   const discoveryMessages = [...inboxMessages, ...sentMessages];
 
@@ -292,13 +292,13 @@ function buildSearchCriteria(
   return terms.map(term => baseCriteria(plan, term)).slice(0, 100);
 }
 
-async function searchResearchFolders(plan: MailResearchPlan) {
+async function searchResearchFolders(plan: MailResearchPlan, accountId: string) {
   const folders = foldersForScope(plan.scope);
   const identities = researchIdentities(plan);
-  const aliases = await resolveIdentityAliases(identities);
+  const aliases = await resolveIdentityAliases(identities, accountId);
   const criteriaByFolder = folders.map(folder => buildSearchCriteria(folder, plan, aliases));
   const grouped = await Promise.all(
-    folders.map((folder, index) => searchMailUidGroups(folder, criteriaByFolder[index])),
+    folders.map((folder, index) => searchMailUidGroups(folder, criteriaByFolder[index], accountId)),
   );
   return {
     folders,
@@ -312,13 +312,13 @@ function foldersForScope(scope: MailResearchScope): Array<"INBOX" | "INBOX.Sent"
   return ["INBOX", "INBOX.Sent"];
 }
 
-async function loadMatches(plan: MailResearchPlan) {
-  const { folders, uidLists } = await searchResearchFolders(plan);
+async function loadMatches(plan: MailResearchPlan, accountId: string) {
+  const { folders, uidLists } = await searchResearchFolders(plan, accountId);
   const matchedCount = uidLists.reduce((sum, list) => sum + list.length, 0);
 
   const batches = await Promise.all(folders.map(async (folder, index) => {
     const uids = uidLists[index].slice(0, MAX_MESSAGES_PER_FOLDER);
-    const messages = await loadMailResearchMessages(folder, uids, MAX_MESSAGES_PER_FOLDER);
+    const messages = await loadMailResearchMessages(folder, uids, MAX_MESSAGES_PER_FOLDER, accountId);
     return messages.map((message, messageIndex): ResearchMessage => ({
       ...message,
       folder,
@@ -494,9 +494,9 @@ async function analyticalReport(query: string, plan: MailResearchPlan, messages:
   };
 }
 
-export async function runMailResearch(query: string, selectedScope: MailResearchScope) {
+export async function runMailResearch(query: string, selectedScope: MailResearchScope, accountId = "primary") {
   const plan = await planMailResearch(query, selectedScope);
-  const { messages, matchedCount, capped } = await loadMatches(plan);
+  const { messages, matchedCount, capped } = await loadMatches(plan, accountId);
 
   if (!matchedCount) {
     return {
