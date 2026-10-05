@@ -215,18 +215,18 @@ function emailCandidatesNearIdentity(identity: string, messages: Awaited<ReturnT
 
 async function discoverIdentityAliases(identity: string): Promise<string[]> {
   if (identity.includes("@")) return [identity.toLowerCase()];
-  const discoveryUids = [
-    ...(await searchMailUids("INBOX", { text: identity })).slice(0, 12),
-    ...(await searchMailUids("INBOX.Sent", { text: identity })).slice(0, 12),
-  ];
-  const inboxUids = [...new Set((await searchMailUids("INBOX", { text: identity })).slice(0, 12))];
-  const sentUids = [...new Set((await searchMailUids("INBOX.Sent", { text: identity })).slice(0, 12))];
+  const [inboxMatches, sentMatches] = await Promise.all([
+    searchMailUids("INBOX", { text: identity }),
+    searchMailUids("INBOX.Sent", { text: identity }),
+  ]);
+  const inboxUids = [...new Set(inboxMatches.slice(0, 12))];
+  const sentUids = [...new Set(sentMatches.slice(0, 12))];
   const [inboxMessages, sentMessages] = await Promise.all([
     loadMailResearchMessages("INBOX", inboxUids, 12),
     loadMailResearchMessages("INBOX.Sent", sentUids, 12),
   ]);
   const aliases = emailCandidatesNearIdentity(identity, [...inboxMessages, ...sentMessages]);
-  return [...new Set([identity, ...aliases, ...discoveryUids.length ? [] : []])];
+  return [...new Set([identity, ...aliases])];
 }
 
 async function searchIdentity(folder: "INBOX" | "INBOX.Sent", plan: MailResearchPlan, identity: string, keyword?: string): Promise<number[]> {
