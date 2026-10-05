@@ -6,6 +6,7 @@ import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessme
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
 import { assertMessageIdentity, type MailServiceConfig, type MailAction } from './policy.js';
+import { mailTagFlag, type MailTag } from '../lib/mail-tags.js';
 
 export type MessageSummary = {
   uid: number; subject: string; date?: string;
@@ -255,7 +256,7 @@ export class MailGateway {
       const parsed = await PostalMime.parse(message.source, { maxNestingDepth: 50 });
       const headers = new Map<string, string>(parsed.headers.map(header => [header.key.toLowerCase(), header.value] as [string, string]));
       const security = assessEmailSecurity({
-        direction: 'inbound', subject: message.envelope?.subject || '', text: parsed.text || '', html: parsed.html || '',
+        direction: folder === 'INBOX.Sent' ? 'outbound' : 'inbound', subject: message.envelope?.subject || '', text: parsed.text || '', html: parsed.html || '',
         from: envelopeAddresses(message.envelope?.from)[0]?.address, replyTo: headers.get('reply-to'),
         attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename ?? undefined, mimeType: attachment.mimeType })),
       });
@@ -280,17 +281,30 @@ export class MailGateway {
     const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, attachmentPolicyFromEnv());
     return { ...loaded.message, attachmentInspection };
   }
-  async updateMessage(folder: string, uid: number, action: MailAction, archiveFolder = 'Archive') {
+  async updateMessage(folder: string, uid: number, action: MailAction, archiveFolder = 'Archive', tag?: MailTag) {
     assertMessageIdentity(folder, uid);
-    if (!['read', 'unread', 'flag', 'unflag', 'archive'].includes(action)) throw new Error('Invalid mailbox action');
+    if (!['read', 'unread', 'flag', 'unflag', 'archive', 'tag', 'untag'].includes(action)) throw new Error('Invalid mailbox action');
     if (action === 'archive') return this.moveMessage(folder, uid, archiveFolder);
+    if ((action === 'tag' || action === 'untag') && !tag) throw new Error('A message tag is required');
     return this.withMailbox(folder, async client => {
-      const flag = action === 'read' || action === 'unread' ? '\\Seen' : '\\Flagged';
-      const result = action === 'read' || action === 'flag'
+      const flag = action === 'read' || action === 'unread'
+        ? '\\Seen'
+        : action === 'flag' || action === 'unflag'
+          ? '\\Flagged'
+          : mailTagFlag(tag!);
+      const add = action === 'read' || action === 'flag' || action === 'tag';
+      const result = add
         ? await client.messageFlagsAdd(uid, [flag], { uid: true })
         : await client.messageFlagsRemove(uid, [flag], { uid: true });
-      if (result !== true) throw new Error('IMAP did not confirm the flag change');
-      return { uid, action };
+      if (result !== true) throw new Error('IMAP did not confirm the message status change');
+      const updated = await client.fetchOne(uid, { flags: true }, { uid: true });
+      if (!updated) throw new Error('Message status could not be reloaded after the change');
+      return {
+        uid,
+        action,
+        ...(tag ? { tag } : {}),
+        flags: updated.flags ? [...updated.flags] : [],
+      };
     });
   }
   async markRead(folder: string, uid: number): Promise<{ uid: number; read: true }> {
