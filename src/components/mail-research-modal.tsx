@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Bot, Download, FileText, LoaderCircle, Search, Sparkles, X } from "lucide-react";
 import { webPath } from "@/lib/web-path";
 
-type ResearchScope = "inbox" | "sent" | "both";
+export type ResearchScope = "inbox" | "sent" | "both";
 
 type ResearchResult = {
   title: string;
@@ -30,14 +30,16 @@ function safeFilename(value: string) {
   return (cleaned || "ai-mail-research") + ".md";
 }
 
-export function MailResearchModal({
+function MailResearchSurface({
   open,
   defaultScope,
   onClose,
+  panel = false,
 }: {
   open: boolean;
   defaultScope: ResearchScope;
-  onClose: () => void;
+  onClose?: () => void;
+  panel?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<ResearchScope>(defaultScope);
@@ -93,89 +95,123 @@ export function MailResearchModal({
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   }
 
-  return (
-    <div className="research-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !loading) onClose();
-    }}>
-      <section className="research-modal" role="dialog" aria-modal="true" aria-labelledby="mail-research-title">
-        <header className="research-modal-header">
-          <span className="research-modal-icon"><Sparkles size={18} /></span>
-          <div>
-            <p className="eyebrow">FULL MAILBOX INTELLIGENCE</p>
-            <h2 id="mail-research-title">AI Mail Research</h2>
-          </div>
+  const titleId = panel ? "mail-research-panel-title" : "mail-research-title";
+  const researchContent = (
+    <section
+      className={panel ? "research-modal research-panel" : "research-modal"}
+      role={panel ? "region" : "dialog"}
+      aria-modal={panel ? undefined : true}
+      aria-labelledby={titleId}
+    >
+      <header className="research-modal-header">
+        <span className="research-modal-icon"><Sparkles size={18} /></span>
+        <div>
+          <p className="eyebrow">FULL MAILBOX INTELLIGENCE</p>
+          <h2 id={titleId}>AI Mail Research</h2>
+        </div>
+        {!panel && onClose ? (
           <button type="button" className="icon-button" onClick={onClose} disabled={loading} aria-label="Close AI Mail Research"><X size={18} /></button>
-        </header>
+        ) : null}
+      </header>
 
-        <div className="research-modal-body">
-          <div className="research-scope-row">
-            <span><strong>Search scope</strong><small>The AI searches the complete server mailbox, not just messages currently loaded on screen.</small></span>
-            <div className="research-scope-tabs" role="group" aria-label="Research mailbox scope">
-              {(["inbox", "sent", "both"] as const).map((item) => (
-                <button
-                  type="button"
-                  key={item}
-                  className={scope === item ? "active" : ""}
-                  onClick={() => setScope(item)}
-                  disabled={loading}
-                >{item === "both" ? "Both" : item === "sent" ? "Sent" : "Inbox"}</button>
+      <div className="research-modal-body">
+        <div className="research-scope-row">
+          <span><strong>Search scope</strong><small>The AI searches the complete server mailbox, not just messages currently loaded on screen.</small></span>
+          <div className="research-scope-tabs" role="group" aria-label="Research mailbox scope">
+            {(["inbox", "sent", "both"] as const).map((item) => (
+              <button
+                type="button"
+                key={item}
+                className={scope === item ? "active" : ""}
+                onClick={() => setScope(item)}
+                disabled={loading}
+              >{item === "both" ? "Both" : item === "sent" ? "Sent" : "Inbox"}</button>
+            ))}
+          </div>
+        </div>
+
+        <label className="research-query">
+          <span>Query or instruction</span>
+          <textarea
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Example: Compile every email sent to clientonboarding@coinbase.com into one chronological document."
+            maxLength={2000}
+            disabled={loading}
+          />
+          <small>Ask for collections, searches, chronologies, summaries, comparisons, trends, decisions, deadlines, or executive reports.</small>
+        </label>
+
+        {!result ? (
+          <div className="research-examples">
+            <strong>Examples</strong>
+            <div>
+              {examples.map((example) => (
+                <button type="button" key={example} onClick={() => setQuery(example)} disabled={loading}>{example}</button>
               ))}
             </div>
           </div>
+        ) : null}
 
-          <label className="research-query">
-            <span>Query or instruction</span>
-            <textarea
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Example: Compile every email sent to clientonboarding@coinbase.com into one chronological document."
-              maxLength={2000}
-              disabled={loading}
-            />
-            <small>Ask for collections, searches, chronologies, summaries, comparisons, trends, decisions, deadlines, or executive reports.</small>
-          </label>
+        {error ? <div className="research-error" role="alert">{error}</div> : null}
 
-          {!result ? (
-            <div className="research-examples">
-              <strong>Examples</strong>
+        {result ? (
+          <div className="research-result">
+            <div className="research-result-summary">
+              <span><FileText size={16} /><strong>{result.title}</strong></span>
               <div>
-                {examples.map((example) => (
-                  <button type="button" key={example} onClick={() => setQuery(example)} disabled={loading}>{example}</button>
-                ))}
+                <b>{result.matched}</b><small>matched</small>
+                <b>{result.included}</b><small>included</small>
+                <b>{result.mode === "collection" ? "Collection" : "Report"}</b><small>output</small>
               </div>
             </div>
-          ) : null}
-
-          {error ? <div className="research-error" role="alert">{error}</div> : null}
-
-          {result ? (
-            <div className="research-result">
-              <div className="research-result-summary">
-                <span><FileText size={16} /><strong>{result.title}</strong></span>
-                <div>
-                  <b>{result.matched}</b><small>matched</small>
-                  <b>{result.included}</b><small>included</small>
-                  <b>{result.mode === "collection" ? "Collection" : "Report"}</b><small>output</small>
-                </div>
-              </div>
-              {result.capped ? <p className="research-warning">This search found more matching messages than one research request can safely process. The newest matches are included; narrow the query or date range for older results.</p> : null}
-              {result.excluded > 0 ? <p className="research-warning">{result.excluded} matching message(s) were not included in the generated output because of processing or security limits.</p> : null}
-              <pre className="research-document">{result.markdown}</pre>
-            </div>
-          ) : null}
-        </div>
-
-        <footer className="research-modal-footer">
-          <span><Bot size={14} /> Research never sends, deletes, or modifies email.</span>
-          <div>
-            {result ? <button type="button" className="secondary-button" onClick={() => { setResult(null); setError(""); }} disabled={loading}>New research</button> : null}
-            {result ? <button type="button" className="secondary-button" onClick={downloadResult}><Download size={15} /> Download Markdown</button> : null}
-            <button type="button" className="primary-button" onClick={() => void runResearch()} disabled={loading || query.trim().length < 3}>
-              {loading ? <><LoaderCircle className="spin" size={15} /> Researching mailbox…</> : <><Search size={15} /> Run research</>}
-            </button>
+            {result.capped ? <p className="research-warning">This search found more matching messages than one research request can safely process. The newest matches are included; narrow the query or date range for older results.</p> : null}
+            {result.excluded > 0 ? <p className="research-warning">{result.excluded} matching message(s) were not included in the generated output because of processing or security limits.</p> : null}
+            <pre className="research-document">{result.markdown}</pre>
           </div>
-        </footer>
-      </section>
+        ) : null}
+      </div>
+
+      <footer className="research-modal-footer">
+        <span><Bot size={14} /> Research never sends, deletes, or modifies email.</span>
+        <div>
+          {result ? <button type="button" className="secondary-button" onClick={() => { setResult(null); setError(""); }} disabled={loading}>New research</button> : null}
+          {result ? <button type="button" className="secondary-button" onClick={downloadResult}><Download size={15} /> Download Markdown</button> : null}
+          <button type="button" className="primary-button" onClick={() => void runResearch()} disabled={loading || query.trim().length < 3}>
+            {loading ? <><LoaderCircle className="spin" size={15} /> Researching mailbox…</> : <><Search size={15} /> Run research</>}
+          </button>
+        </div>
+      </footer>
+    </section>
+  );
+
+  if (panel) return researchContent;
+
+  return (
+    <div className="research-backdrop" role="presentation" onMouseDown={(event) => {
+      if (event.target === event.currentTarget && !loading) onClose?.();
+    }}>
+      {researchContent}
     </div>
   );
+}
+
+export function MailResearchModal({
+  open,
+  defaultScope,
+  onClose,
+}: {
+  open: boolean;
+  defaultScope: ResearchScope;
+  onClose: () => void;
+}) {
+  return <MailResearchSurface open={open} defaultScope={defaultScope} onClose={onClose} />;
+}
+
+export function MailResearchPanel({
+  defaultScope = "both",
+}: {
+  defaultScope?: ResearchScope;
+}) {
+  return <MailResearchSurface open defaultScope={defaultScope} panel />;
 }
