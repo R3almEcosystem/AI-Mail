@@ -1,3 +1,5 @@
+import type { MailMessage } from "@/lib/types";
+
 export type AlertSeverity = "critical" | "warning" | "info" | "success";
 export type AlertStatus = "active" | "snoozed" | "resolved";
 export type AlertDestination = "message" | "settings" | "inbox";
@@ -14,6 +16,9 @@ export type AlertRecord = {
   unread: boolean;
   destination: AlertDestination;
   messageUid?: number;
+  messageFolder?: "INBOX" | "INBOX.Sent";
+  accountId?: string;
+  accountLabel?: string;
   escalatedToGroupId?: string;
   escalatedAt?: string;
 };
@@ -83,3 +88,60 @@ export const initialAlerts: AlertRecord[] = [
     destination: "inbox",
   },
 ];
+
+
+function relativeAlertTime(date: string) {
+  const timestamp = Date.parse(date);
+  if (!Number.isFinite(timestamp)) return "Now";
+  const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
+  if (minutes < 1) return "Now";
+  if (minutes < 60) return minutes + "m";
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + "h";
+  const days = Math.floor(hours / 24);
+  return days + "d";
+}
+
+export function alertSeverityForMessage(message: MailMessage): AlertSeverity | null {
+  if (message.aiEscalate || message.priority === "urgent") return "critical";
+  if (message.priority === "important") return "warning";
+  if (message.flagged) return "info";
+  return null;
+}
+
+export function buildMailAlerts(messages: MailMessage[]): AlertRecord[] {
+  return [...messages]
+    .sort((left, right) => Date.parse(right.receivedAt) - Date.parse(left.receivedAt))
+    .flatMap((message) => {
+      const severity = alertSeverityForMessage(message);
+      if (!severity) return [];
+      const accountId = message.accountId || "primary";
+      const accountLabel = message.accountLabel || "Primary mailbox";
+      const folder = message.folder === "INBOX.Sent" || message.direction === "outbound" ? "INBOX.Sent" : "INBOX";
+      const matchedRules = message.aiRuleMatches?.length ? " Matched AI rules: " + message.aiRuleMatches.join(", ") + "." : "";
+      const priorityReason = message.aiEscalate
+        ? "AI escalation policy matched this message."
+        : message.priority === "urgent"
+          ? "Detected as urgent."
+          : message.priority === "important"
+            ? "Detected as important."
+            : "Message is flagged for attention.";
+
+      return [{
+        id: "mail:" + accountId + ":" + folder + ":" + message.uid,
+        title: message.subject || "(No subject)",
+        summary: message.sender + " · " + message.category + " · " + priorityReason,
+        detail: (message.preview || "Open the message for full details.") + matchedRules,
+        source: message.sender,
+        time: relativeAlertTime(message.receivedAt),
+        severity,
+        status: "active" as const,
+        unread: message.unread,
+        destination: "message" as const,
+        messageUid: message.uid,
+        messageFolder: folder,
+        accountId,
+        accountLabel,
+      }];
+    });
+}
