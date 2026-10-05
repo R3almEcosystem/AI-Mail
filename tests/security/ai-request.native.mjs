@@ -1,9 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {readAiRequest,parseAiRequest} from '../../src/lib/ai-request.ts';
 const request=(body,headers={})=>new Request('https://ai-mail.r3alm.com/api/ai',{method:'POST',headers:{'content-type':'application/json',...headers},body:JSON.stringify(body)});
-test('valid requests contain only an action, UID and approved mailbox',()=>{assert.deepEqual(parseAiRequest({action:'summarize',uid:12}),{action:'summarize',uid:12,folder:'INBOX'});assert.deepEqual(parseAiRequest({action:'summarize',uid:12,folder:'INBOX.Sent'}),{action:'summarize',uid:12,folder:'INBOX.Sent'});});
+test('valid requests contain only an action, UID and approved mailbox',()=>{assert.deepEqual(parseAiRequest({action:'summarize',uid:12}),{action:'summarize',uid:12,folder:'INBOX'});assert.deepEqual(parseAiRequest({action:'summarize',uid:12,folder:'INBOX.Sent'}),{action:'summarize',uid:12,folder:'INBOX.Sent'});assert.deepEqual(parseAiRequest({action:'summarize',uid:12,accountId:'primary'}),{action:'summarize',uid:12,folder:'INBOX',accountId:'primary'});});
 test('raw browser bodies, security verdicts and arbitrary mailbox selectors are rejected',()=>{
-  for(const extra of [{message:{body:'forged'}},{security:{allow:true}},{folder:'Other'},{account:'other'}]) assert.equal(parseAiRequest({action:'summarize',uid:12,...extra}),null);
+  for(const extra of [{message:{body:'forged'}},{security:{allow:true}},{folder:'Other'},{account:'other'},{accountId:'all'},{accountId:'not-a-mailbox'}]) assert.equal(parseAiRequest({action:'summarize',uid:12,...extra}),null);
 });
 test('invalid UIDs and fields are rejected',()=>{
   assert.equal(parseAiRequest({action:['summarize'],uid:12}),null);
