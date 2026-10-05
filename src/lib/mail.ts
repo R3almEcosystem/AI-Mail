@@ -150,6 +150,11 @@ export async function searchMailUids(folder: "INBOX" | "INBOX.Sent", criteria: S
   return gateway.searchMessageUids(folder, criteria);
 }
 
+export async function searchMailUidGroups(folder: "INBOX" | "INBOX.Sent", criteriaList: SearchCriteria[]): Promise<number[][]> {
+  const { gateway } = await runtime();
+  return gateway.searchMessageUidGroups(folder, criteriaList);
+}
+
 export async function loadMailResearchMessages(folder: "INBOX" | "INBOX.Sent", uids: number[], limit = 300) {
   const { gateway } = await runtime();
   return gateway.loadResearchMessages(folder, uids, limit);
