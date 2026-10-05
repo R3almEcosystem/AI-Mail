@@ -167,6 +167,7 @@ export async function planMailResearch(query: string, selectedScope: MailResearc
     '- If the user names multiple people or organizations using "and", "or", "and/or", or "and / or", put each identity separately in identities. Never combine multiple identities into one literal participant string.',
     '- If the request explicitly includes both sent and received mail, scope=both.',
     '- "mentions/contains/phrase/topic X": put the best exact phrase in text, and up to 5 useful alternate search terms in keywords.',
+    "- In mailbox research, words like documents, messages, correspondence, or mail mean email messages unless the user explicitly asks for attachments.",
     "- If the user asks to combine, collect, gather, export, or put all matching emails into one document, mode=collection.",
     "- If the user asks to analyze, summarize, compare, explain, find trends, create an executive report, or answer a question from the messages, mode=report.",
     "- Use participant only for one identity. For multiple identities use identities and set participant=null.",
