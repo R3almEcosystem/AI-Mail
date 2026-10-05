@@ -5,8 +5,7 @@ import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection 
 import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
-import { assertMessageIdentity, type MailServiceConfig, type MailAction } from './policy.js';
-import { mailTagFlag, type MailTag } from '../lib/mail-tags.js';
+import { assertMessageIdentity, mailTagFlag, type MailServiceConfig, type MailAction, type MailTag } from './policy.js';
 
 export type MessageSummary = {
   uid: number; subject: string; date?: string;
