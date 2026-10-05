@@ -3,6 +3,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { Bot, Download, FileText, History, LoaderCircle, Maximize2, Minimize2, RefreshCw, Search, Sparkles, X } from "lucide-react";
 import { webPath } from "@/lib/web-path";
+import type { MailAccountSummary } from "@/lib/types";
 
 export type ResearchScope = "inbox" | "sent" | "both";
 
@@ -200,16 +201,20 @@ function MarkdownReport({ markdown, className = "" }: { markdown: string; classN
 function MailResearchSurface({
   open,
   defaultScope,
+  defaultAccountId = "all",
   onClose,
   panel = false,
 }: {
   open: boolean;
   defaultScope: ResearchScope;
+  defaultAccountId?: string;
   onClose?: () => void;
   panel?: boolean;
 }) {
   const [query, setQuery] = useState("");
   const [scope, setScope] = useState<ResearchScope>(defaultScope);
+  const [accountId, setAccountId] = useState(defaultAccountId);
+  const [accounts, setAccounts] = useState<MailAccountSummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ResearchResult | null>(null);
   const [error, setError] = useState("");
@@ -229,8 +234,15 @@ function MailResearchSurface({
   useEffect(() => {
     if (!open) return;
     setScope(defaultScope);
+    setAccountId(defaultAccountId);
     setError("");
-  }, [defaultScope, open]);
+    void fetch(webPath("/api/mail-accounts"), { cache: "no-store" })
+      .then(async (response) => response.ok ? response.json() : null)
+      .then((payload: { accounts?: MailAccountSummary[] } | null) => {
+        if (payload?.accounts) setAccounts(payload.accounts);
+      })
+      .catch(() => {});
+  }, [defaultAccountId, defaultScope, open]);
 
   useEffect(() => {
     if (!panel || activeTab !== "history" || historyLoaded || historyLoading) return;
@@ -251,7 +263,7 @@ function MailResearchSurface({
       const response = await fetch(webPath("/api/ai/research"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: instruction, scope }),
+        body: JSON.stringify({ query: instruction, scope, accountId }),
       });
       const payload = (await response.json().catch(() => null)) as ResearchPayload | { error?: string } | null;
       if (!response.ok || !payload || !("markdown" in payload)) {
@@ -422,6 +434,16 @@ function MailResearchSurface({
               ))}
             </div>
           </div>
+
+          <label className="research-account-select">
+            <span><strong>Mail account</strong><small>Search every active mailbox together or target one account.</small></span>
+            <select value={accountId} onChange={(event) => setAccountId(event.target.value)} disabled={loading}>
+              <option value="all">All accounts</option>
+              {accounts.filter((account) => account.active && account.imapReady).map((account) => (
+                <option value={account.id} key={account.id}>{account.label} — {account.email}</option>
+              ))}
+            </select>
+          </label>
 
           <label className="research-query">
             <span>Query or instruction</span>
@@ -617,19 +639,23 @@ function MailResearchSurface({
 export function MailResearchModal({
   open,
   defaultScope,
+  defaultAccountId = "all",
   onClose,
 }: {
   open: boolean;
   defaultScope: ResearchScope;
+  defaultAccountId?: string;
   onClose: () => void;
 }) {
-  return <MailResearchSurface open={open} defaultScope={defaultScope} onClose={onClose} />;
+  return <MailResearchSurface open={open} defaultScope={defaultScope} defaultAccountId={defaultAccountId} onClose={onClose} />;
 }
 
 export function MailResearchPanel({
   defaultScope = "both",
+  defaultAccountId = "all",
 }: {
   defaultScope?: ResearchScope;
+  defaultAccountId?: string;
 }) {
-  return <MailResearchSurface open defaultScope={defaultScope} panel />;
+  return <MailResearchSurface open defaultScope={defaultScope} defaultAccountId={defaultAccountId} panel />;
 }
