@@ -9,8 +9,11 @@ export const maxDuration = 30;
 
 export async function GET() {
   try {
-    await requireCapability("admin:manage");
-    const [models, settings] = await Promise.all([listOpenAiModels(), getSettings()]);
+    const user = await requireCapability("admin:manage");
+    const [models, settings] = await Promise.all([
+      listOpenAiModels({ actorId: user.id, actorName: user.name }),
+      getSettings(),
+    ]);
     return NextResponse.json(
       { models, selected: settings.aiModel },
       { headers: privateHeaders },
