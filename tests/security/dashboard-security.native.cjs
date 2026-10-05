@@ -1,11 +1,11 @@
 const test=require('node:test');const assert=require('node:assert/strict');const path=require('node:path');const load=require('./load-typescript.cjs');
 const root=path.resolve(__dirname,'../..');const message=uid=>({uid,folder:'INBOX',direction:'inbound',sender:'Example',senderEmail:'a@example.com',subject:'Message '+uid,preview:'preview',receivedAt:'2026-09-25T12:00:00Z',unread:false,flagged:false,priority:'normal',category:'General'});
 function fixture(openai=true){
- const state=['inbox',[message(1),message(2)],message(1),{openai,authentication:true,mode:'live'},false,0,2,false,null,false,'INBOX','all','','',false,false,false,[],[],'',false,false];
+ const state=['inbox',[message(1),message(2)],message(1),{openai,authentication:true,mode:'live'},false,0,2,false,null,false,'INBOX','all','','',false,false,false,[],[],'',false,false,'inbox',false];
  const refs=[];let cursor=0,refCursor=0;
  const react={useState:init=>{const i=cursor++;if(!(i in state))state[i]=typeof init==='function'?init():init;return[state[i],update=>{state[i]=typeof update==='function'?update(state[i]):update;}];},useRef:init=>{const i=refCursor++;return refs[i]??(refs[i]={current:init});},useCallback:fn=>fn,useMemo:fn=>fn(),useEffect(){}};
  const modules={react,'react/jsx-runtime':{jsx:(type,props)=>({type,props}),jsxs:(type,props)=>({type,props})},'lucide-react':new Proxy({},{get:(_,key)=>key}),'@/lib/alerts':{initialAlerts:[]},'@/lib/web-path':{webPath:value=>value}};
- for(const [file,names] of Object.entries({'compose-modal':['ComposeModal'],'alerts-panel':['AlertsPanel'],'inbox-workspace':['InboxWorkspace'],'overview-view':['OverviewView'],sidebar:['Sidebar'],'settings-views':['AccountsView','AiRulesView','SettingsView']}))modules['@/components/'+file]=Object.fromEntries(names.map(name=>[name,name]));
+ for(const [file,names] of Object.entries({'compose-modal':['ComposeModal'],'alerts-panel':['AlertsPanel'],'inbox-workspace':['InboxWorkspace'],'mail-research-modal':['MailResearchModal'],'overview-view':['OverviewView'],sidebar:['Sidebar'],'settings-views':['AccountsView','AiRulesView','SettingsView']}))modules['@/components/'+file]=Object.fromEntries(names.map(name=>[name,name]));
  const {MailDashboard}=load(path.join(root,'src/components/mail-dashboard.tsx'),modules);
  function find(node){if(!node||typeof node!=='object')return null;if(node.type==='InboxWorkspace')return node.props;for(const child of [node.props?.children].flat(Infinity)){const value=find(child);if(value)return value;}return null;}
  return{state,render:()=>{cursor=0;refCursor=0;return find(MailDashboard({initialUser:{id:'test',name:'Tester',role:'member',demo:false}}));}};
