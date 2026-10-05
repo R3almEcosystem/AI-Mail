@@ -1738,3 +1738,82 @@ button[aria-label]:disabled::after {
   }
   .message-details-card { grid-template-columns: 1fr; }
 }
+
+
+/* Explicit message toolbar state indicators */
+.message-toolbar .message-status-button {
+  border: 1px solid transparent;
+  transition: color 140ms ease, background 140ms ease, border-color 140ms ease, transform 120ms ease;
+}
+.message-toolbar .message-status-button:hover { transform: translateY(-1px); }
+
+.message-toolbar .message-status-button--unread {
+  color: #2368e8;
+  background: #eaf1ff;
+  border-color: #cfddf8;
+}
+.message-toolbar .message-status-button--unread:hover {
+  color: #1859c9;
+  background: #dfeaff;
+}
+
+.message-toolbar .message-status-button--read {
+  color: #25835f;
+  background: #e8f6ef;
+  border-color: #cfeadd;
+}
+.message-toolbar .message-status-button--read:hover {
+  color: #1c7050;
+  background: #ddf2e8;
+}
+
+.message-toolbar .message-status-button--flagged {
+  color: #c27a0d;
+  background: #fff1d5;
+  border-color: #efd6a2;
+}
+.message-toolbar .message-status-button--flagged:hover {
+  color: #a86508;
+  background: #ffe9bd;
+}
+.message-toolbar .message-status-button--flagged svg {
+  filter: drop-shadow(0 1px 1px rgba(158, 100, 7, .12));
+}
+
+.message-toolbar .message-status-button--unflagged {
+  color: #7f8b9b;
+  background: transparent;
+  border-color: transparent;
+}
+.message-toolbar .message-status-button--unflagged:hover {
+  color: #a06a18;
+  background: #fff7e7;
+  border-color: #f1e2bc;
+}
+
+.message-toolbar .message-status-button--tagged {
+  color: #7047c7;
+  background: #f0eaff;
+  border-color: #ddd2f7;
+}
+.message-toolbar .message-status-button--tagged:hover {
+  color: #5f38b5;
+  background: #e8defc;
+}
+.message-toolbar .message-status-button--tagged svg {
+  fill-opacity: .18;
+}
+
+.message-toolbar .message-status-button--untagged {
+  color: #7f8b9b;
+  background: transparent;
+  border-color: transparent;
+}
+.message-toolbar .message-status-button--untagged:hover {
+  color: #6848b5;
+  background: #f4efff;
+  border-color: #e2d8f7;
+}
+
+.mail-item-state svg { color: #c27a0d; }
+.message-state-pill--flagged svg { fill: currentColor; }
