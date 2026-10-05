@@ -10,7 +10,7 @@ test("mail detail actions persist read, flag and tag state through the authentic
   const route = read("src/app/api/mail/[uid]/route.ts");
   const gateway = read("src/mail/client.ts");
   const mail = read("src/lib/mail.ts");
-  const tags = read("src/lib/mail-tags.ts");
+  const policy = read("src/mail/policy.ts");
 
   assert.ok(route.includes('"tag", "untag"'));
   assert.ok(route.includes("MAIL_TAG_IDS"));
@@ -20,7 +20,7 @@ test("mail detail actions persist read, flag and tag state through the authentic
   assert.ok(gateway.includes("mailTagFlag(tag!)"));
   assert.ok(gateway.includes("flags: updated.flags"));
   assert.ok(mail.includes("mailTagsFromFlags(message.flags)"));
-  assert.ok(tags.includes("R3almFollowUp"));
+  assert.ok(policy.includes("R3almFollowUp"));
 });
 
 test("Inbox and Sent detail icons update UI state and expose functional menus", () => {
