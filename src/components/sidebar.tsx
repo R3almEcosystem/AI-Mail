@@ -11,12 +11,13 @@ import {
   Settings,
   Send,
   ShieldCheck,
+  Sparkles,
   SlidersHorizontal,
 } from "lucide-react";
 import type { SessionUser, UserRole } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
 
-export type DashboardSection = "overview" | "inbox" | "sent" | "ai" | "accounts" | "settings";
+export type DashboardSection = "overview" | "inbox" | "sent" | "research" | "ai" | "accounts" | "settings";
 
 type IconComponent = ComponentType<{ size?: number; strokeWidth?: number }>;
 
@@ -24,6 +25,7 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: IconComponent
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "sent", label: "Sent Messages", icon: Send },
+  { id: "research", label: "AI Mail Research", icon: Sparkles },
   { id: "ai", label: "AI Rules", icon: Bot },
   { id: "accounts", label: "Accounts", icon: Boxes },
   { id: "settings", label: "Settings", icon: Settings },
