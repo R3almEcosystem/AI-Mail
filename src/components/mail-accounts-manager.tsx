@@ -60,7 +60,7 @@ const initialForm = {
   smtpPassword: "",
 };
 
-export function MailAccountsManager() {
+export function MailAccountsManager({ onAccountsChanged }: { onAccountsChanged?: () => void | Promise<void> } = {}) {
   const [accounts, setAccounts] = useState<MailAccountSummary[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -222,6 +222,7 @@ export function MailAccountsManager() {
           : saved.label + " was added. Inbox, Sent, Compose, and AI Mail Research can now use it.",
       );
       await loadAccounts();
+      await onAccountsChanged?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : (editingId ? "Unable to update the mail account." : "Unable to add the mail account."));
     } finally {
@@ -263,6 +264,7 @@ export function MailAccountsManager() {
       if (editingId === account.id) closeEditor();
       setMessage(account.label + " was removed from AI-Mail.");
       await loadAccounts();
+      await onAccountsChanged?.();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Unable to remove the mail account.");
     } finally {
