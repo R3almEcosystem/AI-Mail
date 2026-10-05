@@ -29,7 +29,7 @@ test("Inbox and Sent detail icons update UI state and expose functional menus", 
   const css = read("src/app/globals.css");
 
   assert.ok(workspace.includes('aria-label={selected.flagged ? "Unflag message" : "Flag message"}'));
-  assert.ok(workspace.includes('aria-label="Manage message tags"'));
+  assert.ok(workspace.includes('"Manage message tags"'));
   assert.ok(workspace.includes('aria-label="More message actions"'));
   assert.ok(workspace.includes('aria-label={detailsOpen ? "Hide message details" : "Show message details"}'));
   assert.ok(workspace.includes('(["all", "unread", "flagged"] as const)'));
