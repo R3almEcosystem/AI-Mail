@@ -356,10 +356,9 @@ function collectionDocument(plan: MailResearchPlan, messages: ResearchMessage[],
     "- **Report type:** Email collection",
   ];
 
-  if (warnings.length) {
-    lines.push("", "## Coverage & Warnings", "");
-    warnings.forEach(warning => lines.push("- " + warning));
-  }
+  lines.push("", "## Coverage & Warnings", "");
+  if (warnings.length) warnings.forEach(warning => lines.push("- " + warning));
+  else lines.push("- No coverage warnings generated.");
 
   lines.push("", "## Included Emails", "");
 
@@ -423,7 +422,26 @@ async function analyticalReport(query: string, plan: MailResearchPlan, messages:
   const { corpus, included, excluded } = reportCorpus(messages);
   if (!corpus) {
     return {
-      markdown: "# " + plan.title + "\n\nNo matching message content could be sent to the AI analysis step because all loaded matches contained security-sensitive indicators. The mailbox search itself found " + matchedCount + " matching messages.",
+      markdown: [
+        "# " + plan.title,
+        "",
+        "## Executive Summary",
+        "",
+        "The mailbox search found " + matchedCount + " matching messages, but none of the loaded message content could be sent to the AI analysis step because all loaded matches contained security-sensitive indicators.",
+        "",
+        "## Key Findings",
+        "",
+        "- No message content was analyzed by the AI provider.",
+        "- The mailbox search itself completed and found " + matchedCount + " matching messages.",
+        "",
+        "## Coverage & Warnings",
+        "",
+        "- " + messages.length + " matching message(s) were excluded from AI analysis because of security-sensitive indicators.",
+        "",
+        "## Source Emails",
+        "",
+        "No source email bodies were included in the generated analysis.",
+      ].join("\n"),
       model: null as string | null,
       included,
       excluded,
@@ -483,7 +501,21 @@ export async function runMailResearch(query: string, selectedScope: MailResearch
   if (!matchedCount) {
     return {
       title: plan.title,
-      markdown: "# " + plan.title + "\n\nNo messages matched this mailbox research request.",
+      markdown: [
+        "# " + plan.title,
+        "",
+        "## Executive Summary",
+        "",
+        "No messages matched this mailbox research request.",
+        "",
+        "## Coverage & Warnings",
+        "",
+        "- No coverage warnings generated.",
+        "",
+        "## Source Emails",
+        "",
+        "No source emails were included.",
+      ].join("\n"),
       scope: plan.scope,
       mode: plan.mode,
       matched: 0,
