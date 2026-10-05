@@ -2504,3 +2504,194 @@ button[aria-label]:disabled::after {
 .admin-ai-rules-page .rule-copy {
   min-width: 0;
 }
+
+
+/* AI Rule editor */
+.rule-row-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.rule-edit-button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  color: #426a9f;
+  background: #f5f8fd;
+  border: 1px solid #dce6f3;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 800;
+}
+.rule-edit-button:hover { color: #2f5e9c; background: #edf4fd; }
+.rule-edit-button:disabled { cursor: wait; opacity: .55; }
+
+.rule-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  background: rgba(11, 22, 39, .56);
+  backdrop-filter: blur(5px);
+}
+.rule-editor-modal {
+  width: min(900px, 96vw);
+  max-height: min(860px, 92vh);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #d8e0ea;
+  border-radius: 16px;
+  box-shadow: 0 28px 75px rgba(10, 24, 43, .28);
+}
+.rule-editor-modal > header {
+  min-height: 78px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 18px;
+  background: linear-gradient(180deg, #fbfcfe, #f6f8fb);
+  border-bottom: 1px solid #e3e8ef;
+}
+.rule-editor-modal > header > div { min-width: 0; }
+.rule-editor-modal > header h2 { margin: 2px 0 3px; color: #1d2b41; font-size: 17px; }
+.rule-editor-modal > header > div > span { color: #8d98a8; font-size: 7px; overflow-wrap: anywhere; }
+
+.rule-editor-scroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.rule-editor-section {
+  padding: 18px;
+  border-bottom: 1px solid #e8ecf1;
+}
+.rule-editor-section:last-child { border-bottom: 0; }
+.rule-editor-section-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 13px;
+}
+.rule-editor-section-heading strong { color: #344158; font-size: 10px; }
+.rule-editor-section-heading small { color: #929cab; font-size: 7px; line-height: 1.45; }
+
+.rule-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px 13px;
+}
+.rule-editor-grid > label:not(.rule-editor-checkbox) {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rule-editor-grid label > span:first-child {
+  color: #56647a;
+  font-size: 8px;
+  font-weight: 800;
+}
+.rule-editor-grid input:not([type="checkbox"]),
+.rule-editor-grid select,
+.rule-editor-grid textarea {
+  width: 100%;
+  padding: 9px 10px;
+  color: #2f3d53;
+  background: #fbfcfd;
+  border: 1px solid #dce3ec;
+  border-radius: 8px;
+  outline: 0;
+  font: inherit;
+  font-size: 9px;
+}
+.rule-editor-grid input:not([type="checkbox"]),
+.rule-editor-grid select { height: 38px; padding-top: 0; padding-bottom: 0; }
+.rule-editor-grid textarea { min-height: 88px; resize: vertical; line-height: 1.45; }
+.rule-editor-grid input:focus,
+.rule-editor-grid select:focus,
+.rule-editor-grid textarea:focus { border-color: #7c9fd4; box-shadow: 0 0 0 2px rgba(77, 119, 183, .08); }
+.rule-editor-grid .field-wide { grid-column: 1 / -1; }
+
+.rule-editor-checkbox {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e3e8ef;
+  border-radius: 8px;
+}
+.rule-editor-checkbox input { accent-color: #3c70c1; }
+.rule-editor-checkbox > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rule-editor-checkbox strong { color: #46546a; font-size: 8px; }
+.rule-editor-checkbox small { color: #939dac; font-size: 7px; }
+
+.rule-action-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 9px;
+}
+.rule-action-card {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 9px;
+  padding: 11px;
+  background: #fbfcfd;
+  border: 1px solid #e0e6ed;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.rule-action-card--active {
+  background: #f1f6fd;
+  border-color: #c9daf0;
+}
+.rule-action-card input { accent-color: #3d72c2; }
+.rule-action-card > span { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rule-action-card strong { color: #45536a; font-size: 8px; }
+.rule-action-card small { color: #929daa; font-size: 7px; line-height: 1.4; }
+.rule-action-card > svg { color: transparent; }
+.rule-action-card--active > svg { color: #3970bd; }
+
+.rule-editor-modal > footer {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 12px 18px;
+  background: #fafbfd;
+  border-top: 1px solid #e3e8ef;
+}
+.rule-editor-modal > footer > span {
+  max-width: 480px;
+  color: #929dac;
+  font-size: 7px;
+  line-height: 1.45;
+}
+.rule-editor-modal > footer > div { display: flex; gap: 8px; }
+
+@media (max-width: 650px) {
+  .rule-editor-backdrop { align-items: stretch; padding: 8px; }
+  .rule-editor-modal { width: 100%; max-height: calc(100vh - 16px); border-radius: 12px; }
+  .rule-editor-grid,
+  .rule-action-grid { grid-template-columns: 1fr; }
+  .rule-editor-grid .field-wide { grid-column: auto; }
+  .rule-editor-modal > footer { align-items: stretch; flex-direction: column; }
+  .rule-editor-modal > footer > div { display: grid; grid-template-columns: 1fr 1fr; }
+  .rule-row-actions { flex-direction: column; align-items: flex-end; gap: 6px; }
+}
