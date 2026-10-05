@@ -24,8 +24,8 @@ test("Activity Center alerts expose a detected-priority dropdown sorter", () => 
   assert.match(panel, /priorityCounts\.critical/);
   assert.match(panel, /setExpandedId\(null\)/);
 
-  assert.match(css, /\.alert-priority-sorter/);
-  assert.match(css, /\.alert-priority-sorter select/);
+  assert.match(css, /\.alert-filter-field/);
+  assert.match(css, /\.alert-select-control select/);
   assert.match(css, /\.alerts-toolbar-left/);
 });
 
