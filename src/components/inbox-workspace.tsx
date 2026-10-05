@@ -20,7 +20,7 @@ import {
   Star,
   Tag,
 } from "lucide-react";
-import type { AiAction, MailMessage, MailTag } from "@/lib/types";
+import type { AiAction, MailAccountSummary, MailMessage, MailTag } from "@/lib/types";
 import { MessageSecurityPanel } from "./message-security-panel";
 
 const MAIL_TAG_OPTIONS: ReadonlyArray<{ id: MailTag; label: string }> = [
@@ -65,6 +65,8 @@ export function InboxWorkspace({
   aiConfigured = false,
   mailboxLabel = "Inbox",
   mailboxEyebrow = "PRIMARY",
+  accounts = [],
+  activeAccountId = "all",
   loadedCount = messages.length,
   totalCount = messages.length,
   hasMore = false,
@@ -72,6 +74,7 @@ export function InboxWorkspace({
   sentMode = false,
   onFilterChange,
   onSearchChange,
+  onAccountChange,
   onSelect,
   onAction,
   onAiAction,
@@ -92,6 +95,8 @@ export function InboxWorkspace({
   aiConfigured?: boolean;
   mailboxLabel?: string;
   mailboxEyebrow?: string;
+  accounts?: MailAccountSummary[];
+  activeAccountId?: string;
   loadedCount?: number;
   totalCount?: number;
   hasMore?: boolean;
@@ -99,6 +104,7 @@ export function InboxWorkspace({
   sentMode?: boolean;
   onFilterChange: (filter: "all" | "unread" | "flagged") => void;
   onSearchChange: (value: string) => void;
+  onAccountChange?: (accountId: string) => void;
   onSelect: (message: MailMessage) => void;
   onAction: (action: "read" | "unread" | "flag" | "unflag" | "archive" | "tag" | "untag", tag?: MailTag) => void;
   onAiAction: (action: AiAction) => void;
@@ -145,6 +151,22 @@ export function InboxWorkspace({
             </button>
           </div>
         </div>
+        {accounts.length > 1 && onAccountChange ? (
+          <label className="mail-account-selector">
+            <span>Mailbox</span>
+            <select
+              value={activeAccountId}
+              onChange={(event) => onAccountChange(event.target.value)}
+              disabled={loading}
+              aria-label="Select mail account"
+            >
+              <option value="all">All accounts</option>
+              {accounts.filter((account) => account.active && account.imapReady).map((account) => (
+                <option value={account.id} key={account.id}>{account.label} — {account.email}</option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <div className="mail-search">
           <Search size={16} />
           <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search mail" aria-label="Search mail" />
@@ -168,8 +190,8 @@ export function InboxWorkspace({
           {messages.length ? messages.map((message) => (
             <button
               type="button"
-              className={`mail-item ${selected?.uid === message.uid ? "mail-item--selected" : ""} ${message.unread ? "mail-item--unread" : ""}`}
-              key={message.uid}
+              className={`mail-item ${selected?.uid === message.uid && (selected.accountId || "primary") === (message.accountId || "primary") ? "mail-item--selected" : ""} ${message.unread ? "mail-item--unread" : ""}`}
+              key={`${message.accountId || "primary"}:${message.uid}`}
               onClick={() => {
                 onSelect(message);
                 setMobileDetail(true);
@@ -183,6 +205,7 @@ export function InboxWorkspace({
                 <span className="mail-item-meta">
                   <i className={`priority-dot priority-dot--${message.priority}`} />
                   <em>{message.category}</em>
+                  {activeAccountId === "all" && message.accountLabel ? <span className="mail-item-account">{message.accountLabel}</span> : null}
                   {message.flagged ? <span className="mail-item-state"><Star size={11} fill="currentColor" /> Flagged</span> : null}
                   {(message.tags || []).slice(0, 2).map((tag) => <span className="mail-item-tag" key={tag}>{mailTagLabel(tag)}</span>)}
                   {(message.tags || []).length > 2 ? <span className="mail-item-tag">+{(message.tags || []).length - 2}</span> : null}
@@ -317,6 +340,7 @@ export function InboxWorkspace({
                   <div><dt>From</dt><dd>{selected.sender}{selected.senderEmail ? ` <${selected.senderEmail}>` : ""}</dd></div>
                   <div><dt>To</dt><dd>{selected.recipientLabel || (sentMode ? "Recipient" : "Current mailbox")}</dd></div>
                   <div><dt>Date</dt><dd>{new Date(selected.receivedAt).toLocaleString()}</dd></div>
+                  <div><dt>Account</dt><dd>{selected.accountLabel || "Primary mailbox"}</dd></div>
                   <div><dt>Mailbox</dt><dd>{sentMode ? "Sent" : "Inbox"}</dd></div>
                   <div><dt>Status</dt><dd>{selected.unread ? "Unread" : "Read"} · {selected.flagged ? "Flagged" : "Not flagged"}</dd></div>
                   <div><dt>Tags</dt><dd>{(selected.tags || []).length ? (selected.tags || []).map(mailTagLabel).join(", ") : "None"}</dd></div>
@@ -413,6 +437,7 @@ export function InboxWorkspace({
             </div>
             <div className="ai-context-card">
               <span><strong>Context signals</strong><small>Derived from this message</small></span>
+              <div><span>Account</span><b>{selected.accountLabel || "Primary mailbox"}</b></div>
               <div><span>Category</span><b>{selected.category}</b></div>
               <div><span>Priority</span><b>{selected.priority}</b></div>
               <div><span>Mailbox status</span><b>{selected.unread ? "Unread" : "Read"}</b></div>
