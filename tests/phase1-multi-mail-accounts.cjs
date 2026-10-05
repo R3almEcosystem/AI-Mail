@@ -37,7 +37,9 @@ test("AI Mail Research can search all accounts or one account", () => {
   assert.match(route, /z\.literal\("all"\)/);
   assert.match(route, /runForAllAccounts/);
   assert.match(route, /Account Coverage/);
-  assert.match(research, /runMailResearch\(query: string, selectedScope: MailResearchScope, accountId = "primary"\)/);
+  assert.match(research, /runMailResearch\(query: string, selectedScope: MailResearchScope, accountId = "primary", context: AiTelemetryContext = \{\}\)/);
+  assert.match(route, /actorId: user\.id/);
+  assert.match(route, /actorName: user\.name/);
   assert.match(ui, /All accounts/);
   assert.match(ui, /accountId/);
 });
