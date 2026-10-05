@@ -1,11 +1,18 @@
 import "server-only";
+
+import { Buffer } from "node:buffer";
 import { MailGateway, type MessageSummary, type ParsedMessage, type SearchCriteria } from "../mail/client";
 import { browserMailConfig, mailTagsFromFlags, serviceHost, type MailAction, type MailServiceConfig, type MailTag } from "../mail/policy";
 import { getSettings } from "@/lib/admin-data";
-import { getServiceSecret } from "@/lib/service-secrets";
 import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
-import type { AiRule } from "@/lib/types";
-import type { MailListResponse, MailMessage, MailPriority } from "@/lib/types";
+import {
+  listActiveMailAccounts,
+  listMailAccounts,
+  PRIMARY_MAIL_ACCOUNT_ID,
+  resolveMailAccount,
+  type MailAccountRuntime,
+} from "@/lib/mail-accounts";
+import type { AiRule, MailAccountSummary, MailListResponse, MailMessage, MailPriority } from "@/lib/types";
 
 function domainList(value: string): string[] {
   return value.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
@@ -19,52 +26,60 @@ function constrainedDomains(databaseValue: string, environmentValue: readonly st
   return configured.filter((domain) => environment.has(domain));
 }
 
-async function runtime() {
-  const [settings, imapVaultPassword, smtpVaultPassword] = await Promise.all([
+function actualFolder(account: MailAccountRuntime, folder: string) {
+  return folder === "INBOX.Sent" ? account.sentFolder : folder;
+}
+
+async function runtime(accountId = PRIMARY_MAIL_ACCOUNT_ID, allowInactive = false) {
+  const [settings, account] = await Promise.all([
     getSettings(),
-    getServiceSecret("ai_mail_imap_password"),
-    getServiceSecret("ai_mail_smtp_password"),
+    resolveMailAccount(accountId, allowInactive),
   ]);
   const base = browserMailConfig();
-  const imapPassword = imapVaultPassword || process.env.IMAP_PASSWORD || process.env.MAIL_PASSWORD || base.mail.password;
-  const smtpPassword = smtpVaultPassword || process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD || base.smtp.password || base.mail.password;
   const config: MailServiceConfig = {
     ...base,
     mail: {
-      username: settings.imapUser,
-      password: imapPassword,
+      username: account.imapUser,
+      password: account.imapPassword,
     },
     imap: {
-      host: serviceHost(settings.imapHost),
-      port: settings.imapPort,
-      secure: settings.imapSecure,
+      host: serviceHost(account.imapHost),
+      port: account.imapPort,
+      secure: account.imapSecure,
     },
     smtp: {
-      host: serviceHost(settings.smtpHost),
-      port: settings.smtpPort,
-      secure: settings.smtpSecure,
-      username: settings.smtpUser,
-      password: smtpPassword,
-      from: settings.smtpFrom,
+      host: serviceHost(account.smtpHost),
+      port: account.smtpPort,
+      secure: account.smtpSecure,
+      username: account.smtpUser,
+      password: account.smtpPassword,
+      from: account.smtpFrom,
     },
     limits: {
       ...base.limits,
       outboundAllowedDomains: constrainedDomains(settings.outboundAllowedDomains, base.limits.outboundAllowedDomains),
     },
   };
-  return { settings, config, gateway: new MailGateway(config) };
+  return { settings, account, config, gateway: new MailGateway(config) };
 }
 
-export async function mailConfiguration() {
-  const { config } = await runtime();
+export async function mailConfiguration(accountId?: string) {
+  if (accountId && accountId !== "all") {
+    const { config } = await runtime(accountId, true);
+    return {
+      imap: Boolean(config.imap.host && config.mail.username && config.mail.password),
+      smtp: Boolean(config.smtp.host && config.smtp.username && config.smtp.password && config.smtp.from),
+    };
+  }
+  const accounts = await listMailAccounts(false);
   return {
-    imap: Boolean(config.imap.host && config.mail.username && config.mail.password),
-    smtp: Boolean(config.smtp.host && config.smtp.username && config.smtp.password && config.smtp.from),
+    imap: accounts.some((account) => account.active && account.imapReady),
+    smtp: accounts.some((account) => account.active && account.smtpReady),
   };
 }
 
 function inferCategory(sender: string, subject: string) {
-  const content = `${sender} ${subject}`.toLowerCase();
+  const content = (sender + " " + subject).toLowerCase();
   if (/legal|counsel|trademark|contract|resolution/.test(content)) return "Legal";
   if (/capital|investor|offering|rialto|north capital/.test(content)) return "Capital Markets";
   if (/vercel|deploy|security|api|system/.test(content)) return "Technology";
@@ -78,7 +93,13 @@ function inferPriority(subject: string, unread: boolean, enabled: boolean): Mail
   return "normal";
 }
 
-function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: boolean, rules: AiRule[], folder: string): MailMessage {
+function toMessage(
+  message: MessageSummary | ParsedMessage,
+  priorityDetection: boolean,
+  rules: AiRule[],
+  folder: string,
+  account: Pick<MailAccountRuntime, "id" | "label">,
+): MailMessage {
   const from = message.from[0];
   const unread = !message.flags.includes("\\Seen");
   const parsed = "text" in message ? message : null;
@@ -94,6 +115,8 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
   });
   return {
     uid: message.uid,
+    accountId: account.id,
+    accountLabel: account.label,
     direction: outbound ? "outbound" : "inbound",
     folder,
     recipientLabel: recipientLabel || undefined,
@@ -127,57 +150,173 @@ function toMessage(message: MessageSummary | ParsedMessage, priorityDetection: b
   };
 }
 
-export async function listMail(folder = "INBOX", limit = 50, beforeUid?: number): Promise<MailListResponse> {
-  const { gateway, config, settings } = await runtime();
-  const pageLimit = Math.min(limit, config.limits.maxSearchResults);
-  const [page, status, rules] = await Promise.all([
-    gateway.listMessagesPage(folder, pageLimit, false, undefined, beforeUid),
-    gateway.mailboxStatus(folder),
+type CombinedCursor = Record<string, number | undefined>;
+
+function encodeCursor(cursor: CombinedCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeCursor(value?: string): CombinedCursor {
+  if (!value || value.length > 12000) return {};
+  try {
+    const parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8")) as Record<string, unknown>;
+    const cursor: CombinedCursor = {};
+    for (const [key, raw] of Object.entries(parsed)) {
+      if (typeof raw === "number" && Number.isSafeInteger(raw) && raw > 1 && raw <= 4294967295) cursor[key] = raw;
+    }
+    return cursor;
+  } catch {
+    throw new Error("INVALID_MAIL_CURSOR");
+  }
+}
+
+async function listSingleAccount(
+  accountId: string,
+  folder: string,
+  limit: number,
+  beforeUid?: number,
+): Promise<MailListResponse> {
+  const [{ gateway, config, settings, account }, rules, accounts] = await Promise.all([
+    runtime(accountId),
     listAiRules(true),
+    listMailAccounts(true),
   ]);
-  const messages = page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder));
+  if (!account.imapReady) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
+  const pageLimit = Math.min(limit, config.limits.maxSearchResults);
+  const resolvedFolder = actualFolder(account, folder);
+  const [page, status] = await Promise.all([
+    gateway.listMessagesPage(resolvedFolder, pageLimit, false, undefined, beforeUid),
+    gateway.mailboxStatus(resolvedFolder),
+  ]);
+  const messages = page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder, account));
   return {
     messages,
     unread: status.unseen,
     total: status.messages,
     hasMore: page.hasMore,
     nextBeforeUid: page.hasMore && messages.length ? messages[messages.length - 1].uid : null,
+    nextCursor: null,
+    accountId,
+    accounts,
     demo: false,
   };
 }
 
-export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessage> {
-  const { gateway, settings } = await runtime();
+async function listAllAccounts(folder: string, limit: number, cursorValue?: string): Promise<MailListResponse> {
+  const accounts = await listActiveMailAccounts();
+  const selected = accounts.slice(0, 12);
+  if (!selected.length) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
+  const cursors = decodeCursor(cursorValue);
+  const rules = await listAiRules(true);
+
+  const pages = await Promise.all(selected.map(async (summary) => {
+    const { gateway, config, settings, account } = await runtime(summary.id);
+    const pageLimit = Math.min(limit, config.limits.maxSearchResults);
+    const resolvedFolder = actualFolder(account, folder);
+    const [page, status] = await Promise.all([
+      gateway.listMessagesPage(resolvedFolder, pageLimit, false, undefined, cursors[summary.id]),
+      gateway.mailboxStatus(resolvedFolder),
+    ]);
+    return {
+      account,
+      status,
+      page,
+      messages: page.messages.map((message) => toMessage(message, settings.aiPriorityDetection, rules, folder, account)),
+    };
+  }));
+
+  const candidates = pages.flatMap((page) => page.messages).sort((left, right) => {
+    const time = Date.parse(right.receivedAt) - Date.parse(left.receivedAt);
+    return time || right.uid - left.uid;
+  });
+  const messages = candidates.slice(0, limit);
+  const next = { ...cursors };
+  for (const message of messages) {
+    if (!message.accountId) continue;
+    const current = next[message.accountId];
+    if (current === undefined || message.uid < current) next[message.accountId] = message.uid;
+  }
+  const hasMore = candidates.length > messages.length || pages.some((page) => page.page.hasMore);
+  return {
+    messages,
+    unread: pages.reduce((sum, page) => sum + page.status.unseen, 0),
+    total: pages.reduce((sum, page) => sum + page.status.messages, 0),
+    hasMore,
+    nextBeforeUid: null,
+    nextCursor: hasMore ? encodeCursor(next) : null,
+    accountId: "all",
+    accounts: await listMailAccounts(true),
+    demo: false,
+  };
+}
+
+export async function listMail(
+  folder = "INBOX",
+  limit = 50,
+  beforeUid?: number,
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+  cursor?: string,
+): Promise<MailListResponse> {
+  if (accountId === "all") return listAllAccounts(folder, limit, cursor);
+  return listSingleAccount(accountId, folder, limit, beforeUid);
+}
+
+export async function getMail(uid: number, folder = "INBOX", accountId = PRIMARY_MAIL_ACCOUNT_ID): Promise<MailMessage> {
+  const { gateway, settings, account } = await runtime(accountId);
   const [message, rules] = await Promise.all([
-    gateway.getMessage(folder, uid),
+    gateway.getMessage(actualFolder(account, folder), uid),
     listAiRules(true),
   ]);
-  return toMessage(message, settings.aiPriorityDetection, rules, folder);
+  return toMessage(message, settings.aiPriorityDetection, rules, folder, account);
 }
 
-export async function searchMailUids(folder: "INBOX" | "INBOX.Sent", criteria: SearchCriteria): Promise<number[]> {
-  const { gateway } = await runtime();
-  return gateway.searchMessageUids(folder, criteria);
+export async function searchMailUids(
+  folder: "INBOX" | "INBOX.Sent",
+  criteria: SearchCriteria,
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+): Promise<number[]> {
+  const { gateway, account } = await runtime(accountId);
+  return gateway.searchMessageUids(actualFolder(account, folder), criteria);
 }
 
-export async function searchMailUidGroups(folder: "INBOX" | "INBOX.Sent", criteriaList: SearchCriteria[]): Promise<number[][]> {
-  const { gateway } = await runtime();
-  return gateway.searchMessageUidGroups(folder, criteriaList);
+export async function searchMailUidGroups(
+  folder: "INBOX" | "INBOX.Sent",
+  criteriaList: SearchCriteria[],
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+): Promise<number[][]> {
+  const { gateway, account } = await runtime(accountId);
+  return gateway.searchMessageUidGroups(actualFolder(account, folder), criteriaList);
 }
 
-export async function loadMailResearchMessages(folder: "INBOX" | "INBOX.Sent", uids: number[], limit = 300) {
-  const { gateway } = await runtime();
-  return gateway.loadResearchMessages(folder, uids, limit);
+export async function loadMailResearchMessages(
+  folder: "INBOX" | "INBOX.Sent",
+  uids: number[],
+  limit = 300,
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+) {
+  const { gateway, account } = await runtime(accountId);
+  return gateway.loadResearchMessages(actualFolder(account, folder), uids, limit);
 }
 
-export async function updateMail(uid: number, action: MailAction, folder = "INBOX", tag?: MailTag) {
-  const { gateway, settings } = await runtime();
-  return gateway.updateMessage(folder, uid, action, settings.mailArchiveFolder, tag);
+export async function updateMail(
+  uid: number,
+  action: MailAction,
+  folder = "INBOX",
+  tag?: MailTag,
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+) {
+  const { gateway, account } = await runtime(accountId);
+  return gateway.updateMessage(actualFolder(account, folder), uid, action, account.archiveFolder, tag);
 }
 
-export async function sendMail(input: { to: string; cc?: string; subject: string; text: string }) {
-  const { gateway, config } = await runtime();
-  if (!config.smtp.host || !config.smtp.username || !config.smtp.password || !config.smtp.from) throw new Error("SMTP is not configured");
+export async function sendMail(
+  input: { to: string; cc?: string; subject: string; text: string },
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+) {
+  const { gateway, config, account } = await runtime(accountId);
+  if (!account.smtpEnabled || !config.smtp.host || !config.smtp.username || !config.smtp.password || !config.smtp.from) {
+    throw new Error("SMTP is not configured");
+  }
   return gateway.sendEmail({
     to: [input.to],
     ...(input.cc ? { cc: [input.cc] } : {}),
@@ -186,7 +325,9 @@ export async function sendMail(input: { to: string; cc?: string; subject: string
   });
 }
 
-export async function testMailConnection(service: "imap" | "smtp") {
-  const { gateway } = await runtime();
+export async function testMailConnection(service: "imap" | "smtp", accountId = PRIMARY_MAIL_ACCOUNT_ID) {
+  const { gateway, account } = await runtime(accountId, true);
+  if (service === "imap" && !account.imapReady) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
+  if (service === "smtp" && !account.smtpReady) throw new Error("SMTP is not configured");
   return service === "imap" ? gateway.testImap() : gateway.testSmtp();
 }
