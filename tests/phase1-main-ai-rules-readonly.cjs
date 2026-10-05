@@ -12,7 +12,7 @@ test("main Portal AI Rules are read-only but expose full details", () => {
   assert.match(dashboard, /<AiRulesView \/>/);
   assert.match(ui, /function AiRuleDetails/);
   assert.match(ui, /View details for/);
-  assert.match(ui, />Details<\/button>/);
+  assert.match(ui, /Details<\/button>/);
   assert.match(ui, /Read-only view\. Rule changes can only be made from the Admin Portal\./);
   assert.match(ui, /AI Rules are read-only in the main Portal/);
   assert.match(ui, /editable && canManage \? \(/);
