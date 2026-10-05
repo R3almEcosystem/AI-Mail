@@ -1,5 +1,5 @@
 import "server-only";
-import { MailGateway, type MessageSummary, type ParsedMessage } from "../mail/client";
+import { MailGateway, type MessageSummary, type ParsedMessage, type SearchCriteria } from "../mail/client";
 import { browserMailConfig, serviceHost, type MailAction, type MailServiceConfig } from "../mail/policy";
 import { getSettings } from "@/lib/admin-data";
 import { getServiceSecret } from "@/lib/service-secrets";
@@ -143,6 +143,16 @@ export async function getMail(uid: number, folder = "INBOX"): Promise<MailMessag
     listAiRules(true),
   ]);
   return toMessage(message, settings.aiPriorityDetection, rules, folder);
+}
+
+export async function searchMailUids(folder: "INBOX" | "INBOX.Sent", criteria: SearchCriteria): Promise<number[]> {
+  const { gateway } = await runtime();
+  return gateway.searchMessageUids(folder, criteria);
+}
+
+export async function loadMailResearchMessages(folder: "INBOX" | "INBOX.Sent", uids: number[], limit = 300) {
+  const { gateway } = await runtime();
+  return gateway.loadResearchMessages(folder, uids, limit);
 }
 
 export async function updateMail(uid: number, action: MailAction, folder = "INBOX") {
