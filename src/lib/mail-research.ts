@@ -16,6 +16,7 @@ const planSchema = z.object({
   from: z.string().trim().min(1).max(320).nullable().optional(),
   to: z.string().trim().min(1).max(320).nullable().optional(),
   participant: z.string().trim().min(1).max(320).nullable().optional(),
+  identities: z.array(z.string().trim().min(1).max(320)).max(10).optional(),
   subject: z.string().trim().min(1).max(300).nullable().optional(),
   text: z.string().trim().min(1).max(500).nullable().optional(),
   keywords: z.array(z.string().trim().min(1).max(120)).max(5).optional(),
@@ -71,15 +72,25 @@ function effectiveScope(planScope: MailResearchScope, selectedScope: MailResearc
   return planScope;
 }
 
-export function buildResearchCriteria(plan: MailResearchPlan, folder: "INBOX" | "INBOX.Sent", keyword?: string): SearchCriteria {
+function splitIdentityValue(value?: string | null): string[] {
+  if (!value) return [];
+  return value
+    .split(/\s*(?:,|;|\band\s*\/\s*or\b|\band\/or\b|\band\b|\bor\b)\s*/i)
+    .map(item => item.trim())
+    .filter(item => item.length >= 2);
+}
+
+export function researchIdentities(plan: MailResearchPlan): string[] {
+  return [...new Set([
+    ...(plan.identities || []),
+    ...splitIdentityValue(plan.participant),
+    ...splitIdentityValue(plan.from),
+    ...splitIdentityValue(plan.to),
+  ].map(item => item.trim()).filter(Boolean))];
+}
+
+function baseCriteria(plan: MailResearchPlan, keyword?: string): SearchCriteria {
   const criteria: SearchCriteria = {};
-  if (plan.participant) {
-    if (folder === "INBOX") criteria.from = plan.participant;
-    else criteria.to = plan.participant;
-  } else {
-    if (plan.from) criteria.from = plan.from;
-    if (plan.to) criteria.to = plan.to;
-  }
   if (plan.subject) criteria.subject = plan.subject;
   const text = keyword || plan.text || undefined;
   if (text) criteria.text = text;
@@ -87,6 +98,17 @@ export function buildResearchCriteria(plan: MailResearchPlan, folder: "INBOX" | 
   const before = dateValue(plan.before);
   if (since) criteria.since = since;
   if (before) criteria.before = before;
+  return criteria;
+}
+
+export function buildResearchCriteria(plan: MailResearchPlan, folder: "INBOX" | "INBOX.Sent", keyword?: string): SearchCriteria {
+  const criteria = baseCriteria(plan, keyword);
+  const identities = researchIdentities(plan);
+  const identity = identities[0];
+  if (identity) {
+    if (folder === "INBOX") criteria.from = identity;
+    else criteria.to = identity;
+  }
   return criteria;
 }
 
@@ -129,6 +151,7 @@ export async function planMailResearch(query: string, selectedScope: MailResearc
     '  "from": string | null,',
     '  "to": string | null,',
     '  "participant": string | null,',
+    '  "identities": string[],',
     '  "subject": string | null,',
     '  "text": string | null,',
     '  "keywords": string[],',
@@ -140,11 +163,13 @@ export async function planMailResearch(query: string, selectedScope: MailResearc
     "Rules:",
     '- "all emails sent to X", "emails I sent to X", or "outgoing mail to X": scope=sent, to=X, mode=collection.',
     '- "all emails received from X" or "emails from X": scope=inbox, from=X, mode=collection.',
-    '- "correspondence with X", "emails between us and X", "conversation with X": scope=both, participant=X.',
+    '- "correspondence with X", "emails between us and X", "conversation with X": scope=both, participant=X, identities=[X].',
+    '- If the user names multiple people or organizations using "and", "or", "and/or", or "and / or", put each identity separately in identities. Never combine multiple identities into one literal participant string.',
+    '- If the request explicitly includes both sent and received mail, scope=both.',
     '- "mentions/contains/phrase/topic X": put the best exact phrase in text, and up to 5 useful alternate search terms in keywords.',
     "- If the user asks to combine, collect, gather, export, or put all matching emails into one document, mode=collection.",
     "- If the user asks to analyze, summarize, compare, explain, find trends, create an executive report, or answer a question from the messages, mode=report.",
-    "- Use participant only when the same person should map to From for Inbox and To for Sent.",
+    "- Use participant only for one identity. For multiple identities use identities and set participant=null.",
     "- Do not invent an email address when only a name is given.",
     "- Do not include any commentary outside JSON.",
     "",
@@ -158,13 +183,87 @@ export async function planMailResearch(query: string, selectedScope: MailResearc
   catch { throw new Error("The AI could not convert this instruction into a safe mailbox search."); }
   const parsed = planSchema.safeParse(raw);
   if (!parsed.success) throw new Error("The AI could not convert this instruction into a safe mailbox search.");
-  return { ...parsed.data, scope: effectiveScope(parsed.data.scope, selectedScope) };
+  const normalized = {
+    ...parsed.data,
+    identities: researchIdentities(parsed.data),
+    scope: effectiveScope(parsed.data.scope, selectedScope),
+  };
+  return normalized;
+}
+
+function emailCandidatesNearIdentity(identity: string, messages: Awaited<ReturnType<typeof loadMailResearchMessages>>): string[] {
+  const normalizedIdentity = identity.toLowerCase();
+  const candidates = new Set<string>();
+  const emailPattern = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
+
+  for (const message of messages) {
+    for (const entry of [...message.from, ...message.to, ...message.cc]) {
+      if ((entry.name || "").toLowerCase().includes(normalizedIdentity) || entry.address.toLowerCase().includes(normalizedIdentity)) {
+        candidates.add(entry.address.toLowerCase());
+      }
+    }
+    const text = message.text || "";
+    for (const match of text.matchAll(emailPattern)) {
+      const email = match[0].toLowerCase();
+      const start = Math.max(0, (match.index || 0) - 180);
+      const end = Math.min(text.length, (match.index || 0) + email.length + 180);
+      if (text.slice(start, end).toLowerCase().includes(normalizedIdentity)) candidates.add(email);
+    }
+  }
+  return [...candidates].slice(0, 8);
+}
+
+async function discoverIdentityAliases(identity: string): Promise<string[]> {
+  if (identity.includes("@")) return [identity.toLowerCase()];
+  const discoveryUids = [
+    ...(await searchMailUids("INBOX", { text: identity })).slice(0, 12),
+    ...(await searchMailUids("INBOX.Sent", { text: identity })).slice(0, 12),
+  ];
+  const inboxUids = [...new Set((await searchMailUids("INBOX", { text: identity })).slice(0, 12))];
+  const sentUids = [...new Set((await searchMailUids("INBOX.Sent", { text: identity })).slice(0, 12))];
+  const [inboxMessages, sentMessages] = await Promise.all([
+    loadMailResearchMessages("INBOX", inboxUids, 12),
+    loadMailResearchMessages("INBOX.Sent", sentUids, 12),
+  ]);
+  const aliases = emailCandidatesNearIdentity(identity, [...inboxMessages, ...sentMessages]);
+  return [...new Set([identity, ...aliases, ...discoveryUids.length ? [] : []])];
+}
+
+async function searchIdentity(folder: "INBOX" | "INBOX.Sent", plan: MailResearchPlan, identity: string, keyword?: string): Promise<number[]> {
+  const aliases = await discoverIdentityAliases(identity);
+  const criteriaBase = baseCriteria(plan, keyword);
+  const searches: Promise<number[]>[] = [];
+
+  for (const alias of aliases) {
+    if (folder === "INBOX") {
+      searches.push(searchMailUids(folder, { ...criteriaBase, from: alias }));
+    } else {
+      searches.push(searchMailUids(folder, { ...criteriaBase, to: alias }));
+      searches.push(searchMailUids(folder, { ...criteriaBase, cc: alias }));
+    }
+  }
+
+  // Body search is a fallback for names/organizations that appear in signatures,
+  // distribution lists, forwarded headers, or archived message bodies.
+  searches.push(searchMailUids(folder, { ...criteriaBase, text: keyword || identity }));
+  const pages = await Promise.all(searches);
+  return [...new Set(pages.flat())].sort((a, b) => b - a);
 }
 
 async function searchFolder(folder: "INBOX" | "INBOX.Sent", plan: MailResearchPlan): Promise<number[]> {
+  const identities = researchIdentities(plan);
   const terms = [...new Set([plan.text, ...(plan.keywords || [])].filter((value): value is string => Boolean(value)))];
-  if (!terms.length) return searchMailUids(folder, buildResearchCriteria(plan, folder));
-  const pages = await Promise.all(terms.map(term => searchMailUids(folder, buildResearchCriteria(plan, folder, term))));
+
+  if (identities.length) {
+    const keywordTerms = terms.length ? terms : [undefined];
+    const pages = await Promise.all(
+      identities.flatMap(identity => keywordTerms.map(term => searchIdentity(folder, plan, identity, term))),
+    );
+    return [...new Set(pages.flat())].sort((a, b) => b - a);
+  }
+
+  if (!terms.length) return searchMailUids(folder, baseCriteria(plan));
+  const pages = await Promise.all(terms.map(term => searchMailUids(folder, baseCriteria(plan, term))));
   return [...new Set(pages.flat())].sort((a, b) => b - a);
 }
 
