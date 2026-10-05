@@ -16,6 +16,7 @@ type ResearchResult = {
   excluded: number;
   capped: boolean;
   model: string | null;
+  warnings: string[];
 };
 
 type ResearchPayload = ResearchResult & {
@@ -36,6 +37,7 @@ type ResearchHistorySummary = {
   excluded: number;
   capped: boolean;
   model: string | null;
+  warnings: string[];
   createdAt: string;
 };
 
@@ -301,8 +303,7 @@ function MailResearchSurface({
                   <b>{result.mode === "collection" ? "Collection" : "Report"}</b><small>output</small>
                 </div>
               </div>
-              {result.capped ? <p className="research-warning">This search found more matching messages than one research request can safely process. The newest matches are included; narrow the query or date range for older results.</p> : null}
-              {result.excluded > 0 ? <p className="research-warning">{result.excluded} matching message(s) were not included in the generated output because of processing or security limits.</p> : null}
+              {result.warnings.map((warning) => <p className="research-warning" key={warning}>{warning}</p>)}
               <pre className="research-document">{result.markdown}</pre>
             </div>
           ) : null}
@@ -343,6 +344,7 @@ function MailResearchSurface({
                         <b>{item.requestedScope === "both" ? "Inbox + Sent" : item.requestedScope === "sent" ? "Sent" : "Inbox"}</b>
                         <em>{item.mode === "collection" ? "Collection" : "Report"}</em>
                         <i>{item.matched} matched</i>
+                        {item.warnings.length ? <span className="research-history-warning-badge">{item.warnings.length} warning{item.warnings.length === 1 ? "" : "s"}</span> : null}
                       </span>
                     </button>
                   ))}
@@ -376,6 +378,11 @@ function MailResearchSurface({
                     <span><b>{selectedHistoryView.mode === "collection" ? "Collection" : "Report"}</b><small>output</small></span>
                     <span><b>{selectedHistoryView.model || "Mailbox"}</b><small>model</small></span>
                   </div>
+                  {selectedHistoryView.warnings.length ? (
+                    <div className="research-history-warnings" aria-label="Research warnings">
+                      {selectedHistoryView.warnings.map((warning) => <p className="research-warning" key={warning}>{warning}</p>)}
+                    </div>
+                  ) : null}
                   {historyDetailLoading ? (
                     <div className="research-history-preview-loading"><LoaderCircle className="spin" size={20} /> Loading Markdown report…</div>
                   ) : selectedHistoryDetail ? (
