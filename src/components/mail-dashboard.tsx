@@ -45,7 +45,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [toast, setToast] = useState("");
   const [mobileNav, setMobileNav] = useState(false);
   const [researchOpen, setResearchOpen] = useState(false);
-  const [researchScope, setResearchScope] = useState<"inbox" | "sent" | "both">("inbox");
+  const [researchScope, setResearchScope] = useState<"inbox" | "sent" | "both">("both");
   const [demo, setDemo] = useState(true);
   const selectionVersion = useRef(0);
   const aiVersion = useRef(0);
@@ -363,7 +363,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX")}
               onLoadMore={() => void loadMore()}
-              onOpenResearch={() => { setResearchScope("inbox"); setResearchOpen(true); }}
+              onOpenResearch={() => { setResearchScope("both"); setResearchOpen(true); }}
             />
           ) : null}
           {section === "sent" ? (
@@ -392,7 +392,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onCompose={() => setComposeOpen(true)}
               onRefresh={() => void loadData("INBOX.Sent")}
               onLoadMore={() => void loadMore()}
-              onOpenResearch={() => { setResearchScope("sent"); setResearchOpen(true); }}
+              onOpenResearch={() => { setResearchScope("both"); setResearchOpen(true); }}
             />
           ) : null}
           {section === "ai" ? <AiRulesView /> : null}
