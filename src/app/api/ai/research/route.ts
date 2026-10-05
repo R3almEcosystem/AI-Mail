@@ -10,7 +10,7 @@ const requestSchema = z.object({
   scope: z.enum(["inbox", "sent", "both"]),
 });
 
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,6 +29,20 @@ export async function POST(request: NextRequest) {
     const result = await runMailResearch(parsed.data.query, parsed.data.scope);
     return NextResponse.json(result, { headers: privateHeaders });
   } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    console.error("[mail-research] request failed", {
+      name: error instanceof Error ? error.name : "UnknownError",
+      code: message.slice(0, 180),
+    });
+    if (message === "OpenAI is not configured.") {
+      return NextResponse.json({ error: "OpenAI is not configured for mailbox research." }, { status: 503, headers: privateHeaders });
+    }
+    if (message.startsWith("OpenAI research request failed")) {
+      return NextResponse.json({ error: "OpenAI could not complete the mailbox research step. Retry the request or choose another configured model." }, { status: 502, headers: privateHeaders });
+    }
+    if (message.includes("safe mailbox search")) {
+      return NextResponse.json({ error: "The AI could not interpret this mailbox query reliably. Try naming the people, addresses, phrase, or date range more explicitly." }, { status: 422, headers: privateHeaders });
+    }
     return apiError(error, "Mailbox research could not be completed.");
   }
 }
