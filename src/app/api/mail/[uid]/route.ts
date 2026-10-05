@@ -10,6 +10,7 @@ const actionSchema = z.object({
   action: z.enum(["read", "unread", "flag", "unflag", "archive", "tag", "untag"]),
   folder: z.enum(["INBOX", "INBOX.Sent"]).optional(),
   tag: z.enum(["follow-up", "waiting", "finance", "legal", "technology", "personal"]).optional(),
+  accountId: z.string().regex(/^(?:primary|[0-9a-f-]{36})$/i).optional(),
 }).superRefine((value, ctx) => {
   if ((value.action === "tag" || value.action === "untag") && !value.tag) {
     ctx.addIssue({ code: "custom", message: "A message tag is required.", path: ["tag"] });
@@ -26,10 +27,12 @@ export async function GET(request: NextRequest, context: RouteContext) {
       const message = mockMessages.find(item => item.uid === uid);
       return message ? NextResponse.json({ message, demo: true }, { headers: privateHeaders }) : NextResponse.json({ error: "Message not found." }, { status: 404 });
     }
-    if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
+    const accountId = request.nextUrl.searchParams.get("accountId") || "primary";
+    if (accountId !== "primary" && !/^[0-9a-f-]{36}$/i.test(accountId)) return NextResponse.json({ error: "Invalid mail account." }, { status: 400 });
+    if (!(await mailConfiguration(accountId)).imap) return NextResponse.json({ error: "Incoming mail is not configured for the selected account." }, { status: 503 });
     const folder = request.nextUrl.searchParams.get("folder") || "INBOX";
     if (folder !== "INBOX" && folder !== "INBOX.Sent") return NextResponse.json({ error: "Unsupported mailbox folder." }, { status: 400 });
-    return NextResponse.json({ message: await getMail(uid, folder), demo: false }, { headers: privateHeaders });
+    return NextResponse.json({ message: await getMail(uid, folder, accountId), demo: false }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The message could not be loaded."); }
 }
 export async function PATCH(request: NextRequest, context: RouteContext) {
@@ -40,8 +43,9 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const parsed = actionSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Invalid mailbox action." }, { status: 400 });
     if (user.demo) return NextResponse.json({ ok: true, demo: true, action: parsed.data.action, tag: parsed.data.tag || null }, { headers: privateHeaders });
-    if (!(await mailConfiguration()).imap) return NextResponse.json({ error: "Incoming mail is not configured." }, { status: 503 });
-    const result = await updateMail(uid, parsed.data.action, parsed.data.folder || "INBOX", parsed.data.tag);
+    const accountId = parsed.data.accountId || "primary";
+    if (!(await mailConfiguration(accountId)).imap) return NextResponse.json({ error: "Incoming mail is not configured for the selected account." }, { status: 503 });
+    const result = await updateMail(uid, parsed.data.action, parsed.data.folder || "INBOX", parsed.data.tag, accountId);
     return NextResponse.json({ ok: true, demo: false, result }, { headers: privateHeaders });
   } catch (error) { return apiError(error, "The mail server did not confirm the change."); }
 }
