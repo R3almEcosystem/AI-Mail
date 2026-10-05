@@ -514,7 +514,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console. OpenAI remains a workspace-wide encrypted credential.</p>
   </div>
 </>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI & policy" : "Save settings"}</button></div></section> : null}
-          {!loading && section === "rules" ? <section className="admin-ai-rules-page"><AiRulesView onChanged={refreshAudit} /></section> : null}
+          {!loading && section === "rules" ? <section className="admin-ai-rules-page"><AiRulesView onChanged={refreshAudit} editable /></section> : null}
           {!loading && section === "audit" ? <section className="audit-page"><div className="audit-summary"><span><Activity size={20} /></span><div><h2>Administrative activity</h2><p>Immutable-style records of identity, access, and configuration changes.</p></div><b>{events.length} events</b></div><div className="admin-panel audit-list">{events.map((event) => <article key={event.id}><span><Activity size={15} /></span><div><strong>{event.action}</strong><p><b>{event.actorName}</b> · {event.target}</p></div><time><Clock3 size={13} /> {dateLabel(event.createdAt)}</time></article>)}</div></section> : null}
         </div>
       </div>
