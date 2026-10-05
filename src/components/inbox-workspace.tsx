@@ -61,6 +61,7 @@ export function InboxWorkspace({
   onCompose,
   onRefresh,
   onLoadMore,
+  onOpenResearch,
 }: {
   messages: MailMessage[];
   selected: MailMessage | null;
@@ -86,6 +87,7 @@ export function InboxWorkspace({
   onCompose: () => void;
   onRefresh: () => void;
   onLoadMore: () => void;
+  onOpenResearch: () => void;
 }) {
   const [mobileDetail, setMobileDetail] = useState(false);
   const mailListRef = useRef<HTMLDivElement | null>(null);
@@ -102,9 +104,14 @@ export function InboxWorkspace({
       <div className="mail-list-panel">
         <div className="mail-list-heading">
           <div><p className="eyebrow">{mailboxEyebrow}</p><h2>{mailboxLabel} <span>{loadedCount < totalCount ? `${loadedCount} of ${totalCount}` : totalCount}</span></h2></div>
-          <button type="button" className="icon-button" onClick={onRefresh} aria-label={`Refresh ${mailboxLabel.toLowerCase()}`}>
-            <RefreshCw size={17} className={loading ? "spin" : ""} />
-          </button>
+          <div className="mail-list-heading-actions">
+            <button type="button" className="icon-button research-launch-button" onClick={onOpenResearch} aria-label={`Open AI research for ${mailboxLabel}`} title="AI Mail Research">
+              <Sparkles size={17} />
+            </button>
+            <button type="button" className="icon-button" onClick={onRefresh} aria-label={`Refresh ${mailboxLabel.toLowerCase()}`}>
+              <RefreshCw size={17} className={loading ? "spin" : ""} />
+            </button>
+          </div>
         </div>
         <div className="mail-search">
           <Search size={16} />
