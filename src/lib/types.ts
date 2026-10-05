@@ -14,6 +14,9 @@ export type MailMessage = {
   subject: string;
   preview: string;
   body?: string;
+  bodyLoaded?: boolean;
+  hasPlainTextBody?: boolean;
+  safeHtmlBody?: string;
   receivedAt: string;
   unread: boolean;
   flagged: boolean;
