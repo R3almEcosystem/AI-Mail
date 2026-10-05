@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { AiRule, AppStatus } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
+import { MailAccountsManager } from "@/components/mail-accounts-manager";
 
 function StatusRow({ label, detail, ready }: { label: string; detail: string; ready: boolean }) {
   return (
@@ -52,10 +53,11 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
           <dl><div><dt>Provider</dt><dd>OpenAI API</dd></div><div><dt>Model</dt><dd>{status?.model || "Not selected"}</dd></div><div><dt>Key storage</dt><dd>Server only</dd></div></dl>
         </section>
       </div>
+      <MailAccountsManager />
       <section className="panel configuration-panel">
         <div className="panel-heading"><div><p className="eyebrow">READINESS</p><h3>Configuration checklist</h3></div><span className="configuration-score">{[status?.imap, status?.smtp, status?.openai, status?.authentication].filter(Boolean).length}/4</span></div>
-        <StatusRow ready={Boolean(status?.imap)} label="Incoming mailbox" detail="IMAP host, user, password, port, and TLS mode" />
-        <StatusRow ready={Boolean(status?.smtp)} label="Outbound delivery" detail="SMTP host, sender, user, password, port, and TLS mode" />
+        <StatusRow ready={Boolean(status?.imap)} label="Incoming mailbox" detail="At least one active IMAP account is available for Inbox, Sent, and research." />
+        <StatusRow ready={Boolean(status?.smtp)} label="Outbound delivery" detail="At least one connected account can send through SMTP." />
         <StatusRow ready={Boolean(status?.openai)} label="OpenAI intelligence" detail="OPENAI_API_KEY and OPENAI_MODEL" />
         <StatusRow ready={Boolean(status?.authentication || status?.demoLogin)} label="Console authentication" detail="Signed user sessions and role-based access" />
       </section>
