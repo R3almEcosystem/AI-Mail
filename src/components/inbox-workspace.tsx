@@ -128,7 +128,7 @@ export function InboxWorkspace({
     setMoreMenuOpen(false);
     setDetailsOpen(false);
     setBodyView(selectedHasSecureHtmlFallback ? "html" : "text");
-  }, [selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
+  }, [selected?.accountId, selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
 
   useEffect(() => {
     const list = mailListRef.current;
