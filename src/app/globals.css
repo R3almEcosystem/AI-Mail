@@ -2461,3 +2461,22 @@ button[aria-label]:disabled::after {
   color: #2f5e9c;
   background: #edf4fd;
 }
+
+
+/* Admin multi-account AI & Mail settings */
+.admin-mail-accounts {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.admin-mail-accounts .mail-accounts-manager {
+  margin-top: 0;
+}
+.admin-mail-accounts .mail-accounts-manager > header {
+  min-height: 78px;
+}
+.global-mail-policy-card .setting-row {
+  min-height: 72px;
+}
+.global-mail-policy-card .setting-row > span.status-text {
+  flex: 0 0 auto;
+}
