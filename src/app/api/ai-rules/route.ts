@@ -64,17 +64,16 @@ export async function PATCH(request: NextRequest) {
     const parsed = updateSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Invalid AI rule update." }, { status: 400, headers: privateHeaders });
 
-    const fullEdit = "title" in parsed.data;
-    const rule = fullEdit
-      ? await updateAiRule(parsed.data.id, parsed.data)
-      : await setAiRuleActive(parsed.data.id, parsed.data.active);
-    if (!rule) return NextResponse.json({ error: "AI rule not found." }, { status: 404, headers: privateHeaders });
+    if ("title" in parsed.data) {
+      const rule = await updateAiRule(parsed.data.id, parsed.data);
+      if (!rule) return NextResponse.json({ error: "AI rule not found." }, { status: 404, headers: privateHeaders });
+      await addAudit(actor, "Updated AI rule", rule.title);
+      return NextResponse.json({ rule }, { headers: privateHeaders });
+    }
 
-    await addAudit(
-      actor,
-      fullEdit ? "Updated AI rule" : parsed.data.active ? "Enabled AI rule" : "Disabled AI rule",
-      rule.title,
-    );
+    const rule = await setAiRuleActive(parsed.data.id, parsed.data.active);
+    if (!rule) return NextResponse.json({ error: "AI rule not found." }, { status: 404, headers: privateHeaders });
+    await addAudit(actor, parsed.data.active ? "Enabled AI rule" : "Disabled AI rule", rule.title);
     return NextResponse.json({ rule }, { headers: privateHeaders });
   } catch (error) {
     return apiError(error, "Unable to update AI rule.");
