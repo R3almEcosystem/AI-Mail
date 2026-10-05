@@ -69,6 +69,21 @@ export type MailAccountRuntime = MailAccountSummary & {
   smtpPassword: string;
 };
 
+export type MailAccountDetails = MailAccountSummary & {
+  imapHost: string;
+  imapPort: number;
+  imapSecure: boolean;
+  imapUser: string;
+  sentFolder: string;
+  archiveFolder: string;
+  smtpEnabled: boolean;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpFrom: string;
+};
+
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
@@ -186,6 +201,31 @@ export async function resolveMailAccount(accountId = PRIMARY_MAIL_ACCOUNT_ID, al
     smtpUser: text(row.smtp_user),
     smtpFrom: text(row.smtp_from),
     smtpPassword,
+  };
+}
+
+export async function getMailAccountDetails(accountId = PRIMARY_MAIL_ACCOUNT_ID): Promise<MailAccountDetails> {
+  const account = await resolveMailAccount(accountId, true);
+  return {
+    id: account.id,
+    label: account.label,
+    email: account.email,
+    primary: account.primary,
+    active: account.active,
+    imapReady: account.imapReady,
+    smtpReady: account.smtpReady,
+    imapHost: account.imapHost,
+    imapPort: account.imapPort,
+    imapSecure: account.imapSecure,
+    imapUser: account.imapUser,
+    sentFolder: account.sentFolder,
+    archiveFolder: account.archiveFolder,
+    smtpEnabled: account.smtpEnabled,
+    smtpHost: account.smtpHost,
+    smtpPort: account.smtpPort,
+    smtpSecure: account.smtpSecure,
+    smtpUser: account.smtpUser,
+    smtpFrom: account.smtpFrom,
   };
 }
 
