@@ -17,12 +17,41 @@ export type ParsedMessage = MessageSummary & {
   attachmentInspection: AttachmentInspection;
   cc: Array<{ name?: string; address: string }>;
   messageId?: string; inReplyTo?: string; references: string[]; text: string;
+  safeHtmlBody?: string;
   attachments: Array<{ filename?: string; mimeType?: string; disposition?: string; related?: boolean; contentId?: string }>;
 };
 export type SearchCriteria = { from?: string; to?: string; cc?: string; subject?: string; text?: string; unreadOnly?: boolean; since?: Date; before?: Date };
 type SendInput = { to: string[]; cc?: string[]; bcc?: string[]; subject: string; text: string; inReplyTo?: string; references?: string[] };
 type SentCopyStatus = { stored: boolean; folder?: string; uid?: number; warning?: string };
 const tlsOptions = (host: string) => ({ rejectUnauthorized: true, minVersion: 'TLSv1.2' as const, servername: host });
+const MAX_SAFE_HTML_CHARS = 250000;
+
+function sanitizeEmailCss(css: string): string {
+  return css
+    .replace(/@import\b[^;]*;?/gi, '')
+    .replace(/url\s*\([^)]*\)/gi, 'none')
+    .replace(/expression\s*\([^)]*\)/gi, '')
+    .replace(/behavior\s*:[^;}]*/gi, '');
+}
+
+function sanitizeEmailHtmlFragment(rawHtml: string): string {
+  let html = rawHtml.slice(0, MAX_SAFE_HTML_CHARS);
+  html = html.replace(/<!--[^]*?-->/g, '');
+  html = html.replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|base|link|video|audio|source|track|svg|math)\b[^>]*>[^]*?<\/\1\s*>/gi, '');
+  html = html.replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|base|link|video|audio|source|track|svg|math)\b[^>]*\/?\s*>/gi, '');
+  html = html.replace(/\s+on[a-z0-9_-]+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\s+(href|src|srcset|action|formaction|poster|background|ping)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  html = html.replace(/\s+style\s*=\s*(["'])([^]*?)\1/gi, (_match, quote: string, css: string) => ` style=${quote}${sanitizeEmailCss(css)}${quote}`);
+  html = html.replace(/<style\b[^>]*>([^]*?)<\/style\s*>/gi, (_match, css: string) => `<style>${sanitizeEmailCss(css)}</style>`);
+  return html;
+}
+
+function buildSafeEmailHtml(rawHtml: string): string | undefined {
+  if (!rawHtml.trim()) return undefined;
+  const fragment = sanitizeEmailHtmlFragment(rawHtml);
+  const csp = "default-src 'none'; script-src 'none'; connect-src 'none'; frame-src 'none'; child-src 'none'; object-src 'none'; media-src 'none'; font-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none';";
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><style>html{background:#fff;color:#28364a;font-family:Arial,Helvetica,sans-serif}body{margin:0;padding:20px;overflow-wrap:anywhere;line-height:1.55}img{max-width:100%;height:auto}table{max-width:100%}a{color:#315fa9;text-decoration:underline;pointer-events:none}</style></head><body>${fragment}</body></html>`;
+}
 
 /** The single transport implementation used by browser handlers and MCP tools. */
 export class MailGateway {
@@ -268,6 +297,7 @@ export class MailGateway {
         inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
         references: (headers.get('references') || '').split(/\s+/).slice(0, 100).map(normalizeMessageId).filter((id): id is string => Boolean(id)),
         text: clampText(parsed.text || '', this.config.limits.maxMessageBodyChars),
+        ...(parsed.html ? { safeHtmlBody: buildSafeEmailHtml(parsed.html) } : {}),
         attachments: parsed.attachments.map(attachment => ({
           ...(attachment.filename ? { filename: attachment.filename } : {}), ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
           ...(attachment.disposition ? { disposition: attachment.disposition } : {}), ...(attachment.related !== undefined ? { related: attachment.related } : {}),
