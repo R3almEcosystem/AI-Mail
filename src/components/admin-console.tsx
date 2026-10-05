@@ -48,8 +48,9 @@ import type {
 } from "@/lib/types";
 import { webPath } from "@/lib/web-path";
 import { MailAccountsManager } from "@/components/mail-accounts-manager";
+import { AiRulesView } from "@/components/settings-views";
 
-type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "audit";
+type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "rules" | "audit";
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
 
 const roleLabels: Record<UserRole, string> = {
@@ -62,7 +63,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminSection; label: string; icon: Icon }> }> = [
   { label: "CONTROL CENTER", items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users }, { id: "groups", label: "Alert groups", icon: UsersRound }, { id: "roles", label: "Roles & access", icon: ShieldCheck }] },
-  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI & mail", icon: SlidersHorizontal }, { id: "audit", label: "Audit log", icon: Activity }] },
+  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI & mail", icon: SlidersHorizontal }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
 ];
 
 const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail: string }> = {
@@ -72,6 +73,7 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
   services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Configure workspace AI policy and manage every connected mailbox." },
+  rules: { eyebrow: "AUTOMATION", title: "AI Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
 
@@ -217,6 +219,7 @@ const permissions = [
   { label: "Manage users", roles: [true, true, false, false, false] },
   { label: "Assign administrator roles", roles: [true, false, false, false, false] },
   { label: "Configure security & services", roles: [true, true, false, false, false] },
+  { label: "Manage AI rules", roles: [true, true, false, false, false] },
 ];
 
 export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
@@ -511,6 +514,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console. OpenAI remains a workspace-wide encrypted credential.</p>
   </div>
 </>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI & policy" : "Save settings"}</button></div></section> : null}
+          {!loading && section === "rules" ? <section className="admin-ai-rules-page"><AiRulesView onChanged={refreshAudit} /></section> : null}
           {!loading && section === "audit" ? <section className="audit-page"><div className="audit-summary"><span><Activity size={20} /></span><div><h2>Administrative activity</h2><p>Immutable-style records of identity, access, and configuration changes.</p></div><b>{events.length} events</b></div><div className="admin-panel audit-list">{events.map((event) => <article key={event.id}><span><Activity size={15} /></span><div><strong>{event.action}</strong><p><b>{event.actorName}</b> · {event.target}</p></div><time><Clock3 size={13} /> {dateLabel(event.createdAt)}</time></article>)}</div></section> : null}
         </div>
       </div>
