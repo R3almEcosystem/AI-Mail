@@ -4,7 +4,7 @@ const guard=load(path.join(root,'src/security/ai-disclosure.ts'),{'./email-secur
 const input=(text='Meeting confirmed')=>({sender:'Example',senderEmail:'a@example.com',subject:'Meeting',preview:text,body:text,attachments:0,
  security:rules.assessEmailSecurity({direction:'inbound',subject:'Meeting',text}),attachmentInspection:{required:false,status:'no_attachments',provider:null,files:[]}});
 function fixture(result='Meeting summary'){
- let calls=0,options;
+ let calls=0,options;const telemetry=[];
  const settings={aiModel:'synthetic-model',aiTone:'concise',aiAutoSummarize:true,aiPriorityDetection:true};
  const api=load(path.join(root,'src/lib/ai.ts'),{
   'server-only':{},
@@ -12,9 +12,14 @@ function fixture(result='Meeting summary'){
   ai:{generateText:async value=>{calls++;options=value;return{text:result,usage:{totalTokens:5}};}},
   '@/lib/admin-data':{getSettings:async()=>settings},
   '@/lib/service-secrets':{getServiceSecret:async()=> 'synthetic-test-key'},
+  '@/lib/ai-telemetry':{
+   normalizeAiUsage:usage=>({inputTokens:usage.inputTokens??null,cachedInputTokens:null,cacheWriteTokens:null,outputTokens:usage.outputTokens??null,totalTokens:usage.totalTokens??null}),
+   recordAiCall:async entry=>{telemetry.push(entry);},
+   aiErrorCode:()=> 'ERROR'
+  },
   '../security/ai-disclosure':guard
  });
- return {...api,calls:()=>calls,options:()=>options};
+ return {...api,calls:()=>calls,options:()=>options,telemetry:()=>telemetry};
 }
 test('detected private data causes zero AI provider calls',async()=>{const f=fixture();await assert.rejects(()=>f.analyzeMail('summarize',input('SSN: 123-45-6789')),/AI_SECURITY_BLOCKED/);assert.equal(f.calls(),0);});
 test('generation separates system instructions, sends no tools and bounds retries/output/time',async()=>{
@@ -22,3 +27,8 @@ test('generation separates system instructions, sends no tools and bounds retrie
  const options=f.options();assert.ok(options.system.includes('untrusted'));assert.ok(options.system.includes('Response style'));assert.equal(options.maxRetries,0);assert.equal(options.maxOutputTokens,1000);assert.ok(options.abortSignal instanceof AbortSignal);assert.equal(options.tools,undefined);
 });
 test('provider-generated sensitive output is withheld',async()=>{const f=fixture('SSN: 123-45-6789');await assert.rejects(()=>f.analyzeMail('summarize',input()),/AI_SECURITY_BLOCKED/);assert.equal(f.calls(),1);});
+
+test('successful generation records AI call telemetry',async()=>{
+ const f=fixture();await f.analyzeMail('summarize',input(),undefined,{actorId:'actor-1',actorName:'Tester',accountId:'primary'});
+ assert.equal(f.telemetry().length,1);assert.equal(f.telemetry()[0].operation,'mail.summarize');assert.equal(f.telemetry()[0].status,'succeeded');
+});
