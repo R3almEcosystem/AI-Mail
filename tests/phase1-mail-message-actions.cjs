@@ -127,3 +127,17 @@ test("security review scrolls with message content", () => {
   assert.ok(css.includes('.message-body-region > [aria-label="Email security"]'));
   assert.ok(!css.includes('.message-panel > [aria-label="Email security"]'));
 });
+
+
+test("email security review is collapsible", () => {
+  const panel = read("src/components/message-security-panel.tsx");
+  const css = read("src/components/message-security-panel.module.css");
+
+  assert.ok(panel.includes('<details className={'));
+  assert.ok(panel.includes('aria-label="Email security"'));
+  assert.ok(panel.includes('<summary className={styles.toggle}>'));
+  assert.ok(panel.includes('ChevronDown'));
+  assert.ok(panel.includes('open>'));
+  assert.ok(css.includes(".panel[open] > .toggle .chevron"));
+  assert.ok(css.includes(".panel:not([open]) .toggle"));
+});
