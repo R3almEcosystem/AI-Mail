@@ -1817,3 +1817,95 @@ button[aria-label]:disabled::after {
 
 .mail-item-state svg { color: #c27a0d; }
 .message-state-pill--flagged svg { fill: currentColor; }
+
+
+/* Secure HTML email body */
+.message-body-region {
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.message-body-region > .message-body {
+  min-height: 0;
+  flex: 1;
+}
+.message-body-tabs {
+  min-height: 43px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 18px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e5eaf0;
+}
+.message-body-tabs button {
+  min-height: 29px;
+  padding: 0 10px;
+  color: #7d8999;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 800;
+}
+.message-body-tabs button:hover { color: #375f9d; background: #eef3fa; }
+.message-body-tabs button.active { color: #2f62b2; background: #e8f0fc; }
+.message-body-tabs > span {
+  margin-left: auto;
+  color: #7e8c9f;
+  font-size: 6px;
+  text-align: right;
+}
+.secure-html-message {
+  min-height: 360px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+.secure-html-notice {
+  min-height: 41px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 18px;
+  color: #55705f;
+  background: #f0f8f3;
+  border-bottom: 1px solid #dcece2;
+}
+.secure-html-notice strong { color: #2f7154; font-size: 7px; }
+.secure-html-notice span { color: #72877a; font-size: 6px; }
+.secure-html-frame {
+  width: 100%;
+  min-height: 360px;
+  flex: 1;
+  display: block;
+  background: #fff;
+  border: 0;
+}
+.message-body-unavailable {
+  min-height: 250px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  color: #8d99a8;
+  text-align: center;
+}
+.message-body-unavailable strong { color: #536174; font-size: 10px; }
+.message-body-unavailable span { max-width: 330px; font-size: 8px; line-height: 1.5; }
+
+@media (max-width: 760px) {
+  .message-body-tabs {
+    align-items: stretch;
+    flex-wrap: wrap;
+    height: auto;
+    padding: 7px 12px;
+  }
+  .message-body-tabs button { flex: 1; }
+  .message-body-tabs > span { width: 100%; margin: 1px 0 0; text-align: left; }
+  .secure-html-frame { min-height: 430px; }
+}
