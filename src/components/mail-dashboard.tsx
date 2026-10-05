@@ -65,7 +65,6 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const [search, setSearch] = useState("");
   const [aiResult, setAiResult] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
-  const [mailActionLoading, setMailActionLoading] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const [alerts, setAlerts] = useState<AlertRecord[]>(() => initialAlerts.map((alert) => ({ ...alert })));
@@ -79,6 +78,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   const aiVersion = useRef(0);
   const loadVersion = useRef(0);
   const autoSummarySeen = useRef<Set<string>>(new Set());
+  const mailActionInFlight = useRef(false);
 
   const loadData = useCallback(async (folder = "INBOX") => {
     const version = ++loadVersion.current;
@@ -214,12 +214,12 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }
 
   async function applyAction(action: "read" | "unread" | "flag" | "unflag" | "archive" | "tag" | "untag", tag?: MailTag) {
-    if (!selected || mailActionLoading) return;
+    if (!selected || mailActionInFlight.current) return;
     const targetUid = selected.uid;
     const selectionAtAction = selectionVersion.current;
     const wasUnread = selected.unread;
     const folder = selected.folder || (selected.direction === "outbound" ? "INBOX.Sent" : "INBOX");
-    setMailActionLoading(true);
+    mailActionInFlight.current = true;
 
     try {
       const response = await fetch(webPath(`/api/mail/${targetUid}`), {
@@ -286,7 +286,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
     } catch (error) {
       setToast(error instanceof Error ? error.message : "Unable to update the message.");
     } finally {
-      setMailActionLoading(false);
+      mailActionInFlight.current = false;
     }
   }
 
@@ -406,7 +406,6 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               search={search}
               loading={loading}
               aiLoading={aiLoading}
-              actionLoading={mailActionLoading}
               aiResult={aiResult}
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
@@ -435,7 +434,6 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               search={search}
               loading={loading}
               aiLoading={aiLoading}
-              actionLoading={mailActionLoading}
               aiResult={aiResult}
               demo={demo}
               aiConfigured={Boolean(status?.openai)}
