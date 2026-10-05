@@ -14,7 +14,7 @@ test("Admin Console exposes the shared AI Rules workspace", () => {
   assert.match(admin, /id: "rules", label: "AI Rules"/);
   assert.match(admin, /rules: \{ eyebrow: "AUTOMATION", title: "AI Rules"/);
   assert.match(admin, /section === "rules"/);
-  assert.match(admin, /<AiRulesView onChanged={refreshAudit} \/>/);
+  assert.match(admin, /<AiRulesView onChanged={refreshAudit} editable \/>/);
   assert.match(admin, /Manage AI rules/);
 
   assert.match(rules, /export function AiRulesView\(\{ onChanged \}/);
