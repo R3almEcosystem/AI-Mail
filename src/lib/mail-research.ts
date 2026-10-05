@@ -2,7 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 import { aiConfiguration } from "@/lib/ai";
-import { loadMailResearchMessages, searchMailUids } from "@/lib/mail";
+import { loadMailResearchMessages, searchMailUidGroups, searchMailUids } from "@/lib/mail";
 import type { SearchCriteria } from "../mail/client";
 import { assessEmailSecurity } from "../security/email-security";
 import { validateAiOutput } from "../security/ai-disclosure";
@@ -214,58 +214,85 @@ function emailCandidatesNearIdentity(identity: string, messages: Awaited<ReturnT
   return [...candidates].slice(0, 8);
 }
 
-async function discoverIdentityAliases(identity: string): Promise<string[]> {
-  if (identity.includes("@")) return [identity.toLowerCase()];
-  const [inboxMatches, sentMatches] = await Promise.all([
-    searchMailUids("INBOX", { text: identity }),
-    searchMailUids("INBOX.Sent", { text: identity }),
-  ]);
-  const inboxUids = [...new Set(inboxMatches.slice(0, 12))];
-  const sentUids = [...new Set(sentMatches.slice(0, 12))];
-  const [inboxMessages, sentMessages] = await Promise.all([
-    loadMailResearchMessages("INBOX", inboxUids, 12),
-    loadMailResearchMessages("INBOX.Sent", sentUids, 12),
-  ]);
-  const aliases = emailCandidatesNearIdentity(identity, [...inboxMessages, ...sentMessages]);
-  return [...new Set([identity, ...aliases])];
-}
+type IdentityAliasMap = Map<string, string[]>;
 
-async function searchIdentity(folder: "INBOX" | "INBOX.Sent", plan: MailResearchPlan, identity: string, keyword?: string): Promise<number[]> {
-  const aliases = await discoverIdentityAliases(identity);
-  const criteriaBase = baseCriteria(plan, keyword);
-  const searches: Promise<number[]>[] = [];
-
-  for (const alias of aliases) {
-    if (folder === "INBOX") {
-      searches.push(searchMailUids(folder, { ...criteriaBase, from: alias }));
-    } else {
-      searches.push(searchMailUids(folder, { ...criteriaBase, to: alias }));
-      searches.push(searchMailUids(folder, { ...criteriaBase, cc: alias }));
-    }
+function criteriaWithIdentity(plan: MailResearchPlan, folder: "INBOX" | "INBOX.Sent", identity: string, keyword?: string): SearchCriteria[] {
+  const base = baseCriteria(plan, keyword);
+  if (folder === "INBOX") {
+    return [
+      { ...base, from: identity },
+      { ...base, text: keyword || identity },
+    ];
   }
-
-  // Body search is a fallback for names/organizations that appear in signatures,
-  // distribution lists, forwarded headers, or archived message bodies.
-  searches.push(searchMailUids(folder, { ...criteriaBase, text: keyword || identity }));
-  const pages = await Promise.all(searches);
-  return [...new Set(pages.flat())].sort((a, b) => b - a);
+  return [
+    { ...base, to: identity },
+    { ...base, cc: identity },
+    { ...base, text: keyword || identity },
+  ];
 }
 
-async function searchFolder(folder: "INBOX" | "INBOX.Sent", plan: MailResearchPlan): Promise<number[]> {
+async function resolveIdentityAliases(identities: string[]): Promise<IdentityAliasMap> {
+  const aliasMap: IdentityAliasMap = new Map(identities.map(identity => [identity, [identity]]));
+  const unresolved = identities.filter(identity => !identity.includes("@"));
+  if (!unresolved.length) return aliasMap;
+
+  const discoveryCriteria = unresolved.map(identity => ({ text: identity } as SearchCriteria));
+  const [inboxGroups, sentGroups] = await Promise.all([
+    searchMailUidGroups("INBOX", discoveryCriteria),
+    searchMailUidGroups("INBOX.Sent", discoveryCriteria),
+  ]);
+
+  const inboxUids = [...new Set(inboxGroups.flatMap(group => group.slice(0, 12)))];
+  const sentUids = [...new Set(sentGroups.flatMap(group => group.slice(0, 12)))];
+  const [inboxMessages, sentMessages] = await Promise.all([
+    loadMailResearchMessages("INBOX", inboxUids, Math.min(120, Math.max(1, inboxUids.length))),
+    loadMailResearchMessages("INBOX.Sent", sentUids, Math.min(120, Math.max(1, sentUids.length))),
+  ]);
+  const discoveryMessages = [...inboxMessages, ...sentMessages];
+
+  for (const identity of unresolved) {
+    const aliases = emailCandidatesNearIdentity(identity, discoveryMessages);
+    aliasMap.set(identity, [...new Set([identity, ...aliases])]);
+  }
+  return aliasMap;
+}
+
+function buildSearchCriteria(
+  folder: "INBOX" | "INBOX.Sent",
+  plan: MailResearchPlan,
+  aliases: IdentityAliasMap,
+): SearchCriteria[] {
   const identities = researchIdentities(plan);
   const terms = [...new Set([plan.text, ...(plan.keywords || [])].filter((value): value is string => Boolean(value)))];
+  const keywordTerms: Array<string | undefined> = terms.length ? terms : [undefined];
 
   if (identities.length) {
-    const keywordTerms = terms.length ? terms : [undefined];
-    const pages = await Promise.all(
-      identities.flatMap(identity => keywordTerms.map(term => searchIdentity(folder, plan, identity, term))),
-    );
-    return [...new Set(pages.flat())].sort((a, b) => b - a);
+    const criteria: SearchCriteria[] = [];
+    for (const identity of identities) {
+      const identityAliases = aliases.get(identity) || [identity];
+      for (const alias of identityAliases) {
+        for (const term of keywordTerms) criteria.push(...criteriaWithIdentity(plan, folder, alias, term));
+      }
+    }
+    return criteria.slice(0, 100);
   }
 
-  if (!terms.length) return searchMailUids(folder, baseCriteria(plan));
-  const pages = await Promise.all(terms.map(term => searchMailUids(folder, baseCriteria(plan, term))));
-  return [...new Set(pages.flat())].sort((a, b) => b - a);
+  if (!terms.length) return [baseCriteria(plan)];
+  return terms.map(term => baseCriteria(plan, term)).slice(0, 100);
+}
+
+async function searchResearchFolders(plan: MailResearchPlan) {
+  const folders = foldersForScope(plan.scope);
+  const identities = researchIdentities(plan);
+  const aliases = await resolveIdentityAliases(identities);
+  const criteriaByFolder = folders.map(folder => buildSearchCriteria(folder, plan, aliases));
+  const grouped = await Promise.all(
+    folders.map((folder, index) => searchMailUidGroups(folder, criteriaByFolder[index])),
+  );
+  return {
+    folders,
+    uidLists: grouped.map(groups => [...new Set(groups.flat())].sort((a, b) => b - a)),
+  };
 }
 
 function foldersForScope(scope: MailResearchScope): Array<"INBOX" | "INBOX.Sent"> {
@@ -275,8 +302,7 @@ function foldersForScope(scope: MailResearchScope): Array<"INBOX" | "INBOX.Sent"
 }
 
 async function loadMatches(plan: MailResearchPlan) {
-  const folders = foldersForScope(plan.scope);
-  const uidLists = await Promise.all(folders.map(folder => searchFolder(folder, plan)));
+  const { folders, uidLists } = await searchResearchFolders(plan);
   const matchedCount = uidLists.reduce((sum, list) => sum + list.length, 0);
 
   const batches = await Promise.all(folders.map(async (folder, index) => {
