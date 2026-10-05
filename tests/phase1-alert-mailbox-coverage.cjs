@@ -45,6 +45,24 @@ test("Activity Center mailbox filter composes with priority and unread filters",
   assert.match(dashboard, /accountId = alert\.accountId \|\| "primary"/);
   assert.match(dashboard, /alert\.messageFolder \|\| "INBOX"/);
 
-  assert.match(css, /\.alert-mailbox-sorter/);
+  assert.match(css, /\.alert-filter-field/);
   assert.match(css, /\.alert-source-cell small/);
+});
+
+
+test("Activity Center uses a wider drawer and stronger dropdown controls", () => {
+  const panel = read("src/components/alerts-panel.tsx");
+  const css = read("src/app/globals.css");
+
+  assert.match(panel, /Mailbox filter/);
+  assert.match(panel, /Priority filter/);
+  assert.match(panel, /className="alert-select-control"/);
+
+  assert.match(css, /\.alerts-drawer \{ width: min\(760px, 100vw\)/);
+  assert.match(css, /\.alert-select-control \{/);
+  assert.match(css, /border: 1px solid #cfd9e7/);
+  assert.match(css, /border-radius: 10px/);
+  assert.match(css, /\.alert-filter-field:focus-within \.alert-select-control/);
+  assert.match(css, /box-shadow: 0 0 0 3px rgba\(64, 112, 185, \.11\)/);
+  assert.match(css, /grid-template-columns: minmax\(0, 1fr\) 132px 64px/);
 });
