@@ -4,13 +4,12 @@ import { getMail, mailConfiguration, updateMail } from "@/lib/mail";
 import { mockMessages } from "@/lib/mock-mail";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
-import { MAIL_TAG_IDS } from "@/lib/mail-tags";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 const actionSchema = z.object({
   action: z.enum(["read", "unread", "flag", "unflag", "archive", "tag", "untag"]),
   folder: z.enum(["INBOX", "INBOX.Sent"]).optional(),
-  tag: z.enum(MAIL_TAG_IDS).optional(),
+  tag: z.enum(["follow-up", "waiting", "finance", "legal", "technology", "personal"]).optional(),
 }).superRefine((value, ctx) => {
   if ((value.action === "tag" || value.action === "untag") && !value.tag) {
     ctx.addIssue({ code: "custom", message: "A message tag is required.", path: ["tag"] });
