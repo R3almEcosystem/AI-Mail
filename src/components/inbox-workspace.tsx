@@ -8,6 +8,7 @@ import {
   Check,
   ChevronDown,
   Inbox,
+  Mail,
   MailOpen,
   MoreHorizontal,
   Paperclip,
@@ -177,7 +178,7 @@ export function InboxWorkspace({
                 <span className="mail-item-meta">
                   <i className={`priority-dot priority-dot--${message.priority}`} />
                   <em>{message.category}</em>
-                  {message.flagged ? <span className="mail-item-state"><Star size={11} /> Flagged</span> : null}
+                  {message.flagged ? <span className="mail-item-state"><Star size={11} fill="currentColor" /> Flagged</span> : null}
                   {(message.tags || []).slice(0, 2).map((tag) => <span className="mail-item-tag" key={tag}>{mailTagLabel(tag)}</span>)}
                   {(message.tags || []).length > 2 ? <span className="mail-item-tag">+{(message.tags || []).length - 2}</span> : null}
                   {message.attachments ? <span><Paperclip size={12} />{message.attachments}</span> : null}
@@ -207,29 +208,35 @@ export function InboxWorkspace({
               <button type="button" className="icon-button mobile-back" onClick={() => setMobileDetail(false)} aria-label="Back to messages"><ArrowLeft size={17} /></button>
               <button
                 type="button"
-                className={`icon-button ${selected.unread ? "" : "icon-button--active"}`}
+                className={`icon-button message-status-button ${selected.unread ? "message-status-button--unread" : "message-status-button--read"}`}
                 onClick={() => onAction(selected.unread ? "read" : "unread")}
                 aria-label={selected.unread ? "Mark as read" : "Mark as unread"}
+                data-state={selected.unread ? "unread" : "read"}
                 disabled={actionLoading}
-              ><MailOpen size={17} /></button>
+              >
+                {selected.unread ? <Mail size={17} strokeWidth={2.2} /> : <MailOpen size={17} strokeWidth={2.1} />}
+              </button>
               <button type="button" className="icon-button" onClick={() => onAction("archive")} aria-label="Archive message" disabled={actionLoading}><Archive size={17} /></button>
               <button
                 type="button"
-                className={`icon-button ${selected.flagged ? "icon-button--active" : ""}`}
+                className={`icon-button message-status-button ${selected.flagged ? "message-status-button--flagged" : "message-status-button--unflagged"}`}
                 onClick={() => onAction(selected.flagged ? "unflag" : "flag")}
                 aria-label={selected.flagged ? "Unflag message" : "Flag message"}
+                aria-pressed={selected.flagged}
+                data-state={selected.flagged ? "flagged" : "unflagged"}
                 disabled={actionLoading}
-              ><Star size={17} /></button>
+              ><Star size={17} strokeWidth={selected.flagged ? 2 : 1.9} fill={selected.flagged ? "currentColor" : "none"} /></button>
               <span className="toolbar-divider" />
               <div className="message-toolbar-menu">
                 <button
                   type="button"
-                  className={`icon-button ${(selected.tags || []).length ? "icon-button--active" : ""}`}
-                  aria-label="Manage message tags"
+                  className={`icon-button message-status-button ${(selected.tags || []).length ? "message-status-button--tagged" : "message-status-button--untagged"}`}
+                  aria-label={(selected.tags || []).length ? `Manage message tags, ${(selected.tags || []).length} applied` : "Manage message tags"}
+                  data-state={(selected.tags || []).length ? "tagged" : "untagged"}
                   aria-expanded={tagMenuOpen}
                   onClick={() => { setTagMenuOpen((open) => !open); setMoreMenuOpen(false); }}
                   disabled={actionLoading}
-                ><Tag size={17} /></button>
+                ><Tag size={17} strokeWidth={(selected.tags || []).length ? 2.2 : 1.9} fill={(selected.tags || []).length ? "currentColor" : "none"} /></button>
                 {tagMenuOpen ? (
                   <div className="message-popover message-tag-menu" role="menu" aria-label="Message tags">
                     <header><strong>Message tags</strong><small>Saved to the mailbox</small></header>
@@ -265,10 +272,10 @@ export function InboxWorkspace({
                 {moreMenuOpen ? (
                   <div className="message-popover message-more-menu" role="menu" aria-label="More message actions">
                     <button type="button" role="menuitem" onClick={() => { onAction(selected.unread ? "read" : "unread"); setMoreMenuOpen(false); }}>
-                      <MailOpen size={14} /> {selected.unread ? "Mark as read" : "Mark as unread"}
+                      {selected.unread ? <Mail size={14} /> : <MailOpen size={14} />} {selected.unread ? "Mark as read" : "Mark as unread"}
                     </button>
                     <button type="button" role="menuitem" onClick={() => { onAction(selected.flagged ? "unflag" : "flag"); setMoreMenuOpen(false); }}>
-                      <Star size={14} /> {selected.flagged ? "Remove flag" : "Flag message"}
+                      <Star size={14} fill={selected.flagged ? "currentColor" : "none"} /> {selected.flagged ? "Remove flag" : "Flag message"}
                     </button>
                     <button type="button" role="menuitem" onClick={() => { setMoreMenuOpen(false); setTagMenuOpen(true); }}>
                       <Tag size={14} /> Manage tags
