@@ -67,6 +67,9 @@ export function MailResearchModal({
       });
       const payload = (await response.json().catch(() => null)) as ResearchResult | { error?: string } | null;
       if (!response.ok || !payload || !("markdown" in payload)) {
+        if (response.status === 504) {
+          throw new Error("Mailbox research timed out while processing a broad query. Retry now; if it persists, narrow the identities, phrase, or date range.");
+        }
         throw new Error(payload && "error" in payload && payload.error ? payload.error : "Mailbox research could not be completed.");
       }
       setResult(payload);
