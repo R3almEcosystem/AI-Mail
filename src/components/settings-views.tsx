@@ -6,6 +6,7 @@ import {
   Check,
   ChevronRight,
   Database,
+  Eye,
   KeyRound,
   MailCheck,
   Network,
@@ -85,6 +86,81 @@ function listText(values: string[]) {
 
 function parseList(value: string): string[] {
   return [...new Set(value.split(/[\n,]+/).map((item) => item.trim()).filter(Boolean))];
+}
+
+function AiRuleDetails({ rule, onClose }: { rule: AiRule; onClose: () => void }) {
+  const criteria = [
+    ["Sender domains", rule.senderDomains],
+    ["Sender addresses", rule.senderAddresses],
+    ["Recipient terms", rule.recipientTerms],
+    ["Subject prefixes", rule.subjectPrefixes],
+    ["Subject terms", rule.subjectTerms],
+    ["Body terms", rule.bodyTerms],
+  ] as const;
+  const actions = [
+    ["Automatic summary", rule.actions.autoSummary],
+    ["Suggest reply", rule.actions.suggestReply],
+    ["Extract actions", rule.actions.extractActions],
+    ["Extract deadline", rule.actions.extractDeadline],
+    ["Escalate", rule.actions.escalate],
+    ["Sentiment analysis", rule.actions.sentiment],
+    ["Compress", rule.actions.compress],
+    ["Sensitive handling", rule.actions.sensitive],
+  ] as const;
+
+  return (
+    <div className="rule-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+      <section className="rule-details-modal" role="dialog" aria-modal="true" aria-labelledby="rule-details-title">
+        <header>
+          <div><p className="eyebrow">AI RULE DETAILS</p><h2 id="rule-details-title">{rule.title}</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
+          <button type="button" className="icon-button" aria-label="Close AI rule details" onClick={onClose}><X size={17} /></button>
+        </header>
+
+        <div className="rule-details-scroll">
+          <section className="rule-details-section">
+            <div className="rule-details-grid">
+              <div><span>Status</span><strong>{rule.active ? "Enabled" : "Disabled"}</strong></div>
+              <div><span>Category</span><strong>{rule.category}</strong></div>
+              <div><span>Priority</span><strong>{rule.priority.toUpperCase()}</strong></div>
+              <div><span>Direction</span><strong>{rule.direction === "both" ? "Inbound & outbound" : rule.direction === "inbound" ? "Inbound only" : "Outbound only"}</strong></div>
+              <div className="field-wide"><span>Description</span><strong>{rule.description || "No description provided."}</strong></div>
+              <div className="field-wide"><span>Reply/thread context required</span><strong>{rule.requireReply ? "Yes" : "No"}</strong></div>
+            </div>
+          </section>
+
+          <section className="rule-details-section">
+            <div className="rule-details-section-heading"><strong>Match conditions</strong><small>All populated condition groups participate in the live rule evaluation.</small></div>
+            <div className="rule-details-criteria">
+              {criteria.map(([label, values]) => (
+                <div key={label}>
+                  <span>{label}</span>
+                  {values.length ? <ul>{values.map((value) => <li key={value}>{value}</li>)}</ul> : <em>Not restricted</em>}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="rule-details-section">
+            <div className="rule-details-section-heading"><strong>AI actions</strong><small>Actions enabled when this rule matches.</small></div>
+            <div className="rule-details-actions">
+              {actions.map(([label, enabled]) => (
+                <div className={enabled ? "rule-details-action rule-details-action--enabled" : "rule-details-action"} key={label}>
+                  <Check size={13} />
+                  <span>{label}</span>
+                  <b>{enabled ? "On" : "Off"}</b>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+
+        <footer>
+          <span>Read-only view. Rule changes can only be made from the Admin Portal.</span>
+          <button type="button" className="secondary-button" onClick={onClose}>Close</button>
+        </footer>
+      </section>
+    </div>
+  );
 }
 
 function AiRuleEditor({
@@ -198,6 +274,7 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
   const [savingRule, setSavingRule] = useState<string | null>(null);
   const [ruleError, setRuleError] = useState("");
   const [editingRule, setEditingRule] = useState<AiRule | null>(null);
+  const [viewingRule, setViewingRule] = useState<AiRule | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -301,22 +378,26 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
               <em>{rule.category} · {rule.priority.toUpperCase()}{ruleMatchSummary(rule) ? ` · ${ruleMatchSummary(rule)}` : ""}</em>
             </span>
             <span className="rule-row-actions">
+              <button type="button" className="rule-view-button" onClick={() => setViewingRule(rule)} aria-label={`View details for ${rule.title}`}><Eye size={14} /> Details</button>
               {editable && canManage ? <button type="button" className="rule-edit-button" onClick={() => setEditingRule(rule)} disabled={savingRule !== null} aria-label={`Edit ${rule.title}`}><Pencil size={14} /> Edit</button> : null}
-              <button
-                type="button"
-                className={rule.active ? "toggle toggle--active" : "toggle"}
-                aria-pressed={rule.active}
-                aria-label={`${rule.active ? "Disable" : "Enable"} ${rule.title}`}
-                disabled={!canManage || savingRule !== null}
-                onClick={() => void toggleRule(rule)}
-              >{savingRule === rule.id && !editingRule ? <LoaderCircle className="spin" size={13} /> : <span />}</button>
+              {editable && canManage ? (
+                <button
+                  type="button"
+                  className={rule.active ? "toggle toggle--active" : "toggle"}
+                  aria-pressed={rule.active}
+                  aria-label={`${rule.active ? "Disable" : "Enable"} ${rule.title}`}
+                  disabled={savingRule !== null}
+                  onClick={() => void toggleRule(rule)}
+                >{savingRule === rule.id && !editingRule ? <LoaderCircle className="spin" size={13} /> : <span />}</button>
+              ) : <span className={rule.active ? "rule-readonly-state rule-readonly-state--active" : "rule-readonly-state"}>{rule.active ? "Enabled" : "Disabled"}</span>}
             </span>
           </div>
         ))}
         {!loadingRules && rules.length === 0 ? <div className="rule-loading"><span>No AI rules are configured.</span></div> : null}
       </section>
       {ruleError ? <p className="settings-footnote settings-footnote--error">{ruleError}</p> : null}
-      <p className="settings-footnote">{canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "Rules are active workspace policy. An administrator can change their status."}</p>
+      <p className="settings-footnote">{editable && canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "AI Rules are read-only in the main Portal. Open Details to inspect the full rule; changes are managed in the Admin Portal."}</p>
+      {viewingRule ? <AiRuleDetails rule={viewingRule} onClose={() => setViewingRule(null)} /> : null}
       {editingRule ? <AiRuleEditor rule={editingRule} saving={savingRule === editingRule.id} onClose={() => setEditingRule(null)} onSave={(rule) => void saveRule(rule)} /> : null}
     </div>
   );
