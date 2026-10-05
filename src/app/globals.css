@@ -2446,3 +2446,18 @@ button[aria-label]:disabled::after {
   .mail-account-grid { grid-template-columns: 1fr; }
   .mail-account-card > dl { grid-template-columns: 1fr; }
 }
+
+.mail-account-monitor-toggle {
+  grid-column: 1 / -1;
+  width: fit-content;
+  padding: 0 2px;
+}
+.mail-account-edit {
+  color: #3f669e;
+  background: #f5f8fd;
+  border-color: #dce6f3;
+}
+.mail-account-edit:hover {
+  color: #2f5e9c;
+  background: #edf4fd;
+}
