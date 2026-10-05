@@ -5,7 +5,7 @@ import { Bell, Menu, PenLine, Search, ShieldCheck, X } from "lucide-react";
 import { ComposeModal } from "@/components/compose-modal";
 import { AlertsPanel } from "@/components/alerts-panel";
 import { InboxWorkspace } from "@/components/inbox-workspace";
-import { MailResearchModal } from "@/components/mail-research-modal";
+import { MailResearchModal, MailResearchPanel } from "@/components/mail-research-modal";
 import { OverviewView } from "@/components/overview-view";
 import { Sidebar, type DashboardSection } from "@/components/sidebar";
 import { AccountsView, AiRulesView, SettingsView } from "@/components/settings-views";
@@ -17,6 +17,7 @@ const sectionTitles: Record<DashboardSection, { kicker: string; title: string }>
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
   inbox: { kicker: "COMMUNICATIONS", title: "Executive inbox" },
   sent: { kicker: "OUTBOUND", title: "Sent messages" },
+  research: { kicker: "MAILBOX INTELLIGENCE", title: "AI Mail Research" },
   ai: { kicker: "INTELLIGENCE", title: "AI automation" },
   accounts: { kicker: "INFRASTRUCTURE", title: "Connected services" },
   settings: { kicker: "ADMINISTRATION", title: "System settings" },
@@ -395,6 +396,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
               onOpenResearch={() => { setResearchScope("both"); setResearchOpen(true); }}
             />
           ) : null}
+          {section === "research" ? <MailResearchPanel defaultScope="both" /> : null}
           {section === "ai" ? <AiRulesView /> : null}
           {section === "accounts" ? <AccountsView status={status} /> : null}
           {section === "settings" ? <SettingsView status={status} /> : null}
