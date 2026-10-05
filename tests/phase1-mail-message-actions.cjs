@@ -1,0 +1,41 @@
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+
+function read(path) {
+  return fs.readFileSync(path, "utf8");
+}
+
+test("mail detail actions persist read, flag and tag state through the authenticated API", () => {
+  const route = read("src/app/api/mail/[uid]/route.ts");
+  const gateway = read("src/mail/client.ts");
+  const mail = read("src/lib/mail.ts");
+  const tags = read("src/lib/mail-tags.ts");
+
+  assert.ok(route.includes('"tag", "untag"'));
+  assert.ok(route.includes("MAIL_TAG_IDS"));
+  assert.ok(route.includes('requireCapability("mail:write"'));
+  assert.ok(gateway.includes("messageFlagsAdd"));
+  assert.ok(gateway.includes("messageFlagsRemove"));
+  assert.ok(gateway.includes("mailTagFlag(tag!)"));
+  assert.ok(gateway.includes("flags: updated.flags"));
+  assert.ok(mail.includes("mailTagsFromFlags(message.flags)"));
+  assert.ok(tags.includes("R3almFollowUp"));
+});
+
+test("Inbox and Sent detail icons update UI state and expose functional menus", () => {
+  const workspace = read("src/components/inbox-workspace.tsx");
+  const dashboard = read("src/components/mail-dashboard.tsx");
+  const css = read("src/app/globals.css");
+
+  assert.ok(workspace.includes('aria-label={selected.flagged ? "Unflag message" : "Flag message"}'));
+  assert.ok(workspace.includes('aria-label="Manage message tags"'));
+  assert.ok(workspace.includes('aria-label="More message actions"'));
+  assert.ok(workspace.includes('aria-label={detailsOpen ? "Hide message details" : "Show message details"}'));
+  assert.ok(workspace.includes('(["all", "unread", "flagged"] as const)'));
+  assert.ok(workspace.includes('onAction(active ? "untag" : "tag", option.id)'));
+  assert.ok(dashboard.includes("mailTagsFromFlags(canonicalFlags)"));
+  assert.ok(dashboard.includes('action === "unread"'));
+  assert.ok(css.includes(".message-popover"));
+  assert.ok(css.includes(".message-details-card"));
+});
