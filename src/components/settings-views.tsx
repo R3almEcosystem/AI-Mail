@@ -76,7 +76,7 @@ function ruleMatchSummary(rule: AiRule) {
   return parts.slice(0, 3).join(" · ");
 }
 
-export function AiRulesView() {
+export function AiRulesView({ onChanged }: { onChanged?: () => void | Promise<void> } = {}) {
   const [rules, setRules] = useState<AiRule[]>([]);
   const [canManage, setCanManage] = useState(false);
   const [loadingRules, setLoadingRules] = useState(true);
@@ -119,6 +119,7 @@ export function AiRulesView() {
       const result = (await response.json().catch(() => null)) as { rule?: AiRule; error?: string } | null;
       if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to update AI rule.");
       setRules((current) => current.map((item) => item.id === result.rule?.id ? result.rule as AiRule : item));
+      await onChanged?.();
     } catch (error) {
       setRuleError(error instanceof Error ? error.message : "Unable to update AI rule.");
     } finally {
