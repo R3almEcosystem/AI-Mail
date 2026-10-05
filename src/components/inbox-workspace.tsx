@@ -19,9 +19,23 @@ import {
   Star,
   Tag,
 } from "lucide-react";
-import type { AiAction, MailMessage } from "@/lib/types";
-import { MAIL_TAG_OPTIONS, mailTagLabel, type MailTag } from "@/lib/mail-tags";
+import type { AiAction, MailMessage, MailTag } from "@/lib/types";
 import { MessageSecurityPanel } from "./message-security-panel";
+
+const MAIL_TAG_OPTIONS: ReadonlyArray<{ id: MailTag; label: string }> = [
+  { id: "follow-up", label: "Follow Up" },
+  { id: "waiting", label: "Waiting" },
+  { id: "finance", label: "Finance" },
+  { id: "legal", label: "Legal" },
+  { id: "technology", label: "Technology" },
+  { id: "personal", label: "Personal" },
+];
+
+const mailTagLabels = Object.fromEntries(MAIL_TAG_OPTIONS.map((tag) => [tag.id, tag.label])) as Record<MailTag, string>;
+
+function mailTagLabel(tag: MailTag) {
+  return mailTagLabels[tag];
+}
 
 function initials(name: string) {
   return name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase();
