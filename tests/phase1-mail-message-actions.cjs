@@ -39,3 +39,19 @@ test("Inbox and Sent detail icons update UI state and expose functional menus", 
   assert.ok(css.includes(".message-popover"));
   assert.ok(css.includes(".message-details-card"));
 });
+
+
+test("message toolbar states use distinct shapes and colors", () => {
+  const workspace = read("src/components/inbox-workspace.tsx");
+  const css = read("src/app/globals.css");
+
+  assert.ok(workspace.includes('selected.unread ? <Mail size={17}'));
+  assert.ok(workspace.includes(': <MailOpen size={17}'));
+  assert.ok(workspace.includes('fill={selected.flagged ? "currentColor" : "none"}'));
+  assert.ok(workspace.includes('"message-status-button--flagged"'));
+  assert.ok(workspace.includes('"message-status-button--tagged"'));
+  assert.ok(css.includes(".message-status-button--unread"));
+  assert.ok(css.includes(".message-status-button--read"));
+  assert.ok(css.includes(".message-status-button--flagged"));
+  assert.ok(css.includes(".message-status-button--tagged"));
+});
