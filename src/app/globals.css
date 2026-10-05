@@ -1590,3 +1590,151 @@ button[aria-label]:disabled::after {
     transition: none;
   }
 }
+
+
+/* Functional message detail controls */
+.message-toolbar { overflow: visible; position: relative; z-index: 8; }
+.message-toolbar .icon-button:disabled { opacity: .45; cursor: wait; }
+.message-toolbar .icon-button--active { color: #356cc9; background: #edf3fd; }
+.message-toolbar-menu { position: relative; display: flex; }
+.message-popover {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  z-index: 80;
+  width: 205px;
+  overflow: hidden;
+  color: #425067;
+  background: #fff;
+  border: 1px solid #dce3ec;
+  border-radius: 11px;
+  box-shadow: 0 16px 38px rgba(14, 31, 55, .18);
+}
+.message-toolbar-menu:last-child .message-popover { left: auto; right: 0; }
+.message-popover > header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 11px 8px;
+  background: #f8fafc;
+  border-bottom: 1px solid #e8ecf1;
+}
+.message-popover > header strong { color: #34445a; font-size: 8px; }
+.message-popover > header small { color: #929dab; font-size: 6px; }
+.message-popover > button {
+  width: 100%;
+  min-height: 37px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 11px;
+  color: #56657a;
+  background: #fff;
+  border: 0;
+  border-bottom: 1px solid #eef1f4;
+  cursor: pointer;
+  font-size: 8px;
+  font-weight: 720;
+  text-align: left;
+}
+.message-popover > button:last-child { border-bottom: 0; }
+.message-popover > button:hover { color: #315fa9; background: #f6f9fd; }
+.message-popover > button:disabled { opacity: .55; cursor: wait; }
+.message-popover > button > span:nth-child(2) { flex: 1; }
+.message-popover > button > svg:last-child { margin-left: auto; color: #2d76c8; }
+.message-more-menu button svg { flex: 0 0 auto; color: #73839a; }
+.message-more-menu .message-menu-danger { color: #9b5260; }
+.message-more-menu .message-menu-danger:hover { color: #9d3f50; background: #fff5f6; }
+.message-tag-dot {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8894a4;
+  box-shadow: 0 0 0 2px rgba(136,148,164,.12);
+}
+.message-tag-dot--follow-up { background: #3f79d2; }
+.message-tag-dot--waiting { background: #d49a31; }
+.message-tag-dot--finance { background: #2a9270; }
+.message-tag-dot--legal { background: #7a5bc0; }
+.message-tag-dot--technology { background: #3c7fa4; }
+.message-tag-dot--personal { background: #b55d83; }
+
+.message-status-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.message-state-pill,
+.message-tag-pill {
+  min-height: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  color: #647287;
+  background: #f0f3f6;
+  border-radius: 999px;
+  font-size: 6px;
+  font-weight: 800;
+}
+.message-state-pill--unread { color: #2f65b6; background: #eaf1fd; }
+.message-state-pill--flagged { color: #9c6a16; background: #fff2da; }
+.message-tag-pill { color: #6550a4; background: #f2edfb; }
+.mail-item-state { color: #a36e17 !important; }
+.mail-item-tag {
+  max-width: 86px;
+  overflow: hidden;
+  padding: 2px 5px;
+  color: #6754a0 !important;
+  background: #f0ebf8;
+  border-radius: 999px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.message-details-toggle[aria-expanded="true"] svg { transform: rotate(180deg); }
+.message-details-toggle svg { transition: transform 150ms ease; }
+.message-details-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 18px;
+  margin: 15px 0 0;
+  padding: 11px 13px;
+  background: #f8fafc;
+  border: 1px solid #e4e9ef;
+  border-radius: 9px;
+}
+.message-details-card > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 55px minmax(0, 1fr);
+  gap: 7px;
+  padding: 5px 0;
+}
+.message-details-card dt {
+  color: #8d98a8;
+  font-size: 7px;
+  font-weight: 760;
+}
+.message-details-card dd {
+  overflow-wrap: anywhere;
+  margin: 0;
+  color: #4c5c72;
+  font-size: 7px;
+  line-height: 1.45;
+}
+.ai-context-card b { max-width: 62%; text-align: right; }
+
+@media (max-width: 760px) {
+  .message-popover {
+    position: fixed;
+    top: auto;
+    right: 12px !important;
+    bottom: 18px;
+    left: 12px !important;
+    width: auto;
+    z-index: 160;
+  }
+  .message-details-card { grid-template-columns: 1fr; }
+}
