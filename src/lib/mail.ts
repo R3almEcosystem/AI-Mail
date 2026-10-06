@@ -352,15 +352,6 @@ export async function getMail(uid: number, folder = "INBOX", accountId = PRIMARY
   };
 }
 
-export async function getMailRawSize(
-  uid: number,
-  folder = "INBOX",
-  accountId = PRIMARY_MAIL_ACCOUNT_ID,
-): Promise<number | null> {
-  const { gateway, account } = await runtime(accountId);
-  return gateway.messageSize(actualFolder(account, folder), uid);
-}
-
 export async function searchMailUids(
   folder: "INBOX" | "INBOX.Sent",
   criteria: SearchCriteria,
