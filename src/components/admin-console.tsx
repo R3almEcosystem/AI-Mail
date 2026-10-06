@@ -262,9 +262,9 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   const [aiAuditLoaded, setAiAuditLoaded] = useState(false);
   const [aiAuditError, setAiAuditError] = useState("");
   const [status, setStatus] = useState<AppStatus | null>(null);
-  const [secretStatus, setSecretStatus] = useState<ServiceSecretStatus>({ openaiApiKey: false, imapPassword: false, smtpPassword: false });
-  const [credentials, setCredentials] = useState({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
-  const [testingService, setTestingService] = useState<"imap" | "smtp" | "openai" | null>(null);
+  const [secretStatus, setSecretStatus] = useState<ServiceSecretStatus>({ openaiApiKey: false, cloudmersiveApiKey: false, imapPassword: false, smtpPassword: false });
+  const [credentials, setCredentials] = useState({ openaiApiKey: "", cloudmersiveApiKey: "", imapPassword: "", smtpPassword: "" });
+  const [testingService, setTestingService] = useState<"imap" | "smtp" | "openai" | "attachment" | null>(null);
   const [openAiModels, setOpenAiModels] = useState<string[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [modelLoadError, setModelLoadError] = useState("");
@@ -463,8 +463,11 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
       payloadSettings = {
         ...current.settings,
         outboundAllowedDomains: settings.outboundAllowedDomains,
+        attachmentScanningRequired: settings.attachmentScanningRequired,
       };
-      suppliedCredentials = {};
+      suppliedCredentials = credentials.cloudmersiveApiKey
+        ? { cloudmersiveApiKey: credentials.cloudmersiveApiKey }
+        : {};
     }
 
     const response = await fetch(webPath("/api/admin/settings"), {
@@ -483,7 +486,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
       setSecretStatus(result.secrets);
       if (result.secrets.openaiApiKey) void loadOpenAiModels(result.settings.aiModel);
     }
-    setCredentials({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
+    setCredentials({ openaiApiKey: "", cloudmersiveApiKey: "", imapPassword: "", smtpPassword: "" });
     const statusResponse = await fetch(webPath("/api/status"), { cache: "no-store" });
     if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
     if (showToast) {
@@ -492,7 +495,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
         : section === "services"
           ? "S.I. settings saved."
           : section === "mailboxes"
-            ? "Global mail policy saved."
+            ? "Mail and attachment policy saved."
             : "Settings saved.");
     }
     setSaving(false);
@@ -500,7 +503,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     return true;
   }
 
-  async function testService(service: "imap" | "smtp" | "openai") {
+  async function testService(service: "imap" | "smtp" | "openai" | "attachment") {
     if (!await saveSettings(false)) return;
     setTestingService(service);
     try {
@@ -511,7 +514,13 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
       });
       const result = (await response.json().catch(() => null)) as { ok?: boolean; model?: string; error?: string } | null;
       if (!response.ok || !result?.ok) throw new Error(result?.error || "Connection test failed.");
-      setToast(service === "openai" ? `OpenAI connection verified${result.model ? ` with ${result.model}` : ""}.` : `${service.toUpperCase()} connection verified.`);
+      setToast(
+        service === "openai"
+          ? `OpenAI connection verified${result.model ? ` with ${result.model}` : ""}.`
+          : service === "attachment"
+            ? "Attachment scanner connection verified."
+            : `${service.toUpperCase()} connection verified.`,
+      );
       const statusResponse = await fetch(webPath("/api/status"), { cache: "no-store" });
       if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
     } catch (error) {
@@ -589,6 +598,18 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                 </div>
                 <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed above.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
               </div>
+              <div className="admin-panel settings-form-card attachment-policy-card">
+                <header><span><ShieldCheck size={18} /></span><div><h3>Attachment security &amp; S.I. analysis</h3><p>Fail-closed scanning policy for files received across every connected mailbox.</p></div></header>
+                <div className="setting-row">
+                  <div><strong>Require attachment scanning</strong><small>Keep enabled in production. Files without a verified clean result remain quarantined and cannot be downloaded or sent to S.I.</small></div>
+                  <button className={settings.attachmentScanningRequired ? "toggle toggle--active" : "toggle"} onClick={() => setSettings({ ...settings, attachmentScanningRequired: !settings.attachmentScanningRequired })} aria-pressed={settings.attachmentScanningRequired}><span /></button>
+                </div>
+                <div className="admin-form-grid">
+                  <label className="field-wide"><span>Cloudmersive Advanced Scan API key</span><input type="password" autoComplete="new-password" value={credentials.cloudmersiveApiKey} onChange={(event) => setCredentials({ ...credentials, cloudmersiveApiKey: event.target.value })} placeholder={secretStatus.cloudmersiveApiKey ? "Configured — leave blank to keep current key" : "Enter API key"} /><small>{secretStatus.cloudmersiveApiKey ? "A private scanner key is already configured." : "Required to release attachments from quarantine for S.I. analysis."} New values are encrypted in Supabase Vault.</small></label>
+                </div>
+                <div className="setting-row"><div><strong>Inspection limits</strong><small>Up to {status?.attachmentScanning ? Math.round(status.attachmentScanning.maxBytes / 1048576) : 10} MB per file · {status?.attachmentScanning ? Math.round(status.attachmentScanning.maxTotalBytes / 1048576) : 25} MB per message · {status?.attachmentScanning?.maxFiles || 10} files.</small></div><span className={status?.attachmentScanning?.required && status?.attachmentScanning?.configured ? "status-text status-text--ready" : "status-text"}>{status?.attachmentScanning?.required && status?.attachmentScanning?.configured ? "Scanner ready" : settings.attachmentScanningRequired ? "Setup required" : "Disabled"}</span></div>
+                <div className="service-test-row"><span>{status?.attachmentScanning?.configured ? "Scanner credential is available" : "Save the scanner key before testing"}</span><button type="button" className="secondary-button" disabled={saving || testingService !== null || !settings.attachmentScanningRequired} onClick={() => void testService("attachment")}>{testingService === "attachment" ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} Save &amp; test scanner</button></div>
+              </div>
               <div className="admin-panel service-config-card mailbox-readiness-card">
                 <header><span><ShieldCheck size={18} /></span><div><h3>Mailbox readiness</h3><p>Connection readiness across the multi-account mail registry.</p></div></header>
                 {[
@@ -600,8 +621,8 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                 <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account. Attachment bytes remain server-side, are quarantined until eligible, and are never returned through normal message APIs.</p>
               </div>
               <div className="settings-save-bar">
-                <span>{demo ? "Changes are simulated in this preview." : "Global mail policy is stored in the workspace database."}</span>
-                <button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} Save mail policy</button>
+                <span>{demo ? "Changes are simulated in this preview." : "Mail and attachment policy is stored in the workspace database; credentials remain encrypted in Supabase Vault."}</span>
+                <button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} Save mail &amp; attachment policy</button>
               </div>
             </section>
           ) : null}
