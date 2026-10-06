@@ -20,8 +20,12 @@ test("Admin separates S.I. settings from Connected mailboxes and mail policy", (
   assert.match(admin, /MailAccountsManager onAccountsChanged={refreshServiceState}/);
   assert.match(admin, /<h3>Global mail policy<\/h3>/);
   assert.match(admin, /<h3>Mailbox readiness<\/h3>/);
+  assert.match(admin, /<h3>Attachment security &amp; S\.I\. analysis<\/h3>/);
+  assert.match(admin, /Require attachment scanning/);
+  assert.match(admin, /Cloudmersive Advanced Scan API key/);
+  assert.match(admin, /Save &amp; test scanner/);
   assert.match(admin, /<h3>S\.I\. service readiness<\/h3>/);
-  assert.match(admin, /Save mail policy/);
+  assert.match(admin, /Save mail &amp; attachment policy/);
   assert.match(admin, /Global mail policy saved\./);
   assert.match(admin, /managed above/);
 
@@ -53,6 +57,8 @@ test("S.I. and mailbox policy saves preserve settings owned by the other page", 
   assert.match(admin, /aiAutoSummarize: settings\.aiAutoSummarize/);
   assert.match(admin, /aiPriorityDetection: settings\.aiPriorityDetection/);
   assert.match(admin, /outboundAllowedDomains: settings\.outboundAllowedDomains/);
+  assert.match(admin, /attachmentScanningRequired: settings\.attachmentScanningRequired/);
+  assert.match(admin, /cloudmersiveApiKey/);
   assert.match(admin, /credentials\.openaiApiKey \? \{ openaiApiKey: credentials\.openaiApiKey \} : \{\}/);
 
   const aiBlock = admin.match(/if \(section === "services"\) \{[\s\S]*?\} else if \(section === "mailboxes"\)/)?.[0] || "";
@@ -60,5 +66,6 @@ test("S.I. and mailbox policy saves preserve settings owned by the other page", 
 
   const mailboxBlock = admin.match(/else if \(section === "mailboxes"\) \{[\s\S]*?\n    \}/)?.[0] || "";
   assert.match(mailboxBlock, /outboundAllowedDomains: settings\.outboundAllowedDomains/);
-  assert.match(mailboxBlock, /suppliedCredentials = \{\}/);
+  assert.match(mailboxBlock, /attachmentScanningRequired: settings\.attachmentScanningRequired/);
+  assert.match(mailboxBlock, /credentials\.cloudmersiveApiKey/);
 });
