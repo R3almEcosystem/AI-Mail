@@ -260,6 +260,41 @@ async function listAllAccounts(folder: string, limit: number, cursorValue?: stri
   };
 }
 
+export async function listAlertMessages(
+  accountId = PRIMARY_MAIL_ACCOUNT_ID,
+  limit = 30,
+): Promise<{ messages: MailMessage[]; failedFolders: Array<"INBOX" | "INBOX.Sent"> }> {
+  const [{ gateway, config, settings, account }, rules] = await Promise.all([
+    runtime(accountId),
+    listAiRules(true),
+  ]);
+  if (!account.imapReady) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
+
+  const folders = [
+    { logical: "INBOX" as const, actual: actualFolder(account, "INBOX") },
+    { logical: "INBOX.Sent" as const, actual: actualFolder(account, "INBOX.Sent") },
+  ];
+  const pageLimit = Math.min(limit, config.limits.maxSearchResults);
+  const snapshots = await gateway.listRecentMessagesByFolders(
+    folders.map((folder) => folder.actual),
+    pageLimit,
+  );
+
+  const messages: MailMessage[] = [];
+  const failedFolders: Array<"INBOX" | "INBOX.Sent"> = [];
+  snapshots.forEach((snapshot, index) => {
+    const folder = folders[index];
+    if (snapshot.failed) {
+      failedFolders.push(folder.logical);
+      return;
+    }
+    messages.push(...snapshot.messages.map((message) =>
+      toMessage(message, settings.aiPriorityDetection, rules, folder.logical, account)
+    ));
+  });
+  return { messages, failedFolders };
+}
+
 export async function listMail(
   folder = "INBOX",
   limit = 50,

@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import { buildMailAlerts, initialAlerts, type AlertRecord } from "@/lib/alerts";
 import { apiError, privateHeaders } from "@/lib/api-error";
 import { listActiveMailAccounts } from "@/lib/mail-accounts";
-import { listMail } from "@/lib/mail";
+import { listAlertMessages } from "@/lib/mail";
 import { requireCapability } from "@/lib/session";
 import type { MailAccountSummary, MailMessage } from "@/lib/types";
 
-export const maxDuration = 300;
+export const maxDuration = 90;
 
 type Coverage = {
   total: number;
@@ -33,24 +33,11 @@ function accountFailureAlert(account: MailAccountSummary, reason: unknown): Aler
 }
 
 async function loadAccountMessages(account: MailAccountSummary) {
-  const folders = ["INBOX", "INBOX.Sent"] as const;
-  const results = await Promise.allSettled(
-    folders.map(async (folder) => {
-      const page = await listMail(folder, 30, undefined, account.id);
-      return { folder, messages: page.messages };
-    }),
-  );
-
-  const messages: MailMessage[] = [];
-  const failedFolders: string[] = [];
-  results.forEach((result, index) => {
-    if (result.status === "fulfilled") messages.push(...result.value.messages);
-    else failedFolders.push(folders[index]);
-  });
-  return { messages, failedFolders };
+  return listAlertMessages(account.id, 30);
 }
 
 export async function GET() {
+  const startedAt = Date.now();
   try {
     const user = await requireCapability("mail:read");
 
@@ -81,16 +68,29 @@ export async function GET() {
     for (let index = 0; index < activeAccounts.length; index += concurrency) {
       const batch = activeAccounts.slice(index, index + concurrency);
       const results = await Promise.all(batch.map(async (account) => {
+        const accountStartedAt = Date.now();
         try {
           const loaded = await loadAccountMessages(account);
-          return { account, messages: loaded.messages, failedFolders: loaded.failedFolders, error: null as unknown };
+          return { account, messages: loaded.messages, failedFolders: loaded.failedFolders, error: null as unknown, durationMs: Date.now() - accountStartedAt };
         } catch (error) {
-          return { account, messages: [] as MailMessage[], failedFolders: ["INBOX", "INBOX.Sent"], error };
+          return { account, messages: [] as MailMessage[], failedFolders: ["INBOX", "INBOX.Sent"], error, durationMs: Date.now() - accountStartedAt };
         }
       }));
 
       for (const result of results) {
+        if (result.durationMs >= 10_000) {
+          console.warn("[alerts] slow mailbox scan", {
+            accountId: result.account.id,
+            durationMs: result.durationMs,
+            failedFolders: result.failedFolders.length,
+          });
+        }
         if (result.error || !result.messages.length && result.failedFolders.length === 2) {
+          console.warn("[alerts] mailbox scan failed", {
+            accountId: result.account.id,
+            durationMs: result.durationMs,
+            code: result.error instanceof Error ? result.error.message.slice(0, 120) : "INBOX_AND_SENT_UNAVAILABLE",
+          });
           failureAlerts.push(accountFailureAlert(result.account, result.error || new Error("INBOX_AND_SENT_UNAVAILABLE")));
           continue;
         }
@@ -120,6 +120,16 @@ export async function GET() {
       ...failureAlerts,
       ...buildMailAlerts(messages),
     ].slice(0, 500);
+
+    const durationMs = Date.now() - startedAt;
+    console.info("[alerts] refresh complete", {
+      accounts: activeAccounts.length,
+      covered,
+      failed: activeAccounts.length - covered,
+      messages: messages.length,
+      alerts: alerts.length,
+      durationMs,
+    });
 
     return NextResponse.json({
       alerts,
