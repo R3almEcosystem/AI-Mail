@@ -40,6 +40,7 @@ const defaultSettings: AdminSettings = {
   smtpFrom: "admin@r3alm.com",
   mailArchiveFolder: "Archive",
   outboundAllowedDomains: "",
+  attachmentScanningRequired: true,
   requireMfa: false,
   sessionTimeoutMinutes: 720,
   allowDemoLogin: false,
@@ -192,6 +193,7 @@ function mapSettings(row: Record<string, unknown>): AdminSettings {
     smtpFrom: String(row.smtp_from || "admin@r3alm.com"),
     mailArchiveFolder: String(row.mail_archive_folder || "Archive"),
     outboundAllowedDomains: String(row.outbound_allowed_domains || ""),
+    attachmentScanningRequired: row.attachment_scanning_required !== false,
     requireMfa: Boolean(row.require_mfa),
     sessionTimeoutMinutes: Number(row.session_timeout_minutes),
     allowDemoLogin: Boolean(row.allow_demo_login),
@@ -377,6 +379,7 @@ export async function updateSettings(input: AdminSettings, actor: SessionUser) {
         smtp_host = ${input.smtpHost}, smtp_port = ${input.smtpPort}, smtp_secure = ${input.smtpSecure},
         smtp_user = ${input.smtpUser}, smtp_from = ${input.smtpFrom},
         mail_archive_folder = ${input.mailArchiveFolder}, outbound_allowed_domains = ${input.outboundAllowedDomains},
+        attachment_scanning_required = ${input.attachmentScanningRequired},
         require_mfa = ${input.requireMfa}, session_timeout_minutes = ${input.sessionTimeoutMinutes},
         allow_demo_login = ${input.allowDemoLogin}, updated_at = NOW()
       WHERE id = 'default'
