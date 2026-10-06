@@ -1,6 +1,6 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
-import { getMail, listMail } from "@/lib/mail";
+import { getMail, getMailRawSize, listMail } from "@/lib/mail";
 import { privateHeaders } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +50,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Not found." }, { status: 404, headers: privateHeaders });
   }
 
+  const receivedSize = await getMailRawSize(RECEIVED_UID, "INBOX").catch(() => null);
   let received: Awaited<ReturnType<typeof getMail>> | null = null;
   let receivedError: string | null = null;
   try {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
   let sent: Awaited<ReturnType<typeof getMail>> | null = null;
   let sentError: string | null = null;
   let sentCandidateUid: number | null = null;
+  let sentSize: number | null = null;
   try {
     const sentPage = await listMail("INBOX.Sent", 20, undefined, BERNIE_ACCOUNT_ID);
     const candidate = sentPage.messages.find((message) => message.subject === TARGET_SUBJECT)
@@ -69,6 +71,7 @@ export async function POST(request: Request) {
       sentError = "No Bernie Sent message was available for verification.";
     } else {
       sentCandidateUid = candidate.uid;
+      sentSize = await getMailRawSize(candidate.uid, "INBOX.Sent", BERNIE_ACCOUNT_ID).catch(() => null);
       sent = await getMail(candidate.uid, "INBOX.Sent", BERNIE_ACCOUNT_ID);
     }
   } catch (error) {
@@ -77,10 +80,12 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     received: received ? attachmentSummary(received) : null,
+    receivedSize,
     receivedError,
     sent: sent ? attachmentSummary(sent) : null,
     sentError,
     sentCandidateUid,
+    sentSize,
     sameSubject: Boolean(received && sent && received.subject === sent.subject),
   }, { status: received && sent ? 200 : 207, headers: privateHeaders });
 }
