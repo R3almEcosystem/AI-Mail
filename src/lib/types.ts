@@ -83,6 +83,19 @@ export type AppStatus = {
   aiTone: "concise" | "balanced" | "detailed";
   aiAutoSummarize: boolean;
   aiPriorityDetection: boolean;
+  attachmentVault?: {
+    bucketsReady: boolean;
+    storageApiConfigured: boolean;
+    databaseFallback: boolean;
+  };
+  attachmentScanning?: {
+    required: boolean;
+    configured: boolean;
+    provider: string | null;
+    maxBytes: number;
+    maxTotalBytes: number;
+    maxFiles: number;
+  };
 };
 
 export type AiAction = "summarize" | "draft" | "prioritize" | "extract";
