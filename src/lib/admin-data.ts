@@ -113,6 +113,11 @@ async function initializeDatabase(sql: SqlClient) {
       ) ON CONFLICT (id) DO NOTHING
     `;
     await sql`
+      UPDATE ai_mail_settings
+      SET workspace_name = ${defaultSettings.workspaceName}, updated_at = NOW()
+      WHERE id = 'default' AND workspace_name = 'AI-Mail Executive Workspace'
+    `;
+    await sql`
       INSERT INTO ai_mail_alert_groups (id, name, description, color, member_ids, active)
       VALUES
         ('group-executive', 'Executive Response', 'Time-sensitive decisions, approvals, and executive follow-up.', 'violet', '[]'::jsonb, TRUE),
