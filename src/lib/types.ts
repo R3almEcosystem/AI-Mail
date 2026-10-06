@@ -185,6 +185,7 @@ export type AdminSettings = {
   smtpFrom: string;
   mailArchiveFolder: string;
   outboundAllowedDomains: string;
+  attachmentScanningRequired: boolean;
   requireMfa: boolean;
   sessionTimeoutMinutes: number;
   allowDemoLogin: boolean;
@@ -192,6 +193,7 @@ export type AdminSettings = {
 
 export type ServiceSecretStatus = {
   openaiApiKey: boolean;
+  cloudmersiveApiKey: boolean;
   imapPassword: boolean;
   smtpPassword: boolean;
 };
