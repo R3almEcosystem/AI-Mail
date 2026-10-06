@@ -76,10 +76,14 @@ export class MailGateway {
       disableFileAccess: true, disableUrlAccess: true,
     });
   }
-  private async withImap<T>(operation: (client: ImapFlow) => Promise<T>): Promise<T> {
+  private async withImap<T>(operation: (client: ImapFlow) => Promise<T>, timeoutMs?: number): Promise<T> {
     const client = this.createImapClient(); let connected = false;
+    const timer = timeoutMs
+      ? setTimeout(() => client.close(), timeoutMs)
+      : null;
     try { await client.connect(); connected = true; return await operation(client); }
     finally {
+      if (timer) clearTimeout(timer);
       if (connected) await client.logout().catch(() => client.close());
       else client.close();
     }
@@ -118,6 +122,48 @@ export class MailGateway {
       return { path: folder, messages: status.messages ?? 0, unseen: status.unseen ?? 0, uidNext: status.uidNext ?? null, uidValidity: status.uidValidity?.toString() ?? null };
     });
   }
+  async listRecentMessagesByFolders(
+    folders: string[],
+    limit: number,
+  ): Promise<Array<{ folder: string; messages: MessageSummary[]; failed: boolean }>> {
+    if (!Array.isArray(folders) || !folders.length || folders.length > 10) throw new Error('Invalid mailbox batch');
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.limits.maxSearchResults) throw new Error('Invalid search limit');
+    folders.forEach(folder => assertMessageIdentity(folder));
+
+    return this.withImap(async client => {
+      const results: Array<{ folder: string; messages: MessageSummary[]; failed: boolean }> = [];
+      for (const folder of folders) {
+        let lock: Awaited<ReturnType<ImapFlow['getMailboxLock']>> | null = null;
+        try {
+          lock = await client.getMailboxLock(folder, { readOnly: true });
+          const exists = client.mailbox && typeof client.mailbox.exists === 'number' ? client.mailbox.exists : 0;
+          if (!exists) {
+            results.push({ folder, messages: [], failed: false });
+            continue;
+          }
+
+          const range = exists > limit ? `*:-${limit}` : '1:*';
+          const messages = await client.fetchAll(range, {
+            uid: true,
+            envelope: true,
+            flags: true,
+            internalDate: true,
+          });
+          results.push({
+            folder,
+            messages: messages.map(message => this.toSummary(message)).sort((a, b) => b.uid - a.uid),
+            failed: false,
+          });
+        } catch {
+          results.push({ folder, messages: [], failed: true });
+        } finally {
+          lock?.release();
+        }
+      }
+      return results;
+    }, 25_000);
+  }
+
   async listMessagesPage(folder: string, limit: number, unreadOnly: boolean, since?: Date, beforeUid?: number): Promise<{ messages: MessageSummary[]; hasMore: boolean }> {
     if (!Number.isSafeInteger(limit) || limit < 1 || limit > this.config.limits.maxSearchResults) throw new Error('Invalid search limit');
     if (beforeUid !== undefined && (!Number.isSafeInteger(beforeUid) || beforeUid <= 1)) return { messages: [], hasMore: false };
