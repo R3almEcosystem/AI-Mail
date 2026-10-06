@@ -121,7 +121,10 @@ export function createCloudmersiveScanner(apiKey: string, request: typeof fetch 
         const result = await boundedProviderJson(response, signal);
         if (!isRecord(result) || typeof result.CleanResult !== 'boolean') return {status:'error'};
         if (result.CleanResult === false || SCAN_FLAGS.some(flag => result[flag] === true) || (Array.isArray(result.FoundViruses) && result.FoundViruses.length > 0)) return {status:'blocked'};
-        if (SCAN_FLAGS.some(flag => result[flag] !== false) || typeof result.VerifiedFileFormat !== 'string' || !result.VerifiedFileFormat.trim()
+        const hasVerifiedFileFormat = Object.hasOwn(result, 'VerifiedFileFormat');
+        const verifiedFileFormatValid = result.VerifiedFileFormat === null
+          || (typeof result.VerifiedFileFormat === 'string' && Boolean(result.VerifiedFileFormat.trim()));
+        if (SCAN_FLAGS.some(flag => result[flag] !== false) || !hasVerifiedFileFormat || !verifiedFileFormatValid
           || !(result.FoundViruses === null || (Array.isArray(result.FoundViruses) && result.FoundViruses.length === 0))) return {status:'error'};
         return {status:'clean'};
       } catch { return {status:'error'}; }

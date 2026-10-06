@@ -78,8 +78,12 @@ test('Cloudmersive accepts explicit positive clean evidence, including documente
     const scanner=createCloudmersiveScanner('synthetic',async()=>response(extra));assert.equal((await scanner.scan(bytes,new AbortController().signal)).status,'clean');
   }
 });
+test('Cloudmersive accepts clean files when format verification is explicitly unsupported',async()=>{
+  const scanner=createCloudmersiveScanner('synthetic',async()=>response({VerifiedFileFormat:null}));
+  assert.equal((await scanner.scan(bytes,new AbortController().signal)).status,'clean');
+});
 test('Cloudmersive never accepts missing booleans, string booleans, unknown formats or contradictory evidence',async()=>{
-  for(const extra of [{CleanResult:'true'},{ContainsMacros:undefined},{ContainsMacros:'false'},{VerifiedFileFormat:null},{FoundViruses:'none'}]){
+  for(const extra of [{CleanResult:'true'},{ContainsMacros:undefined},{ContainsMacros:'false'},{VerifiedFileFormat:''},{VerifiedFileFormat:undefined},{FoundViruses:'none'}]){
     const scanner=createCloudmersiveScanner('synthetic',async()=>response(extra));assert.equal((await scanner.scan(bytes,new AbortController().signal)).status,'error');
   }
   for(const extra of [{CleanResult:false},{ContainsPasswordProtectedFile:true},{ContainsExecutable:true},{FoundViruses:[{VirusName:'sensitive-name'}]}]){
