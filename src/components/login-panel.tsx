@@ -49,7 +49,7 @@ export function LoginPanel({ compact = false }: { compact?: boolean }) {
         <button className="demo-login-button" type="button" onClick={() => void submit("demo")} disabled={loading !== null}>
           <span className="demo-avatar">BO</span><span><strong>Continue as Bernie</strong><small>Isolated Demo Super Admin</small></span>
           {loading === "demo" ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />}
-        </button><p className="login-help">Synthetic data only. No live email, AI, or database connections.</p></> : null}
+        </button><p className="login-help">Synthetic data only. No live email, S.I., or database connections.</p></> : null}
       {error ? <p className="form-error" role="alert">{error}</p> : null}
     </div>
   );
