@@ -52,7 +52,7 @@ export function browserMailConfig(env: NodeJS.ProcessEnv = process.env): MailSer
     smtp: { host: serviceHost(env.SMTP_HOST), port: checkedNumber(env.SMTP_PORT, 465, 1, 65535), secure: checkedSecure(env.SMTP_SECURE), username: env.SMTP_USER || env.MAIL_USERNAME || '', password: env.SMTP_PASSWORD || env.MAIL_PASSWORD || '', from: env.SMTP_FROM || env.MAIL_USERNAME || '' },
     limits: {
       maxMessageBodyChars: checkedNumber(env.MAX_MESSAGE_BODY_CHARS, 50000, 1000, 250000),
-      maxRawMessageBytes: checkedNumber(env.MAX_RAW_MESSAGE_BYTES, 30000000, 100000, 50000000),
+      maxRawMessageBytes: checkedNumber(env.MAX_RAW_MESSAGE_BYTES, 50000000, 100000, 50000000),
       maxSearchResults: checkedNumber(env.MAX_SEARCH_RESULTS, 50, 1, 100),
       maxRecipients: checkedNumber(env.MAX_RECIPIENTS, 20, 1, 100),
       outboundAllowedDomains: (env.OUTBOUND_ALLOWED_DOMAINS || '').split(',').map(v => v.trim().toLowerCase()).filter(Boolean),
