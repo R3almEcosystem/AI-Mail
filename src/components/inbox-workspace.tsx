@@ -130,10 +130,16 @@ export function InboxWorkspace({
   const [bodyView, setBodyView] = useState<"text" | "html">("text");
   const [viewerTab, setViewerTab] = useState<"message" | "attachments" | "security">("message");
   const [attachmentAnalysis, setAttachmentAnalysis] = useState<Record<string, { loading: boolean; text?: string; error?: string }>>({});
+  const [remoteImagesLoading, setRemoteImagesLoading] = useState(false);
+  const [remoteImagesHtml, setRemoteImagesHtml] = useState<string | null>(null);
+  const [remoteImagesError, setRemoteImagesError] = useState("");
+  const [remoteImagesLoaded, setRemoteImagesLoaded] = useState(0);
+  const [remoteImagesBlocked, setRemoteImagesBlocked] = useState(0);
   const mailListRef = useRef<HTMLDivElement | null>(null);
 
   const selectedHasPlainText = Boolean(selected?.hasPlainTextBody ?? selected?.body?.trim());
   const selectedHasSecureHtmlFallback = Boolean(selected && !selectedHasPlainText && selected.safeHtmlBody);
+  const remoteImagesAvailable = Boolean(selected?.safeHtmlBody?.includes("data-remote-src="));
 
   useEffect(() => {
     setTagMenuOpen(false);
@@ -142,6 +148,11 @@ export function InboxWorkspace({
     setViewerTab("message");
     setBodyView(selectedHasSecureHtmlFallback ? "html" : "text");
     setAttachmentAnalysis({});
+    setRemoteImagesLoading(false);
+    setRemoteImagesHtml(null);
+    setRemoteImagesError("");
+    setRemoteImagesLoaded(0);
+    setRemoteImagesBlocked(0);
   }, [selected?.accountId, selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
 
   async function analyzeAttachment(id: string) {
@@ -161,6 +172,38 @@ export function InboxWorkspace({
         ...current,
         [id]: { loading: false, error: error instanceof Error ? error.message : "S.I. could not analyze this attachment." },
       }));
+    }
+  }
+
+  async function loadRemoteImages() {
+    if (!selected || remoteImagesLoading || !remoteImagesAvailable) return;
+    setRemoteImagesLoading(true);
+    setRemoteImagesError("");
+    try {
+      const folder = selected.folder === "INBOX.Sent" || sentMode ? "INBOX.Sent" : "INBOX";
+      const params = new URLSearchParams({
+        folder,
+        accountId: selected.accountId || "primary",
+      });
+      const response = await fetch(webPath(`/api/mail/${selected.uid}/remote-images?${params.toString()}`), {
+        method: "POST",
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        safeHtmlBody?: string;
+        loaded?: number;
+        blocked?: number;
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.safeHtmlBody) {
+        throw new Error(payload?.error || "Remote images could not be loaded.");
+      }
+      setRemoteImagesHtml(payload.safeHtmlBody);
+      setRemoteImagesLoaded(payload.loaded || 0);
+      setRemoteImagesBlocked(payload.blocked || 0);
+    } catch (error) {
+      setRemoteImagesError(error instanceof Error ? error.message : "Remote images could not be loaded.");
+    } finally {
+      setRemoteImagesLoading(false);
     }
   }
 
@@ -408,21 +451,36 @@ export function InboxWorkspace({
                     >
                       Secure HTML
                     </button>
-                    <span>Scripts, forms, remote images, links, and network access blocked</span>
+                    <span>Scripts, forms, links, and direct network access blocked</span>
                   </div>
                 ) : null}
                 {selectedHasSecureHtmlFallback && bodyView === "html" && selected.safeHtmlBody ? (
                   <div className="secure-html-message">
                     <div className="secure-html-notice">
-                      <strong>Protected HTML view</strong>
-                      <span>Active content and external tracking resources are disabled.</span>
+                      <div>
+                        <strong>Protected HTML view</strong>
+                        <span>
+                          {remoteImagesAvailable && !remoteImagesHtml
+                            ? "Remote images blocked · embedded images load automatically."
+                            : remoteImagesHtml
+                              ? `${remoteImagesLoaded} remote image${remoteImagesLoaded === 1 ? "" : "s"} loaded privately${remoteImagesBlocked ? ` · ${remoteImagesBlocked} blocked` : ""}.`
+                              : "Active content and external tracking resources are disabled."}
+                        </span>
+                      </div>
+                      {remoteImagesAvailable && !remoteImagesHtml ? (
+                        <button type="button" onClick={() => void loadRemoteImages()} disabled={remoteImagesLoading}>
+                          {remoteImagesLoading ? <LoaderCircle className="spin" size={13} /> : null}
+                          {remoteImagesLoading ? "Loading…" : "Load images"}
+                        </button>
+                      ) : null}
                     </div>
+                    {remoteImagesError ? <p className="secure-html-image-error">{remoteImagesError}</p> : null}
                     <iframe
                       className="secure-html-frame"
                       title={`Secure HTML body for ${selected.subject}`}
                       sandbox=""
                       referrerPolicy="no-referrer"
-                      srcDoc={selected.safeHtmlBody}
+                      srcDoc={remoteImagesHtml || selected.safeHtmlBody}
                     />
                   </div>
                 ) : (

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer';
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
@@ -33,6 +34,15 @@ type SendInput = { to: string[]; cc?: string[]; bcc?: string[]; subject: string;
 type SentCopyStatus = { stored: boolean; folder?: string; uid?: number; warning?: string };
 const tlsOptions = (host: string) => ({ rejectUnauthorized: true, minVersion: 'TLSv1.2' as const, servername: host });
 const MAX_SAFE_HTML_CHARS = 250000;
+const MAX_INLINE_IMAGE_BYTES = 2 * 1024 * 1024;
+const MAX_INLINE_IMAGE_TOTAL_BYTES = 5 * 1024 * 1024;
+const SAFE_INLINE_IMAGE_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+]);
 
 function sanitizeEmailCss(css: string): string {
   return css
@@ -42,8 +52,65 @@ function sanitizeEmailCss(css: string): string {
     .replace(/behavior\s*:[^;}]*/gi, '');
 }
 
-function sanitizeEmailHtmlFragment(rawHtml: string): string {
-  let html = rawHtml.slice(0, MAX_SAFE_HTML_CHARS);
+function escapeHtmlAttribute(value: string) {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function normalizeContentId(value?: string) {
+  return (value || '').trim().replace(/^<|>$/g, '').toLowerCase();
+}
+
+function attachmentBytes(content: Uint8Array | ArrayBuffer) {
+  return content instanceof Uint8Array ? content : new Uint8Array(content);
+}
+
+function preserveEmailImageSources(rawHtml: string, attachments: AttachmentSource[]) {
+  const cidImages = new Map<string, string>();
+  let inlineTotal = 0;
+
+  for (const attachment of attachments) {
+    const contentId = normalizeContentId(attachment.contentId);
+    const mimeType = (attachment.mimeType || '').toLowerCase();
+    if (!contentId || !SAFE_INLINE_IMAGE_MIME_TYPES.has(mimeType)) continue;
+    const bytes = attachmentBytes(attachment.content);
+    if (!bytes.byteLength || bytes.byteLength > MAX_INLINE_IMAGE_BYTES || inlineTotal + bytes.byteLength > MAX_INLINE_IMAGE_TOTAL_BYTES) continue;
+    inlineTotal += bytes.byteLength;
+    cidImages.set(contentId, `data:${mimeType};base64,${Buffer.from(bytes).toString('base64')}`);
+  }
+
+  return rawHtml.replace(/\s+src\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi, (_match, doubleQuoted: string, singleQuoted: string, bare: string) => {
+    const source = String(doubleQuoted ?? singleQuoted ?? bare ?? '').trim();
+    if (!source) return '';
+
+    if (/^cid:/i.test(source)) {
+      const dataUrl = cidImages.get(normalizeContentId(source.slice(4)));
+      return dataUrl ? ` data-safe-image-src="${escapeHtmlAttribute(dataUrl)}"` : '';
+    }
+
+    if (/^https:\/\//i.test(source)) {
+      try {
+        const url = new URL(source);
+        if (url.username || url.password || !url.hostname) return '';
+        return ` data-remote-src="${escapeHtmlAttribute(url.toString())}"`;
+      } catch {
+        return '';
+      }
+    }
+
+    if (/^data:image\/(?:png|jpeg|gif|webp|avif);base64,[a-z0-9+/=\r\n]+$/i.test(source)) {
+      return ` data-safe-image-src="${escapeHtmlAttribute(source)}"`;
+    }
+
+    return '';
+  });
+}
+
+function sanitizeEmailHtmlFragment(rawHtml: string, attachments: AttachmentSource[]): string {
+  let html = preserveEmailImageSources(rawHtml.slice(0, MAX_SAFE_HTML_CHARS), attachments);
   html = html.replace(/<!--[^]*?-->/g, '');
   html = html.replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|base|link|video|audio|source|track|svg|math)\b[^>]*>[^]*?<\/\1\s*>/gi, '');
   html = html.replace(/<(script|iframe|object|embed|form|input|button|textarea|select|option|meta|base|link|video|audio|source|track|svg|math)\b[^>]*\/?\s*>/gi, '');
@@ -51,12 +118,13 @@ function sanitizeEmailHtmlFragment(rawHtml: string): string {
   html = html.replace(/\s+(href|src|srcset|action|formaction|poster|background|ping)\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
   html = html.replace(/\s+style\s*=\s*(["'])([^]*?)\1/gi, (_match, quote: string, css: string) => ` style=${quote}${sanitizeEmailCss(css)}${quote}`);
   html = html.replace(/<style\b[^>]*>([^]*?)<\/style\s*>/gi, (_match, css: string) => `<style>${sanitizeEmailCss(css)}</style>`);
+  html = html.replace(/\s+data-safe-image-src="([^"]+)"/gi, ' src="$1"');
   return html;
 }
 
-function buildSafeEmailHtml(rawHtml: string): string | undefined {
+function buildSafeEmailHtml(rawHtml: string, attachments: AttachmentSource[]): string | undefined {
   if (!rawHtml.trim()) return undefined;
-  const fragment = sanitizeEmailHtmlFragment(rawHtml);
+  const fragment = sanitizeEmailHtmlFragment(rawHtml, attachments);
   const csp = "default-src 'none'; script-src 'none'; connect-src 'none'; frame-src 'none'; child-src 'none'; object-src 'none'; media-src 'none'; font-src 'none'; img-src data:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none';";
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${csp}"><meta name="referrer" content="no-referrer"><style>html{background:#fff;color:#28364a;font-family:Arial,Helvetica,sans-serif}body{margin:0;padding:20px;overflow-wrap:anywhere;line-height:1.55}img{max-width:100%;height:auto}table{max-width:100%}a{color:#315fa9;text-decoration:underline;pointer-events:none}</style></head><body>${fragment}</body></html>`;
 }
@@ -376,7 +444,7 @@ export class MailGateway {
           inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
           references: (headers.get('references') || '').split(/\s+/).slice(0, 100).map(normalizeMessageId).filter((id): id is string => Boolean(id)),
           text: clampText(parsed.text || '', this.config.limits.maxMessageBodyChars),
-          ...(parsed.html ? { safeHtmlBody: buildSafeEmailHtml(parsed.html) } : {}),
+          ...(parsed.html ? { safeHtmlBody: buildSafeEmailHtml(parsed.html, attachmentSources) } : {}),
           attachments: attachmentSources.map(attachment => ({
             ...(attachment.filename ? { filename: attachment.filename } : {}),
             ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),

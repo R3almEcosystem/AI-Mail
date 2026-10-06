@@ -25,6 +25,21 @@ test('HTML-only bodies are converted to sandbox-ready network-blocked documents'
  assert.ok(!result.safeHtmlBody.includes('<input'));
  assert.ok(!result.safeHtmlBody.includes('onclick='));
  assert.ok(!result.safeHtmlBody.includes('href="https://'));
- assert.ok(!result.safeHtmlBody.includes('src="https://'));
+ assert.ok(!/<img\b[^>]*\ssrc="https:\/\//i.test(result.safeHtmlBody));
  assert.ok(!result.safeHtmlBody.includes('url(https://'));
+});
+
+
+test('CID images are embedded safely while remote images remain inert placeholders',async()=>{
+ const png=new Uint8Array([137,80,78,71,13,10,26,10]).buffer;
+ const result=await fixture({
+   text:'',
+   html:'<div><img src="cid:logo-image"><img src="https://images.example.test/banner.png"></div>',
+   attachments:[{filename:'logo.png',mimeType:'image/png',contentId:'logo-image',related:true,content:png}]
+ }).read();
+ assert.ok(result.safeHtmlBody);
+ assert.match(result.safeHtmlBody,/src="data:image\/png;base64,/);
+ assert.match(result.safeHtmlBody,/data-remote-src="https:\/\/images\.example\.test\/banner\.png"/);
+ assert.ok(!/<img\b[^>]*\ssrc="https:\/\/images\.example\.test\/banner\.png"/i.test(result.safeHtmlBody));
+ assert.ok(!result.safeHtmlBody.includes('cid:logo-image'));
 });

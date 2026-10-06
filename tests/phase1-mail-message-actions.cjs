@@ -73,7 +73,7 @@ test("HTML-only email bodies use a sandboxed secure tab", () => {
   assert.ok(workspace.includes(">Secure HTML<") || workspace.includes("Secure HTML"));
   assert.ok(workspace.includes('sandbox=""'));
   assert.ok(workspace.includes('referrerPolicy="no-referrer"'));
-  assert.ok(workspace.includes("srcDoc={selected.safeHtmlBody}"));
+  assert.ok(workspace.includes("srcDoc={remoteImagesHtml || selected.safeHtmlBody}"));
   assert.ok(css.includes(".secure-html-frame"));
 });
 
