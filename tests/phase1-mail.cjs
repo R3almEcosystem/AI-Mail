@@ -12,7 +12,7 @@ function fixtures(options = {}) {
     async messageFlagsAdd() { return this.operation(); }
     async messageFlagsRemove() { return this.operation(); }
     async messageMove() { return this.operation(); }
-    async fetchOne(uid, what) { if(what.source) rawFetches++; return {uid, size:20_000_000, source:Buffer.from('test'), envelope:{from:[{address:'source@example.test'}]}, flags:new Set()}; }
+    async fetchOne(uid, what) { if(what.source) rawFetches++; return {uid, size:40_000_000, source:Buffer.from('test'), envelope:{from:[{address:'source@example.test'}]}, flags:new Set()}; }
     async list() { return [{path:'Sent',specialUse:'\\Sent'}]; }
     async append() { return options.appendFalse ? false : {uid:55}; }
   }
