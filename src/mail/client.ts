@@ -131,15 +131,6 @@ export class MailGateway {
     });
   }
 
-  async messageSize(folder: string, uid: number): Promise<number | null> {
-    assertMessageIdentity(folder, uid);
-    return this.withMailbox(folder, async client => {
-      const metadata = await client.fetchOne(uid, { size: true }, { uid: true });
-      return metadata && typeof metadata.size === 'number' && Number.isSafeInteger(metadata.size) && metadata.size >= 0
-        ? metadata.size
-        : null;
-    });
-  }
   async listRecentMessagesByFolders(
     folders: string[],
     limit: number,
