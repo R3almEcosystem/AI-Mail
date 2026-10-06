@@ -42,6 +42,8 @@ async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both"
   const matched = completed.reduce((sum, item) => sum + item.result.matched, 0);
   const included = completed.reduce((sum, item) => sum + item.result.included, 0);
   const excluded = completed.reduce((sum, item) => sum + item.result.excluded, 0);
+  const attachmentsMatched = completed.reduce((sum, item) => sum + item.result.attachmentsMatched, 0);
+  const attachmentsIncluded = completed.reduce((sum, item) => sum + item.result.attachmentsIncluded, 0);
   const capped = completed.some((item) => item.result.capped);
   const mode = completed.some((item) => item.result.mode === "report") ? "report" as const : "collection" as const;
   const model = completed.map((item) => item.result.model).find((value): value is string => Boolean(value)) || null;
@@ -57,6 +59,8 @@ async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both"
     "- **Matching emails found:** " + matched,
     "- **Emails included:** " + included,
     "- **Emails excluded:** " + excluded,
+    "- **Attachments matched:** " + attachmentsMatched,
+    "- **Attachment evidence included:** " + attachmentsIncluded,
     "",
   ];
 
@@ -67,6 +71,8 @@ async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both"
       "- **Mailbox:** " + item.account.email,
       "- **Matching emails:** " + item.result.matched,
       "- **Included:** " + item.result.included,
+      "- **Attachments matched:** " + item.result.attachmentsMatched,
+      "- **Attachment evidence included:** " + item.result.attachmentsIncluded,
       "",
       item.result.markdown.replace(/^#\s+.+$/m, "### " + item.result.title),
     );
@@ -84,6 +90,8 @@ async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both"
     capped,
     model,
     warnings,
+    attachmentsMatched,
+    attachmentsIncluded,
     accountId: "all",
     accountLabel: "All accounts",
   };
