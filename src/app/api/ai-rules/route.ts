@@ -54,7 +54,7 @@ export async function GET() {
       canManage: user.role === "admin" || user.role === "super_admin",
     }, { headers: privateHeaders });
   } catch (error) {
-    return apiError(error, "Unable to load AI rules.");
+    return apiError(error, "Unable to load S.I. rules.");
   }
 }
 
@@ -62,20 +62,20 @@ export async function PATCH(request: NextRequest) {
   try {
     const actor = await requireCapability("admin:manage", request);
     const parsed = updateSchema.safeParse(await request.json().catch(() => null));
-    if (!parsed.success) return NextResponse.json({ error: "Invalid AI rule update." }, { status: 400, headers: privateHeaders });
+    if (!parsed.success) return NextResponse.json({ error: "Invalid S.I. rule update." }, { status: 400, headers: privateHeaders });
 
     if ("title" in parsed.data) {
       const rule = await updateAiRule(parsed.data.id, parsed.data);
-      if (!rule) return NextResponse.json({ error: "AI rule not found." }, { status: 404, headers: privateHeaders });
-      await addAudit(actor, "Updated AI rule", rule.title);
+      if (!rule) return NextResponse.json({ error: "S.I. rule not found." }, { status: 404, headers: privateHeaders });
+      await addAudit(actor, "Updated S.I. rule", rule.title);
       return NextResponse.json({ rule }, { headers: privateHeaders });
     }
 
     const rule = await setAiRuleActive(parsed.data.id, parsed.data.active);
-    if (!rule) return NextResponse.json({ error: "AI rule not found." }, { status: 404, headers: privateHeaders });
-    await addAudit(actor, parsed.data.active ? "Enabled AI rule" : "Disabled AI rule", rule.title);
+    if (!rule) return NextResponse.json({ error: "S.I. rule not found." }, { status: 404, headers: privateHeaders });
+    await addAudit(actor, parsed.data.active ? "Enabled S.I. rule" : "Disabled S.I. rule", rule.title);
     return NextResponse.json({ rule }, { headers: privateHeaders });
   } catch (error) {
-    return apiError(error, "Unable to update AI rule.");
+    return apiError(error, "Unable to update S.I. rule.");
   }
 }
