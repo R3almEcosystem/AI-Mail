@@ -4,20 +4,29 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Admin exposes Connected mailboxes as its own menu item", () => {
+test("Admin separates AI settings from Connected mailboxes and mail policy", () => {
   const admin = read("src/components/admin-console.tsx");
   const manager = read("src/components/mail-accounts-manager.tsx");
   const css = read("src/app/globals.css");
 
+  assert.match(admin, /id: "services", label: "AI"/);
+  assert.doesNotMatch(admin, /id: "services", label: "AI & mail"/);
+  assert.match(admin, /services: \{ eyebrow: "INTELLIGENCE", title: "AI settings"/);
+  assert.doesNotMatch(admin, /title: "AI & mail settings"/);
+
   assert.match(admin, /id: "mailboxes", label: "Connected mailboxes"/);
   assert.match(admin, /mailboxes: \{ eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes"/);
-  assert.match(admin, /section === "mailboxes"/);
+  assert.match(admin, /section === "mailboxes" && settings/);
   assert.match(admin, /MailAccountsManager onAccountsChanged={refreshServiceState}/);
-  assert.match(admin, /managed from the Connected mailboxes menu/);
-  assert.match(admin, /Global mail policy/);
+  assert.match(admin, /<h3>Global mail policy<\/h3>/);
+  assert.match(admin, /Save mail policy/);
+  assert.match(admin, /Global mail policy saved\./);
+  assert.match(admin, /managed above/);
+
   assert.match(admin, /At least one active IMAP mailbox can be monitored/);
   assert.match(admin, /At least one connected account can send through SMTP/);
-  assert.match(admin, /Save AI & policy/);
+  assert.match(admin, /Save AI settings/);
+  assert.doesNotMatch(admin, /Save AI & policy/);
   assert.doesNotMatch(admin, /Save & test IMAP/);
   assert.doesNotMatch(admin, /Save & test SMTP/);
   assert.doesNotMatch(admin, /<h3>Incoming mail<\/h3>/);
@@ -26,16 +35,27 @@ test("Admin exposes Connected mailboxes as its own menu item", () => {
   assert.match(manager, /onAccountsChanged/);
   assert.match(css, /\.admin-mail-accounts/);
   assert.match(css, /grid-column: 1 \/ -1/);
+  assert.match(css, /\.admin-mailboxes-page \.global-mail-policy-card/);
 });
 
-test("saving Admin AI policy refreshes primary mail settings before PATCH", () => {
+test("AI and mailbox policy saves preserve settings owned by the other page", () => {
   const admin = read("src/components/admin-console.tsx");
 
   assert.match(admin, /if \(section === "services"\)/);
+  assert.match(admin, /else if \(section === "mailboxes"\)/);
   assert.match(admin, /currentResponse = await fetch\(webPath\("\/api\/admin\/settings"\)/);
   assert.match(admin, /\.\.\.current\.settings/);
   assert.match(admin, /aiModel: settings\.aiModel/);
   assert.match(admin, /aiTone: settings\.aiTone/);
+  assert.match(admin, /aiAutoSummarize: settings\.aiAutoSummarize/);
+  assert.match(admin, /aiPriorityDetection: settings\.aiPriorityDetection/);
   assert.match(admin, /outboundAllowedDomains: settings\.outboundAllowedDomains/);
   assert.match(admin, /credentials\.openaiApiKey \? \{ openaiApiKey: credentials\.openaiApiKey \} : \{\}/);
+
+  const aiBlock = admin.match(/if \(section === "services"\) \{[\s\S]*?\} else if \(section === "mailboxes"\)/)?.[0] || "";
+  assert.doesNotMatch(aiBlock, /outboundAllowedDomains:/);
+
+  const mailboxBlock = admin.match(/else if \(section === "mailboxes"\) \{[\s\S]*?\n    \}/)?.[0] || "";
+  assert.match(mailboxBlock, /outboundAllowedDomains: settings\.outboundAllowedDomains/);
+  assert.match(mailboxBlock, /suppliedCredentials = \{\}/);
 });
