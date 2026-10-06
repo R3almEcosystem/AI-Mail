@@ -6,6 +6,7 @@ import type { ServiceSecretStatus } from "@/lib/types";
 
 export type ServiceSecretName =
   | "ai_mail_openai_api_key"
+  | "ai_mail_cloudmersive_api_key"
   | "ai_mail_imap_password"
   | "ai_mail_smtp_password";
 
@@ -45,6 +46,7 @@ export async function getServiceSecretStatus(): Promise<ServiceSecretStatus> {
     FROM vault.secrets
     WHERE name IN (
       'ai_mail_openai_api_key',
+      'ai_mail_cloudmersive_api_key',
       'ai_mail_imap_password',
       'ai_mail_smtp_password'
     )
@@ -52,6 +54,7 @@ export async function getServiceSecretStatus(): Promise<ServiceSecretStatus> {
   const names = new Set(rows.map((row) => String(row.name)));
   return {
     openaiApiKey: names.has("ai_mail_openai_api_key") || Boolean(process.env.OPENAI_API_KEY),
+    cloudmersiveApiKey: names.has("ai_mail_cloudmersive_api_key") || Boolean(process.env.CLOUDMERSIVE_API_KEY),
     imapPassword: names.has("ai_mail_imap_password") || Boolean(process.env.IMAP_PASSWORD || process.env.MAIL_PASSWORD),
     smtpPassword: names.has("ai_mail_smtp_password") || Boolean(process.env.SMTP_PASSWORD || process.env.MAIL_PASSWORD),
   };
