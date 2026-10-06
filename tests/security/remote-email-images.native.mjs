@@ -17,10 +17,10 @@ test('remote image hydration proxies only validated public HTTPS images into dat
   const result = await mod.hydrateRemoteEmailImages(
     '<img data-remote-src="https://images.example.test/banner.png" alt="banner">',
     {
-      resolve: async () => [{ address: '203.0.113.10', family: 4 }],
+      resolve: async () => [{ address: '93.184.216.34', family: 4 }],
       fetchPinned: async (_url, address) => {
         fetched += 1;
-        assert.equal(address, '203.0.113.10');
+        assert.equal(address, '93.184.216.34');
         return { status: 200, contentType: 'image/png', body: png };
       },
     },
@@ -53,7 +53,7 @@ test('remote image hydration rejects redirects, SVG/non-image types, and oversiz
   const html = '<img data-remote-src="https://images.example.test/a.png"><img data-remote-src="https://images.example.test/b.svg"><img data-remote-src="https://images.example.test/c.png">';
   let call = 0;
   const result = await mod.hydrateRemoteEmailImages(html, {
-    resolve: async () => [{ address: '203.0.113.10', family: 4 }],
+    resolve: async () => [{ address: '93.184.216.34', family: 4 }],
     fetchPinned: async () => {
       call += 1;
       if (call === 1) return { status: 302, contentType: 'image/png', body: new Uint8Array() };
