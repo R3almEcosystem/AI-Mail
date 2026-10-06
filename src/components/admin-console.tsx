@@ -52,7 +52,7 @@ import { webPath } from "@/lib/web-path";
 import { MailAccountsManager } from "@/components/mail-accounts-manager";
 import { AiRulesView } from "@/components/settings-views";
 
-type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "rules" | "audit";
+type AdminSection = "overview" | "users" | "groups" | "roles" | "organization" | "services" | "mailboxes" | "rules" | "audit";
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>;
 
 const roleLabels: Record<UserRole, string> = {
@@ -65,7 +65,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminSection; label: string; icon: Icon }> }> = [
   { label: "CONTROL CENTER", items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users }, { id: "groups", label: "Alert groups", icon: UsersRound }, { id: "roles", label: "Roles & access", icon: ShieldCheck }] },
-  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI & mail", icon: SlidersHorizontal }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
+  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI & mail", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
 ];
 
 const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail: string }> = {
@@ -74,7 +74,8 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   groups: { eyebrow: "ESCALATION", title: "Alert groups", detail: "Define the teams that can receive and own escalated alerts." },
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
-  services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Configure workspace AI policy and manage every connected mailbox." },
+  services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Configure workspace-wide AI intelligence and mail policy." },
+  mailboxes: { eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes", detail: "Add, edit, test, and monitor every mailbox connected to AI-Mail." },
   rules: { eyebrow: "AUTOMATION", title: "AI Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
@@ -546,16 +547,13 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     <div className="service-test-row"><span>{status?.openai ? "OpenAI is ready across all connected mailboxes" : "Save credentials and model to enable AI"}</span><button type="button" className="secondary-button" disabled={saving || testingService !== null} onClick={() => void testService("openai")}>{testingService === "openai" ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} Save & test AI</button></div>
   </div>
 
-  <div className="admin-mail-accounts">
-    <MailAccountsManager onAccountsChanged={refreshServiceState} />
-  </div>
 
   <div className="admin-panel settings-form-card global-mail-policy-card">
     <header><span><MailCheck size={18} /></span><div><h3>Global mail policy</h3><p>Rules that apply to sending from every connected account.</p></div></header>
     <div className="admin-form-grid">
       <label className="field-wide"><span>Allowed recipient domains (optional)</span><input value={settings.outboundAllowedDomains} onChange={(event) => setSettings({ ...settings, outboundAllowedDomains: event.target.value })} placeholder="r3alm.com, example.com" /><small>Comma-separated. This is the workspace-wide maximum. Individual SMTP accounts cannot broaden it beyond the server environment allowlist.</small></label>
     </div>
-    <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed in Connected Mailboxes above.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
+    <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed from the Connected mailboxes menu.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
   </div>
 
   <div className="admin-panel service-config-card">
@@ -569,6 +567,13 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console. OpenAI remains a workspace-wide encrypted credential.</p>
   </div>
 </>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI & policy" : "Save settings"}</button></div></section> : null}
+          {!loading && section === "mailboxes" ? (
+            <section className="admin-mailboxes-page">
+              <div className="admin-mail-accounts">
+                <MailAccountsManager onAccountsChanged={refreshServiceState} />
+              </div>
+            </section>
+          ) : null}
           {!loading && section === "rules" ? <section className="admin-ai-rules-page"><AiRulesView onChanged={refreshAudit} editable /></section> : null}
           {!loading && section === "audit" ? (
             <section className="audit-page">
