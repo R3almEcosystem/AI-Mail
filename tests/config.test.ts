@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadConfig } from '../src/config.js';
+import { browserMailConfig } from '../src/mail/policy.js';
 
 const baseEnv: NodeJS.ProcessEnv = {
   NODE_ENV: 'test',
@@ -91,6 +92,12 @@ describe('Vercel-aware configuration', () => {
 
     expect(config.oauth.issuer).toBe('https://identity.example.com/auth/v1');
     expect(config.oauth.publishableKey).toBe('sb_publishable_identity_override_key');
+  });
+
+  it('clamps legacy raw-message overrides to the attachment-safe minimum', () => {
+    const env = { ...baseEnv, MAX_RAW_MESSAGE_BYTES: '2000000' };
+    expect(loadConfig(env).limits.maxRawMessageBytes).toBe(40_000_000);
+    expect(browserMailConfig(env).limits.maxRawMessageBytes).toBe(40_000_000);
   });
 
   it('normalizes an OAuth resource trailing slash', () => {
