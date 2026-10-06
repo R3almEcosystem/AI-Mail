@@ -15,7 +15,7 @@ test("Overview right intelligence panel shows time-sensitive email details", () 
   assert.match(view, /message\.accountLabel \|\| "Primary mailbox"/);
   assert.match(view, /message\.category/);
   assert.match(view, /message\.preview/);
-  assert.match(view, /AI rule/);
+  assert.match(view, /S\.I\. rule/);
   assert.match(view, /onClick=\{\(\) => onSelect\(message\)\}/);
   assert.doesNotMatch(view, /Two messages are time-sensitive/);
 
@@ -36,7 +36,7 @@ test("time-sensitive ordering favors escalated or urgent then unread messages", 
 });
 
 
-test("Focus Queue and AI Intelligence stack vertically at full Overview width", () => {
+test("Focus Queue and S.I. Intelligence stack vertically at full Overview width", () => {
   const css = read("src/app/globals.css");
 
   assert.match(css, /\.overview-grid \{ display: grid; grid-template-columns: 1fr; gap: 18px; \}/);
