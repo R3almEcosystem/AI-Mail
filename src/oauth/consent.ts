@@ -13,7 +13,7 @@ export function renderConsentPage(config: AppConfig): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Authorize r3alm AI-Mail</title>
+  <title>Authorize r3alm S.I.-Mail</title>
   <style>
     :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
@@ -41,7 +41,7 @@ export function renderConsentPage(config: AppConfig): string {
 <body>
 <main>
   <div class="eyebrow">r3alm secure authorization</div>
-  <h1>Authorize AI-Mail</h1>
+  <h1>Authorize S.I.-Mail</h1>
   <p>Authenticate with the approved r3alm identity, review the requesting client, and explicitly approve access.</p>
 
   <section id="loading" class="card">Checking authorization request…</section>
@@ -144,7 +144,7 @@ export function renderConsentPage(config: AppConfig): string {
       loading.style.display = 'none';
       login.style.display = 'block';
       consent.style.display = 'none';
-      showError('This Supabase identity is not authorized for r3alm AI-Mail.');
+      showError('This Supabase identity is not authorized for r3alm S.I.-Mail.');
       return;
     }
 
@@ -162,7 +162,7 @@ export function renderConsentPage(config: AppConfig): string {
     }
 
     document.getElementById('signed-in-email').textContent = email;
-    document.getElementById('client-name').textContent = data?.client?.name || 'ChatGPT — r3alm AI-Mail';
+    document.getElementById('client-name').textContent = data?.client?.name || 'ChatGPT — r3alm S.I.-Mail';
     document.getElementById('redirect-uri').textContent = data?.redirect_uri || '';
     const scopes = String(data?.scope || '').split(/\\s+/).filter(Boolean);
     const scopeList = document.getElementById('scope-list');
