@@ -42,14 +42,7 @@ function attachmentSummary(message: Awaited<ReturnType<typeof getMail>>) {
   };
 }
 
-export async function POST(request: Request) {
-  if (process.env.VERCEL_ENV !== "production") {
-    return NextResponse.json({ error: "Production verification only." }, { status: 404, headers: privateHeaders });
-  }
-  if (!authorized(request)) {
-    return NextResponse.json({ error: "Not found." }, { status: 404, headers: privateHeaders });
-  }
-
+async function runVerification() {
   const received = await getMail(RECEIVED_UID, "INBOX");
 
   const sentPage = await listMail("INBOX.Sent", 20, undefined, BERNIE_ACCOUNT_ID);
@@ -68,4 +61,24 @@ export async function POST(request: Request) {
     sent: attachmentSummary(sent),
     sameSubject: received.subject === sent.subject,
   }, { headers: privateHeaders });
+}
+
+export async function POST(request: Request) {
+  if (process.env.VERCEL_ENV !== "production") {
+    return NextResponse.json({ error: "Production verification only." }, { status: 404, headers: privateHeaders });
+  }
+  if (!authorized(request)) {
+    return NextResponse.json({ error: "Not found." }, { status: 404, headers: privateHeaders });
+  }
+  return runVerification();
+}
+
+export async function GET(request: Request) {
+  if (process.env.VERCEL_ENV !== "production") {
+    return NextResponse.json({ error: "Production verification only." }, { status: 404, headers: privateHeaders });
+  }
+  if (new URL(request.url).searchParams.get("run") !== "latest-pdf-20261006") {
+    return NextResponse.json({ error: "Not found." }, { status: 404, headers: privateHeaders });
+  }
+  return runVerification();
 }
