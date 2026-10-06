@@ -2817,6 +2817,7 @@ button[aria-label]:disabled::after {
   min-height: 78px;
 }
 .admin-mailboxes-page .global-mail-policy-card,
+.admin-mailboxes-page .attachment-policy-card,
 .admin-mailboxes-page .mailbox-readiness-card {
   margin-top: 13px;
 }
