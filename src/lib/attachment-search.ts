@@ -58,7 +58,7 @@ export async function searchAttachmentKnowledge(query: string, accountId = "all"
       AND ma.analysis_allowed = true
       AND (
         ma.filename ILIKE ${pattern} ESCAPE '\'
-        OR b.extracted_text ILIIKE ${pattern} ESCAPE '\'
+        OR b.extracted_text ILIKE ${pattern} ESCAPE '\'
         OR latest.result_markdown ILIKE ${pattern} ESCAPE '\'
         OR EXISTS (
           SELECT 1
