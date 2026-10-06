@@ -4,14 +4,14 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Admin separates AI settings from Connected mailboxes and mail policy", () => {
+test("Admin separates S.I. settings from Connected mailboxes and mail policy", () => {
   const admin = read("src/components/admin-console.tsx");
   const manager = read("src/components/mail-accounts-manager.tsx");
   const css = read("src/app/globals.css");
 
-  assert.match(admin, /id: "services", label: "AI"/);
+  assert.match(admin, /id: "services", label: "S\.I\."/);
   assert.doesNotMatch(admin, /id: "services", label: "AI & mail"/);
-  assert.match(admin, /services: \{ eyebrow: "INTELLIGENCE", title: "AI settings"/);
+  assert.match(admin, /services: \{ eyebrow: "INTELLIGENCE", title: "S\.I\. settings"/);
   assert.doesNotMatch(admin, /title: "AI & mail settings"/);
 
   assert.match(admin, /id: "mailboxes", label: "Connected mailboxes"/);
@@ -20,14 +20,14 @@ test("Admin separates AI settings from Connected mailboxes and mail policy", () 
   assert.match(admin, /MailAccountsManager onAccountsChanged={refreshServiceState}/);
   assert.match(admin, /<h3>Global mail policy<\/h3>/);
   assert.match(admin, /<h3>Mailbox readiness<\/h3>/);
-  assert.match(admin, /<h3>AI service readiness<\/h3>/);
+  assert.match(admin, /<h3>S\.I\. service readiness<\/h3>/);
   assert.match(admin, /Save mail policy/);
   assert.match(admin, /Global mail policy saved\./);
   assert.match(admin, /managed above/);
 
   assert.match(admin, /At least one active IMAP mailbox can be monitored/);
   assert.match(admin, /At least one connected account can send through SMTP/);
-  assert.match(admin, /Save AI settings/);
+  assert.match(admin, /Save S\.I\. settings/);
   assert.doesNotMatch(admin, /Save AI & policy/);
   assert.doesNotMatch(admin, /Save & test IMAP/);
   assert.doesNotMatch(admin, /Save & test SMTP/);
@@ -41,7 +41,7 @@ test("Admin separates AI settings from Connected mailboxes and mail policy", () 
   assert.match(css, /\.admin-mailboxes-page \.mailbox-readiness-card/);
 });
 
-test("AI and mailbox policy saves preserve settings owned by the other page", () => {
+test("S.I. and mailbox policy saves preserve settings owned by the other page", () => {
   const admin = read("src/components/admin-console.tsx");
 
   assert.match(admin, /if \(section === "services"\)/);
