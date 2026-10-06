@@ -4,12 +4,16 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Admin AI & mail settings use the multi-account mailbox manager", () => {
+test("Admin exposes Connected mailboxes as its own menu item", () => {
   const admin = read("src/components/admin-console.tsx");
   const manager = read("src/components/mail-accounts-manager.tsx");
   const css = read("src/app/globals.css");
 
+  assert.match(admin, /id: "mailboxes", label: "Connected mailboxes"/);
+  assert.match(admin, /mailboxes: \{ eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes"/);
+  assert.match(admin, /section === "mailboxes"/);
   assert.match(admin, /MailAccountsManager onAccountsChanged={refreshServiceState}/);
+  assert.match(admin, /managed from the Connected mailboxes menu/);
   assert.match(admin, /Global mail policy/);
   assert.match(admin, /At least one active IMAP mailbox can be monitored/);
   assert.match(admin, /At least one connected account can send through SMTP/);
