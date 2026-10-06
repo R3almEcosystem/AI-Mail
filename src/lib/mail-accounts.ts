@@ -237,9 +237,9 @@ export async function createMailAccount(input: MailAccountInput, actor: SessionU
   const smtpPassword = input.smtpEnabled ? (input.smtpPassword || input.imapPassword) : "";
 
   await sql.begin(async (tx) => {
-    await tx`SELECT vault.create_secret(${input.imapPassword}, ${imapSecretName}, ${"AI-Mail IMAP password for " + input.email})`;
+    await tx`SELECT vault.create_secret(${input.imapPassword}, ${imapSecretName}, ${"S.I.-Mail IMAP password for " + input.email})`;
     if (smtpSecretName) {
-      await tx`SELECT vault.create_secret(${smtpPassword}, ${smtpSecretName}, ${"AI-Mail SMTP password for " + input.email})`;
+      await tx`SELECT vault.create_secret(${smtpPassword}, ${smtpSecretName}, ${"S.I.-Mail SMTP password for " + input.email})`;
     }
     await tx`
       INSERT INTO private.ai_mail_accounts (
@@ -292,9 +292,9 @@ export async function updateMailAccount(accountId: string, input: MailAccountUpd
     if (input.imapPassword) {
       const secret = await tx`SELECT id FROM vault.secrets WHERE name = ${imapSecretName} LIMIT 1`;
       if (secret[0]?.id) {
-        await tx`SELECT vault.update_secret(${String(secret[0].id)}::uuid, ${input.imapPassword}, ${imapSecretName}, ${"AI-Mail IMAP password for " + input.email})`;
+        await tx`SELECT vault.update_secret(${String(secret[0].id)}::uuid, ${input.imapPassword}, ${imapSecretName}, ${"S.I.-Mail IMAP password for " + input.email})`;
       } else {
-        await tx`SELECT vault.create_secret(${input.imapPassword}, ${imapSecretName}, ${"AI-Mail IMAP password for " + input.email})`;
+        await tx`SELECT vault.create_secret(${input.imapPassword}, ${imapSecretName}, ${"S.I.-Mail IMAP password for " + input.email})`;
       }
     }
 
@@ -305,9 +305,9 @@ export async function updateMailAccount(accountId: string, input: MailAccountUpd
         const secret = await tx`SELECT id FROM vault.secrets WHERE name = ${smtpSecretName} LIMIT 1`;
         const value = input.smtpPassword || smtpPassword;
         if (secret[0]?.id) {
-          await tx`SELECT vault.update_secret(${String(secret[0].id)}::uuid, ${value}, ${smtpSecretName}, ${"AI-Mail SMTP password for " + input.email})`;
+          await tx`SELECT vault.update_secret(${String(secret[0].id)}::uuid, ${value}, ${smtpSecretName}, ${"S.I.-Mail SMTP password for " + input.email})`;
         } else {
-          await tx`SELECT vault.create_secret(${value}, ${smtpSecretName}, ${"AI-Mail SMTP password for " + input.email})`;
+          await tx`SELECT vault.create_secret(${value}, ${smtpSecretName}, ${"S.I.-Mail SMTP password for " + input.email})`;
         }
       }
       if (!current.smtpPassword && !input.smtpPassword && !input.imapPassword) throw new Error("SMTP_PASSWORD_REQUIRED");
