@@ -4,7 +4,7 @@ import { getMail, getMailRawSize, listMail } from "@/lib/mail";
 import { privateHeaders } from "@/lib/api-error";
 import { loadAttachmentBytes } from "@/lib/attachment-content";
 import { getServiceSecret } from "@/lib/service-secrets";
-import { SCAN_FLAGS } from "../../../../../security/attachment-scan";
+import { SCAN_FLAGS } from "@/security/attachment-scan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
