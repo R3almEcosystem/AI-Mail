@@ -2,6 +2,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getMail, getMailRawSize, listMail } from "@/lib/mail";
 import { privateHeaders } from "@/lib/api-error";
+import { loadAttachmentBytes } from "@/lib/attachment-content";
+import { getServiceSecret } from "@/lib/service-secrets";
+import { SCAN_FLAGS } from "../../../../../security/attachment-scan";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -19,6 +22,46 @@ function authorized(request: Request) {
   const actual = Buffer.from(createHash("sha256").update(token).digest("hex"));
   const expected = Buffer.from(EXPECTED_TOKEN_SHA256);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
+}
+
+async function diagnoseAttachment(id: string) {
+  const apiKey = await getServiceSecret("ai_mail_cloudmersive_api_key");
+  if (!apiKey) return { id, error: "SCANNER_KEY_UNAVAILABLE" };
+  const { bytes, record } = await loadAttachmentBytes(id);
+  const form = new FormData();
+  form.set("inputFile", new Blob([bytes], { type: "application/octet-stream" }), "attachment.bin");
+  const response = await fetch("https://api.cloudmersive.com/virus/scan/file/advanced", {
+    method: "POST",
+    redirect: "error",
+    headers: {
+      Apikey: apiKey,
+      Accept: "application/json",
+      allowExecutables: "false",
+      allowInvalidFiles: "false",
+      allowScripts: "false",
+      allowPasswordProtectedFiles: "false",
+      allowMacros: "false",
+      allowUnsafeArchives: "false",
+      allowXmlExternalEntities: "false",
+      allowInsecureDeserialization: "false",
+      allowHtml: "false",
+      allowOleEmbeddedObject: "false",
+      allowUnwantedAction: "false",
+    },
+    body: form,
+    signal: AbortSignal.timeout(45_000),
+    cache: "no-store",
+  });
+  const payload = await response.json() as Record<string, unknown>;
+  return {
+    id,
+    filename: String(record.filename || ""),
+    httpStatus: response.status,
+    cleanResult: payload.CleanResult,
+    verifiedFileFormat: payload.VerifiedFileFormat ?? null,
+    foundViruses: Array.isArray(payload.FoundViruses) ? payload.FoundViruses.length : payload.FoundViruses,
+    flags: Object.fromEntries(SCAN_FLAGS.map((flag) => [flag, payload[flag] ?? null])),
+  };
 }
 
 function attachmentSummary(message: Awaited<ReturnType<typeof getMail>>) {
@@ -80,6 +123,10 @@ export async function POST(request: Request) {
     sentError = error instanceof Error ? error.message : "SENT_INGEST_FAILED";
   }
 
+  const diagnostics = received?.attachmentFiles?.length
+    ? await Promise.all(received.attachmentFiles.map((attachment) => diagnoseAttachment(attachment.id)))
+    : [];
+
   return NextResponse.json({
     received: received ? attachmentSummary(received) : null,
     receivedSize,
@@ -89,6 +136,7 @@ export async function POST(request: Request) {
     sentCandidateUid,
     sentSize,
     sameSubject: Boolean(received && sent && received.subject === sent.subject),
+    diagnostics,
   }, { status: received && sent ? 200 : 207, headers: privateHeaders });
 }
 
