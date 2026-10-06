@@ -352,10 +352,10 @@ export class MailGateway {
         ...(attachment.disposition ? { disposition: attachment.disposition } : {}),
         ...(attachment.related !== undefined ? { related: attachment.related } : {}),
         ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
-        content: attachment.content,
+        content: typeof attachment.content === 'string' ? new TextEncoder().encode(attachment.content) : attachment.content,
       }));
       return {
-        uidValidity: client.mailbox?.uidValidity?.toString() ?? null,
+        uidValidity: client.mailbox && client.mailbox.uidValidity ? client.mailbox.uidValidity.toString() : null,
         attachmentBytes: attachmentSources.map(attachment => attachment.content),
         attachmentSources,
         message: {
