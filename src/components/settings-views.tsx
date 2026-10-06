@@ -60,7 +60,7 @@ function StatusRow({
 export function AccountsView({ status }: { status: AppStatus | null }) {
   return (
     <div className="settings-page">
-      <div className="settings-intro"><p className="eyebrow">CONNECTIONS</p><h2>Mail accounts</h2><p>Manage the server-side services that power AI-Mail.</p></div>
+      <div className="settings-intro"><p className="eyebrow">CONNECTIONS</p><h2>Mail accounts</h2><p>Manage the server-side services that power S.I.-Mail.</p></div>
       <div className="connection-grid">
         <section className="connection-card">
           <span className="connection-icon connection-icon--blue"><MailCheck size={21} /></span>
@@ -90,7 +90,7 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
           detail="At least one active IMAP account is available for Inbox, Sent, and research."
           details={[
             { label: "Current state", value: status?.imap ? "At least one connected mailbox is available for live IMAP access." : "No live IMAP mailbox is currently ready." },
-            { label: "Used by", value: "Inbox, Sent, message actions, secure message loading, and AI Mail Research." },
+            { label: "Used by", value: "Inbox, Sent, message actions, secure message loading, and S.I. Mail Research." },
             { label: "Required", value: "Active mailbox, IMAP host, port, username, password, and TLS configuration." },
             { label: "Next check", value: status?.imap ? "Use Test IMAP on each Connected Mailbox to verify account-level connectivity." : "Add or edit a Connected Mailbox and verify its IMAP connection." },
           ]}
@@ -109,12 +109,12 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
         <StatusRow
           ready={Boolean(status?.openai)}
           label="OpenAI intelligence"
-          detail="Workspace-wide AI provider and model configuration."
+          detail="Workspace-wide S.I. provider and model configuration."
           details={[
-            { label: "Current state", value: status?.openai ? "OpenAI intelligence is available to AI Mail features." : "OpenAI intelligence is not fully configured." },
+            { label: "Current state", value: status?.openai ? "OpenAI intelligence is available to S.I. Mail features." : "OpenAI provider is not fully configured." },
             { label: "Model", value: status?.model || "No model selected." },
-            { label: "Used by", value: "Message summaries, AI actions, AI Mail Research, classification assistance, and rule-driven intelligence." },
-            { label: "Required", value: "Encrypted OpenAI API key plus a valid selected model in Admin → AI & Mail Settings." },
+            { label: "Used by", value: "Message summaries, S.I. actions, S.I. Mail Research, classification assistance, and rule-driven intelligence." },
+            { label: "Required", value: "Encrypted OpenAI API key plus a valid selected model in Admin → S.I. Settings." },
           ]}
         />
         <StatusRow
@@ -124,7 +124,7 @@ export function AccountsView({ status }: { status: AppStatus | null }) {
           details={[
             { label: "Current state", value: status?.authentication ? "Live authenticated sessions are enabled." : status?.demoLogin ? "Demo login is available; live authentication is not fully active." : "Console authentication is not configured." },
             { label: "Protection", value: "Signed sessions, role-based capabilities, server-side authorization, and administrative access boundaries." },
-            { label: "Used by", value: "Mailbox access, Admin Portal, AI Rules governance, settings changes, and protected API operations." },
+            { label: "Used by", value: "Mailbox access, Admin Portal, S.I. Rules governance, settings changes, and protected API operations." },
             { label: "Next check", value: status?.authentication ? "Review users, roles, and MFA policy in the Admin Portal." : "Complete production authentication before relying on the console for protected mail operations." },
           ]}
         />
@@ -176,8 +176,8 @@ function AiRuleDetails({ rule, onClose }: { rule: AiRule; onClose: () => void })
     <div className="rule-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <section className="rule-details-modal" role="dialog" aria-modal="true" aria-labelledby="rule-details-title">
         <header>
-          <div><p className="eyebrow">AI RULE DETAILS</p><h2 id="rule-details-title">{rule.title}</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
-          <button type="button" className="icon-button" aria-label="Close AI rule details" onClick={onClose}><X size={17} /></button>
+          <div><p className="eyebrow">S.I. RULE DETAILS</p><h2 id="rule-details-title">{rule.title}</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
+          <button type="button" className="icon-button" aria-label="Close S.I. rule details" onClick={onClose}><X size={17} /></button>
         </header>
 
         <div className="rule-details-scroll">
@@ -205,7 +205,7 @@ function AiRuleDetails({ rule, onClose }: { rule: AiRule; onClose: () => void })
           </section>
 
           <section className="rule-details-section">
-            <div className="rule-details-section-heading"><strong>AI actions</strong><small>Actions enabled when this rule matches.</small></div>
+            <div className="rule-details-section-heading"><strong>S.I. actions</strong><small>Actions enabled when this rule matches.</small></div>
             <div className="rule-details-actions">
               {actions.map(([label, enabled]) => (
                 <div className={enabled ? "rule-details-action rule-details-action--enabled" : "rule-details-action"} key={label}>
@@ -278,8 +278,8 @@ function AiRuleEditor({
     <div className="rule-editor-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) onClose(); }}>
       <form className="rule-editor-modal" onSubmit={submit} role="dialog" aria-modal="true" aria-labelledby="rule-editor-title">
         <header>
-          <div><p className="eyebrow">AI RULE GOVERNANCE</p><h2 id="rule-editor-title">Edit rule</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
-          <button type="button" className="icon-button" aria-label="Close AI rule editor" onClick={onClose} disabled={saving}><X size={17} /></button>
+          <div><p className="eyebrow">S.I. RULE GOVERNANCE</p><h2 id="rule-editor-title">Edit rule</h2><span>{rule.system ? "System rule" : "Workspace rule"} · {rule.id}</span></div>
+          <button type="button" className="icon-button" aria-label="Close S.I. rule editor" onClick={onClose} disabled={saving}><X size={17} /></button>
         </header>
 
         <div className="rule-editor-scroll">
@@ -309,7 +309,7 @@ function AiRuleEditor({
           </section>
 
           <section className="rule-editor-section">
-            <div className="rule-editor-section-heading"><strong>AI actions</strong><small>Choose what AI Mail should surface when this rule matches.</small></div>
+            <div className="rule-editor-section-heading"><strong>S.I. actions</strong><small>Choose what S.I.-Mail should surface when this rule matches.</small></div>
             <div className="rule-action-grid">
               {actions.map((action) => (
                 <label key={action.key} className={draft.actions[action.key] ? "rule-action-card rule-action-card--active" : "rule-action-card"}>
@@ -348,13 +348,13 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
       try {
         const response = await fetch(webPath("/api/ai-rules"), { cache: "no-store" });
         const result = (await response.json().catch(() => null)) as { rules?: AiRule[]; canManage?: boolean; error?: string } | null;
-        if (!response.ok || !result?.rules) throw new Error(result?.error || "Unable to load AI rules.");
+        if (!response.ok || !result?.rules) throw new Error(result?.error || "Unable to load S.I. rules.");
         if (!cancelled) {
           setRules(result.rules);
           setCanManage(Boolean(result.canManage));
         }
       } catch (error) {
-        if (!cancelled) setRuleError(error instanceof Error ? error.message : "Unable to load AI rules.");
+        if (!cancelled) setRuleError(error instanceof Error ? error.message : "Unable to load S.I. rules.");
       } finally {
         if (!cancelled) setLoadingRules(false);
       }
@@ -374,11 +374,11 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
         body: JSON.stringify({ id: rule.id, active: !rule.active }),
       });
       const result = (await response.json().catch(() => null)) as { rule?: AiRule; error?: string } | null;
-      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to update AI rule.");
+      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to update S.I. rule.");
       setRules((current) => current.map((item) => item.id === result.rule?.id ? result.rule as AiRule : item));
       await onChanged?.();
     } catch (error) {
-      setRuleError(error instanceof Error ? error.message : "Unable to update AI rule.");
+      setRuleError(error instanceof Error ? error.message : "Unable to update S.I. rule.");
     } finally {
       setSavingRule(null);
     }
@@ -412,12 +412,12 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
         }),
       });
       const result = (await response.json().catch(() => null)) as { rule?: AiRule; error?: string } | null;
-      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to save the AI rule.");
+      if (!response.ok || !result?.rule) throw new Error(result?.error || "Unable to save the S.I. rule.");
       setRules((current) => current.map((item) => item.id === result.rule?.id ? result.rule as AiRule : item));
       setEditingRule(null);
       await onChanged?.();
     } catch (error) {
-      setRuleError(error instanceof Error ? error.message : "Unable to save the AI rule.");
+      setRuleError(error instanceof Error ? error.message : "Unable to save the S.I. rule.");
     } finally {
       setSavingRule(null);
     }
@@ -427,12 +427,12 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
 
   return (
     <div className="settings-page">
-      <div className="settings-intro"><p className="eyebrow">AUTOMATION</p><h2>AI rules</h2><p>Persistent inbox rules derived from real r3alm mail patterns. They classify, prioritize, summarize, and surface actions without sending mail automatically.</p></div>
+      <div className="settings-intro"><p className="eyebrow">AUTOMATION</p><h2>S.I. rules</h2><p>Persistent inbox rules derived from real r3alm mail patterns. They classify, prioritize, summarize, and surface actions without sending mail automatically.</p></div>
       <section className="rules-hero">
         <span><Bot size={23} /></span><div><h3>Executive triage policy</h3><p>Rules run before heuristic classification and stay server-side across sessions.</p></div><b>{activeCount} active</b>
       </section>
       <section className="panel rules-panel">
-        {loadingRules ? <div className="rule-loading"><LoaderCircle className="spin" size={18} /><span>Loading persistent AI rules…</span></div> : null}
+        {loadingRules ? <div className="rule-loading"><LoaderCircle className="spin" size={18} /><span>Loading persistent S.I. rules…</span></div> : null}
         {!loadingRules && rules.map((rule) => (
           <div className="rule-row rule-row--persistent" key={rule.id}>
             <span className="rule-icon"><SlidersHorizontal size={17} /></span>
@@ -457,10 +457,10 @@ export function AiRulesView({ onChanged, editable = false }: { onChanged?: () =>
             </span>
           </div>
         ))}
-        {!loadingRules && rules.length === 0 ? <div className="rule-loading"><span>No AI rules are configured.</span></div> : null}
+        {!loadingRules && rules.length === 0 ? <div className="rule-loading"><span>No S.I. rules are configured.</span></div> : null}
       </section>
       {ruleError ? <p className="settings-footnote settings-footnote--error">{ruleError}</p> : null}
-      <p className="settings-footnote">{editable && canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "AI Rules are read-only in the main Portal. Open Details to inspect the full rule; changes are managed in the Admin Portal."}</p>
+      <p className="settings-footnote">{editable && canManage ? "Changes are saved to the workspace database and affect live inbox classification immediately." : "S.I. Rules are read-only in the main Portal. Open Details to inspect the full rule; changes are managed in the Admin Portal."}</p>
       {viewingRule ? <AiRuleDetails rule={viewingRule} onClose={() => setViewingRule(null)} /> : null}
       {editingRule ? <AiRuleEditor rule={editingRule} saving={savingRule === editingRule.id} onClose={() => setEditingRule(null)} onSave={(rule) => void saveRule(rule)} /> : null}
     </div>
