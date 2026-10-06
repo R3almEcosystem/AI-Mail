@@ -65,7 +65,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminSection; label: string; icon: Icon }> }> = [
   { label: "CONTROL CENTER", items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users }, { id: "groups", label: "Alert groups", icon: UsersRound }, { id: "roles", label: "Roles & access", icon: ShieldCheck }] },
-  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI & mail", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
+  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
 ];
 
 const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail: string }> = {
@@ -74,8 +74,8 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   groups: { eyebrow: "ESCALATION", title: "Alert groups", detail: "Define the teams that can receive and own escalated alerts." },
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
-  services: { eyebrow: "INTELLIGENCE", title: "AI & mail settings", detail: "Configure workspace-wide AI intelligence and mail policy." },
-  mailboxes: { eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes", detail: "Add, edit, test, and monitor every mailbox connected to AI-Mail." },
+  services: { eyebrow: "INTELLIGENCE", title: "AI settings", detail: "Configure workspace-wide AI intelligence, models, and response policy." },
+  mailboxes: { eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes", detail: "Manage mailbox connections, monitoring, and workspace-wide mail policy." },
   rules: { eyebrow: "AUTOMATION", title: "AI Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
@@ -439,7 +439,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     if (section === "services") {
       const currentResponse = await fetch(webPath("/api/admin/settings"), { cache: "no-store" });
       if (!currentResponse.ok) {
-        setToast("Unable to refresh the current mail configuration before saving AI settings.");
+        setToast("Unable to refresh the current workspace configuration before saving AI settings.");
         setSaving(false);
         return false;
       }
@@ -450,9 +450,21 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
         aiTone: settings.aiTone,
         aiAutoSummarize: settings.aiAutoSummarize,
         aiPriorityDetection: settings.aiPriorityDetection,
-        outboundAllowedDomains: settings.outboundAllowedDomains,
       };
       suppliedCredentials = credentials.openaiApiKey ? { openaiApiKey: credentials.openaiApiKey } : {};
+    } else if (section === "mailboxes") {
+      const currentResponse = await fetch(webPath("/api/admin/settings"), { cache: "no-store" });
+      if (!currentResponse.ok) {
+        setToast("Unable to refresh the current workspace configuration before saving mail policy.");
+        setSaving(false);
+        return false;
+      }
+      const current = (await currentResponse.json()) as { settings: AdminSettings };
+      payloadSettings = {
+        ...current.settings,
+        outboundAllowedDomains: settings.outboundAllowedDomains,
+      };
+      suppliedCredentials = {};
     }
 
     const response = await fetch(webPath("/api/admin/settings"), {
@@ -474,7 +486,15 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     setCredentials({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
     const statusResponse = await fetch(webPath("/api/status"), { cache: "no-store" });
     if (statusResponse.ok) setStatus((await statusResponse.json()) as AppStatus);
-    if (showToast) setToast(demo ? "Settings updated for this demo session." : "AI & mail settings saved.");
+    if (showToast) {
+      setToast(demo
+        ? "Settings updated for this demo session."
+        : section === "services"
+          ? "AI settings saved."
+          : section === "mailboxes"
+            ? "Global mail policy saved."
+            : "Settings saved.");
+    }
     setSaving(false);
     void refreshAudit();
     return true;
@@ -548,29 +568,38 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   </div>
 
 
-  <div className="admin-panel settings-form-card global-mail-policy-card">
-    <header><span><MailCheck size={18} /></span><div><h3>Global mail policy</h3><p>Rules that apply to sending from every connected account.</p></div></header>
-    <div className="admin-form-grid">
-      <label className="field-wide"><span>Allowed recipient domains (optional)</span><input value={settings.outboundAllowedDomains} onChange={(event) => setSettings({ ...settings, outboundAllowedDomains: event.target.value })} placeholder="r3alm.com, example.com" /><small>Comma-separated. This is the workspace-wide maximum. Individual SMTP accounts cannot broaden it beyond the server environment allowlist.</small></label>
-    </div>
-    <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed from the Connected mailboxes menu.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
-  </div>
-
   <div className="admin-panel service-config-card">
-    <header><span><ShieldCheck size={18} /></span><div><h3>Private service readiness</h3><p>Workspace readiness now reflects the multi-account mail registry.</p></div></header>
+    <header><span><ShieldCheck size={18} /></span><div><h3>AI service readiness</h3><p>Core services required for workspace AI intelligence.</p></div></header>
     {[
       { icon: Database, label: "Supabase database", detail: "Persistent configuration & Vault", ready: status?.database },
-      { icon: Bot, label: "OpenAI credential", detail: "One governed AI provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
-      { icon: MailCheck, label: "Incoming mail", detail: "At least one active IMAP mailbox can be monitored", ready: status?.imap },
-      { icon: MailCheck, label: "Outgoing mail", detail: "At least one connected account can send through SMTP", ready: status?.smtp },
+      { icon: Bot, label: "OpenAI credential", detail: "Governed AI provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
     ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
-    <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console. OpenAI remains a workspace-wide encrypted credential.</p>
+    <p className="service-secret-note"><ShieldCheck size={14} /> The OpenAI API key is stored as a workspace-wide encrypted credential.</p>
   </div>
-</>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI & policy" : "Save settings"}</button></div></section> : null}
-          {!loading && section === "mailboxes" ? (
+</>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI settings" : "Save settings"}</button></div></section> : null}
+          {!loading && section === "mailboxes" && settings ? (
             <section className="admin-mailboxes-page">
               <div className="admin-mail-accounts">
                 <MailAccountsManager onAccountsChanged={refreshServiceState} />
+              </div>
+              <div className="admin-panel settings-form-card global-mail-policy-card">
+                <header><span><MailCheck size={18} /></span><div><h3>Global mail policy</h3><p>Rules that apply to sending from every connected account.</p></div></header>
+                <div className="admin-form-grid">
+                  <label className="field-wide"><span>Allowed recipient domains (optional)</span><input value={settings.outboundAllowedDomains} onChange={(event) => setSettings({ ...settings, outboundAllowedDomains: event.target.value })} placeholder="r3alm.com, example.com" /><small>Comma-separated. This is the workspace-wide maximum. Individual SMTP accounts cannot broaden it beyond the server environment allowlist.</small></label>
+                </div>
+                <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed above.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
+              </div>
+              <div className="admin-panel service-config-card mailbox-readiness-card">
+                <header><span><ShieldCheck size={18} /></span><div><h3>Mailbox readiness</h3><p>Connection readiness across the multi-account mail registry.</p></div></header>
+                {[
+                  { icon: MailCheck, label: "Incoming mail", detail: "At least one active IMAP mailbox can be monitored", ready: status?.imap },
+                  { icon: MailCheck, label: "Outgoing mail", detail: "At least one connected account can send through SMTP", ready: status?.smtp },
+                ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
+                <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console.</p>
+              </div>
+              <div className="settings-save-bar">
+                <span>{demo ? "Changes are simulated in this preview." : "Global mail policy is stored in the workspace database."}</span>
+                <button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} Save mail policy</button>
               </div>
             </section>
           ) : null}
