@@ -138,6 +138,7 @@ export function InboxWorkspace({
   const mailListRef = useRef<HTMLDivElement | null>(null);
 
   const selectedHasPlainText = Boolean(selected?.hasPlainTextBody ?? selected?.body?.trim());
+  const selectedHasSecureHtml = Boolean(selected?.safeHtmlBody);
   const selectedHasSecureHtmlFallback = Boolean(selected && !selectedHasPlainText && selected.safeHtmlBody);
   const remoteImagesAvailable = Boolean(selected?.safeHtmlBody?.includes("data-remote-src="));
 
@@ -431,7 +432,7 @@ export function InboxWorkspace({
             </div>
             {viewerTab === "message" ? (
               <div className="message-body-region" role="tabpanel" aria-label="Message">
-                {selectedHasSecureHtmlFallback ? (
+                {selectedHasSecureHtml && selectedHasPlainText ? (
                   <div className="message-body-tabs" role="tablist" aria-label="Message body format">
                     <button
                       type="button"
@@ -454,7 +455,7 @@ export function InboxWorkspace({
                     <span>Scripts, forms, links, and direct network access blocked</span>
                   </div>
                 ) : null}
-                {selectedHasSecureHtmlFallback && bodyView === "html" && selected.safeHtmlBody ? (
+                {selectedHasSecureHtml && bodyView === "html" && selected.safeHtmlBody ? (
                   <div className="secure-html-message">
                     <div className="secure-html-notice">
                       <div>
