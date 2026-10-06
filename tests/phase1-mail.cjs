@@ -12,7 +12,7 @@ function fixtures(options = {}) {
     async messageFlagsAdd() { return this.operation(); }
     async messageFlagsRemove() { return this.operation(); }
     async messageMove() { return this.operation(); }
-    async fetchOne(uid, what) { if(what.source) rawFetches++; return {uid, size:40_000_000, source:Buffer.from('test'), envelope:{from:[{address:'source@example.test'}]}, flags:new Set()}; }
+    async fetchOne(uid, what) { if(what.source) rawFetches++; return {uid, size:options.messageSize ?? 40_000_000, source:Buffer.from('test'), envelope:{from:[{address:'source@example.test'}]}, flags:new Set()}; }
     async list() { return [{path:'Sent',specialUse:'\\Sent'}]; }
     async append() { return options.appendFalse ? false : {uid:55}; }
   }
@@ -46,8 +46,13 @@ test('browser send blocks recipients outside the configured domain before SMTP',
   await assert.rejects(loadModule('src/lib/mail.ts',f.overrides).sendMail({to:'outside@blocked.test',subject:'Test',text:'Test'}));
   assert.equal(f.sends(),0);
 });
+test('browser read permits raw MIME sized for the 25 MB attachment policy',async()=>{
+  const f=fixtures({messageSize:40_000_000});
+  await loadModule('src/lib/mail.ts',f.overrides).getMail(1);
+  assert.equal(f.rawFetches(),1);
+});
 test('browser read rejects oversized metadata before fetching raw MIME',async()=>{
-  const f=fixtures();
+  const f=fixtures({messageSize:60_000_000});
   await assert.rejects(loadModule('src/lib/mail.ts',f.overrides).getMail(1));
   assert.equal(f.rawFetches(),0);
 });
