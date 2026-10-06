@@ -4,18 +4,35 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Activity Center alert feed scans every active mailbox independently", () => {
+test("Activity Center alert feed uses bounded recent-message scans across every active mailbox", () => {
   const route = read("src/app/api/alerts/route.ts");
+  const mail = read("src/lib/mail.ts");
+  const client = read("src/mail/client.ts");
+  const dashboard = read("src/components/mail-dashboard.tsx");
   const alerts = read("src/lib/alerts.ts");
 
   assert.match(route, /listActiveMailAccounts/);
-  assert.match(route, /const folders = \["INBOX", "INBOX\.Sent"\] as const/);
-  assert.match(route, /Promise\.allSettled/);
+  assert.match(route, /listAlertMessages\(account\.id, 30\)/);
   assert.match(route, /const concurrency = 4/);
   assert.match(route, /activeAccounts\.slice\(index, index \+ concurrency\)/);
+  assert.match(route, /maxDuration = 90/);
+  assert.match(route, /\[alerts\] slow mailbox scan/);
+  assert.match(route, /\[alerts\] refresh complete/);
   assert.match(route, /Mailbox monitoring failed/);
   assert.match(route, /Mailbox monitoring is partially available/);
   assert.match(route, /coverage:/);
+  assert.doesNotMatch(route, /listMail\(/);
+
+  assert.match(mail, /export async function listAlertMessages/);
+  assert.match(mail, /listRecentMessagesByFolders/);
+  assert.match(client, /async listRecentMessagesByFolders/);
+  assert.match(client, /const range = exists > limit \? `\*:-\$\{limit\}` : '1:\*'/);
+  assert.match(client, /getMailboxLock\(folder, \{ readOnly: true \}\)/);
+  assert.match(client, /25_000/);
+  assert.doesNotMatch(client.match(/async listRecentMessagesByFolders[\s\S]*?\n  }\n\n  async listMessagesPage/)?.[0] || "", /client\.search/);
+
+  assert.match(dashboard, /loadData\("INBOX", "all"\)\.then/);
+  assert.match(dashboard, /if \(!cancelled\) return loadAlerts\(\)/);
 
   assert.match(alerts, /accountId\?: string/);
   assert.match(alerts, /accountLabel\?: string/);
