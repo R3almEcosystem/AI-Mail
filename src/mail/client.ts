@@ -1,7 +1,7 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
-import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection } from '../security/attachment-scan.js';
+import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection, type AttachmentPolicy } from '../security/attachment-scan.js';
 import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
@@ -326,7 +326,7 @@ export class MailGateway {
       return results.sort((a, b) => b.uid - a.uid);
     });
   }
-  async getMessageWithAttachments(folder: string, uid: number): Promise<{
+  async getMessageWithAttachments(folder: string, uid: number, policy: AttachmentPolicy = attachmentPolicyFromEnv()): Promise<{
     message: ParsedMessage;
     attachmentSources: AttachmentSource[];
     uidValidity: string | null;
@@ -379,7 +379,7 @@ export class MailGateway {
     });
 
     // Release the IMAP lock and connection before any third-party inspection or persistence.
-    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, attachmentPolicyFromEnv());
+    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, policy);
     return {
       message: { ...loaded.message, attachmentInspection },
       attachmentSources: loaded.attachmentSources,
