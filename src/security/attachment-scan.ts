@@ -16,7 +16,7 @@ export interface AttachmentScanner {
 export interface AttachmentPolicy {
   mode: 'disabled' | 'required'; scanner?: AttachmentScanner; configurationError?: boolean; timeoutMs?: number;
 }
-export const ATTACHMENT_LIMITS = Object.freeze({ maxBytes: 1_048_576, maxTotalBytes: 4_194_304, maxFiles: 4, timeoutMs: 25_000 });
+export const ATTACHMENT_LIMITS = Object.freeze({ maxBytes: 10_485_760, maxTotalBytes: 26_214_400, maxFiles: 10, timeoutMs: 45_000 });
 export const SCAN_FLAGS = [
   'ContainsExecutable', 'ContainsInvalidFile', 'ContainsScript', 'ContainsPasswordProtectedFile',
   'ContainsMacros', 'ContainsUnsafeArchive', 'ContainsXmlExternalEntities', 'ContainsInsecureDeserialization',
