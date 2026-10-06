@@ -2432,14 +2432,42 @@ button[aria-label]:disabled::after {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 18px;
+  gap: 10px;
+  padding: 7px 18px;
   color: #55705f;
   background: #f0f8f3;
   border-bottom: 1px solid #dcece2;
 }
+.secure-html-notice > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .secure-html-notice strong { color: #2f7154; font-size: 7px; }
-.secure-html-notice span { color: #72877a; font-size: 6px; }
+.secure-html-notice span { color: #72877a; font-size: 6px; line-height: 1.4; }
+.secure-html-notice button {
+  min-height: 28px;
+  margin-left: auto;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 9px;
+  color: #2f7154;
+  background: #fff;
+  border: 1px solid #cfe1d5;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 7px;
+  font-weight: 800;
+}
+.secure-html-notice button:hover:not(:disabled) { background: #f8fcf9; border-color: #bcd6c5; }
+.secure-html-notice button:disabled { cursor: wait; opacity: .65; }
+.secure-html-image-error {
+  margin: 0;
+  padding: 8px 18px;
+  color: #9a4b4b;
+  background: #fff7f7;
+  border-bottom: 1px solid #efdcdc;
+  font-size: 7px;
+  line-height: 1.45;
+}
 .secure-html-frame {
   width: 100%;
   min-height: 0;
@@ -2487,6 +2515,8 @@ button[aria-label]:disabled::after {
     min-height: 360px;
     height: 62vh;
   }
+  .secure-html-notice { align-items: flex-start; flex-wrap: wrap; padding: 8px 12px; }
+  .secure-html-notice button { margin-left: 0; }
   .secure-html-frame { min-height: 0; }
   .message-actions {
     gap: 6px;
