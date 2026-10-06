@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 async function loadRemoteImages() {
   try {
     return await import('../../src/lib/remote-email-images.ts');
-  } catch {
-    assert.fail('remote email image loader is not implemented');
+  } catch (error) {
+    assert.fail('remote email image loader import failed: ' + (error instanceof Error ? error.message : String(error)));
   }
 }
 
