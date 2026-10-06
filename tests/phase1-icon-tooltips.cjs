@@ -29,7 +29,7 @@ test("icon-only controls expose accessible labels used by global tooltips", () =
     "More message actions",
     "Open alerts",
     "Attach file",
-    "Write with AI",
+    "Write with S.I.",
     "Open navigation",
     "Close navigation",
     "Refresh available OpenAI models",
