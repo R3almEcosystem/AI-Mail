@@ -128,6 +128,7 @@ export function InboxWorkspace({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [bodyView, setBodyView] = useState<"text" | "html">("text");
+  const [viewerTab, setViewerTab] = useState<"message" | "attachments" | "security">("message");
   const [attachmentAnalysis, setAttachmentAnalysis] = useState<Record<string, { loading: boolean; text?: string; error?: string }>>({});
   const mailListRef = useRef<HTMLDivElement | null>(null);
 
@@ -138,6 +139,7 @@ export function InboxWorkspace({
     setTagMenuOpen(false);
     setMoreMenuOpen(false);
     setDetailsOpen(false);
+    setViewerTab("message");
     setBodyView(selectedHasSecureHtmlFallback ? "html" : "text");
     setAttachmentAnalysis({});
   }, [selected?.accountId, selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
@@ -379,101 +381,116 @@ export function InboxWorkspace({
                 </dl>
               ) : null}
             </header>
-            <div className="message-body-region">
-              <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
-              {selectedHasSecureHtmlFallback ? (
-                <div className="message-body-tabs" role="tablist" aria-label="Message body format">
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={bodyView === "text"}
-                    className={bodyView === "text" ? "active" : ""}
-                    onClick={() => setBodyView("text")}
-                  >
-                    Plain text
-                  </button>
-                  <button
-                    type="button"
-                    role="tab"
-                    aria-selected={bodyView === "html"}
-                    className={bodyView === "html" ? "active" : ""}
-                    onClick={() => setBodyView("html")}
-                  >
-                    Secure HTML
-                  </button>
-                  <span>Scripts, forms, remote images, links, and network access blocked</span>
-                </div>
-              ) : null}
-              {selectedHasSecureHtmlFallback && bodyView === "html" && selected.safeHtmlBody ? (
-                <div className="secure-html-message">
-                  <div className="secure-html-notice">
-                    <strong>Protected HTML view</strong>
-                    <span>Active content and external tracking resources are disabled.</span>
-                  </div>
-                  <iframe
-                    className="secure-html-frame"
-                    title={`Secure HTML body for ${selected.subject}`}
-                    sandbox=""
-                    referrerPolicy="no-referrer"
-                    srcDoc={selected.safeHtmlBody}
-                  />
-                </div>
-              ) : (
-                <div className="message-body">
-                  {selectedHasPlainText ? (
-                    (selected.body || selected.preview).split("\n").map((paragraph, index) => (
-                      <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>
-                    ))
-                  ) : (
-                    <div className="message-body-unavailable">
-                      <MailOpen size={22} />
-                      <strong>No plain-text body</strong>
-                      <span>{selected.safeHtmlBody ? "Use the Secure HTML tab to view this message." : "This message does not contain a displayable plain-text or HTML body."}</span>
-                    </div>
-                  )}
-                </div>
-              )}
+            <div className="message-viewer-tabs" role="tablist" aria-label="Message viewer">
+              <button type="button" role="tab" aria-selected={viewerTab === "message"} className={viewerTab === "message" ? "active" : ""} onClick={() => setViewerTab("message")}>Message</button>
+              <button type="button" role="tab" aria-selected={viewerTab === "attachments"} className={viewerTab === "attachments" ? "active" : ""} onClick={() => setViewerTab("attachments")}>Attachments <span>{selected.attachmentFiles?.length ?? selected.attachments ?? 0}</span></button>
+              <button type="button" role="tab" aria-selected={viewerTab === "security"} className={viewerTab === "security" ? "active" : ""} onClick={() => setViewerTab("security")}>Security Review</button>
             </div>
-            {selected.attachmentFiles?.length ? (
-              <section className="message-attachments" aria-label="Email attachments">
+            {viewerTab === "message" ? (
+              <div className="message-body-region" role="tabpanel" aria-label="Message">
+                {selectedHasSecureHtmlFallback ? (
+                  <div className="message-body-tabs" role="tablist" aria-label="Message body format">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={bodyView === "text"}
+                      className={bodyView === "text" ? "active" : ""}
+                      onClick={() => setBodyView("text")}
+                    >
+                      Plain text
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={bodyView === "html"}
+                      className={bodyView === "html" ? "active" : ""}
+                      onClick={() => setBodyView("html")}
+                    >
+                      Secure HTML
+                    </button>
+                    <span>Scripts, forms, remote images, links, and network access blocked</span>
+                  </div>
+                ) : null}
+                {selectedHasSecureHtmlFallback && bodyView === "html" && selected.safeHtmlBody ? (
+                  <div className="secure-html-message">
+                    <div className="secure-html-notice">
+                      <strong>Protected HTML view</strong>
+                      <span>Active content and external tracking resources are disabled.</span>
+                    </div>
+                    <iframe
+                      className="secure-html-frame"
+                      title={`Secure HTML body for ${selected.subject}`}
+                      sandbox=""
+                      referrerPolicy="no-referrer"
+                      srcDoc={selected.safeHtmlBody}
+                    />
+                  </div>
+                ) : (
+                  <div className="message-body">
+                    {selectedHasPlainText ? (
+                      (selected.body || selected.preview).split("\n").map((paragraph, index) => (
+                        <p key={`${selected.uid}-${index}`}>{paragraph || "\u00a0"}</p>
+                      ))
+                    ) : (
+                      <div className="message-body-unavailable">
+                        <MailOpen size={22} />
+                        <strong>No plain-text body</strong>
+                        <span>{selected.safeHtmlBody ? "Use the Secure HTML tab to view this message." : "This message does not contain a displayable plain-text or HTML body."}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : null}
+            {viewerTab === "attachments" ? (
+              <section className="message-viewer-panel message-attachments" aria-label="Attachments" role="tabpanel">
                 <div className="message-attachments-heading">
                   <div><Paperclip size={16} /><span><strong>Attachments</strong><small>Stored in the private S.I.-Mail attachment vault</small></span></div>
-                  <b>{selected.attachmentFiles.length}</b>
+                  <b>{selected.attachmentFiles?.length ?? selected.attachments ?? 0}</b>
                 </div>
-                <div className="message-attachment-list">
-                  {selected.attachmentFiles.map((attachment) => {
-                    const analysis = attachmentAnalysis[attachment.id];
-                    const ready = attachment.analysisAllowed && attachment.scanStatus === "clean" && attachment.vaultState === "available";
-                    return (
-                      <article className={ready ? "message-attachment-card message-attachment-card--ready" : "message-attachment-card"} key={attachment.id}>
-                        <div className="message-attachment-main">
-                          <span className="message-attachment-icon"><FileText size={18} /></span>
-                          <div>
-                            <strong>{attachment.filename}</strong>
-                            <small>{attachment.mimeType} · {formatAttachmentSize(attachment.bytes)}</small>
-                            <span>{ready ? "Security scan passed · S.I. analysis available" : attachment.scanStatus === "blocked" ? "Quarantined · security policy blocked this file" : attachment.scanStatus === "error" ? "Quarantined · inspection incomplete" : "Quarantined · attachment scanning not enabled"}</span>
+                {selected.attachmentFiles?.length ? (
+                  <div className="message-attachment-list">
+                    {selected.attachmentFiles.map((attachment) => {
+                      const analysis = attachmentAnalysis[attachment.id];
+                      const ready = attachment.analysisAllowed && attachment.scanStatus === "clean" && attachment.vaultState === "available";
+                      return (
+                        <article className={ready ? "message-attachment-card message-attachment-card--ready" : "message-attachment-card"} key={attachment.id}>
+                          <div className="message-attachment-main">
+                            <span className="message-attachment-icon"><FileText size={18} /></span>
+                            <div>
+                              <strong>{attachment.filename}</strong>
+                              <small>{attachment.mimeType} · {formatAttachmentSize(attachment.bytes)}</small>
+                              <span>{ready ? "Security scan passed · S.I. analysis available" : attachment.scanStatus === "blocked" ? "Quarantined · security policy blocked this file" : attachment.scanStatus === "error" ? "Quarantined · inspection incomplete" : "Quarantined · attachment scanning not enabled"}</span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="message-attachment-actions">
-                          <a
-                            className={ready ? "secondary-button" : "secondary-button disabled"}
-                            href={ready ? webPath(`/api/attachments/${attachment.id}`) : undefined}
-                            aria-disabled={!ready}
-                            onClick={(event) => { if (!ready) event.preventDefault(); }}
-                          ><Download size={14} /> Download</a>
-                          <button type="button" className="secondary-button" disabled={!ready || !aiConfigured || analysis?.loading} onClick={() => void analyzeAttachment(attachment.id)}>
-                            {analysis?.loading ? <LoaderCircle className="spin" size={14} /> : <Sparkles size={14} />} Analyze with S.I.
-                          </button>
-                        </div>
-                        {analysis?.text ? <pre className="message-attachment-analysis">{analysis.text}</pre> : null}
-                        {analysis?.error ? <p className="message-attachment-error">{analysis.error}</p> : null}
-                      </article>
-                    );
-                  })}
-                </div>
+                          <div className="message-attachment-actions">
+                            <a
+                              className={ready ? "secondary-button" : "secondary-button disabled"}
+                              href={ready ? webPath(`/api/attachments/${attachment.id}`) : undefined}
+                              aria-disabled={!ready}
+                              onClick={(event) => { if (!ready) event.preventDefault(); }}
+                            ><Download size={14} /> Download</a>
+                            <button type="button" className="secondary-button" disabled={!ready || !aiConfigured || analysis?.loading} onClick={() => void analyzeAttachment(attachment.id)}>
+                              {analysis?.loading ? <LoaderCircle className="spin" size={14} /> : <Sparkles size={14} />} Analyze with S.I.
+                            </button>
+                          </div>
+                          {analysis?.text ? <pre className="message-attachment-analysis">{analysis.text}</pre> : null}
+                          {analysis?.error ? <p className="message-attachment-error">{analysis.error}</p> : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                ) : selected.attachments ? (
+                  <div className="message-attachment-pending"><Paperclip size={15} /><span>Attachment metadata is available, but no vault record was created. Open again after attachment inspection/storage is configured.</span></div>
+                ) : (
+                  <div className="message-attachment-empty"><Paperclip size={22} /><strong>No attachments</strong><span>This message does not contain any attachments.</span></div>
+                )}
               </section>
-            ) : selected.attachments ? (
-              <div className="message-attachment-pending"><Paperclip size={15} /><span>Attachment metadata is available, but no vault record was created. Open again after attachment inspection/storage is configured.</span></div>
+            ) : null}
+            {viewerTab === "security" ? (
+              <section className="message-viewer-panel message-security-review" role="tabpanel" aria-label="Security Review">
+                <MessageSecurityPanel assessment={selected.security} inspection={selected.attachmentInspection} demo={demo} />
+              </section>
             ) : null}
             <div className="message-actions">
               {!sentMode ? <button type="button" className="secondary-button" onClick={onCompose}><Reply size={16} /> Reply</button> : null}
