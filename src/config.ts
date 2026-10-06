@@ -148,7 +148,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env) {
     },
     limits: {
       maxMessageBodyChars: data.MAX_MESSAGE_BODY_CHARS,
-      maxRawMessageBytes: data.MAX_RAW_MESSAGE_BYTES,
+      maxRawMessageBytes: Math.max(data.MAX_RAW_MESSAGE_BYTES, 40_000_000),
       maxSearchResults: data.MAX_SEARCH_RESULTS,
       maxRecipients: data.MAX_RECIPIENTS,
       outboundAllowedDomains
