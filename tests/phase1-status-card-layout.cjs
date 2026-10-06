@@ -42,7 +42,7 @@ test("readiness checklist entries expand into detailed configuration state", () 
   assert.ok(view.includes('Required'));
   assert.ok(view.includes('Use Test IMAP'));
   assert.ok(view.includes('Use Test SMTP'));
-  assert.ok(view.includes('Admin → AI & Mail Settings'));
+  assert.ok(view.includes('Admin → S.I. Settings'));
   assert.ok(view.includes('Review users, roles, and MFA policy'));
   assert.ok(css.includes(".status-row[open] .status-row-chevron"));
   assert.ok(css.includes(".status-row-detail-panel"));
