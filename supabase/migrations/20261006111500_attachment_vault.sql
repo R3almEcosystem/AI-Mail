@@ -1,22 +1,30 @@
 -- S.I.-Mail attachment vault, quarantine, provenance, analysis, and retrieval index.
 -- Applied live to Supabase project cvrihauikkflnvunmvma on 2026-10-06 before this file was committed.
 
-insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values
-  ('si-mail-attachments', 'si-mail-attachments', false, 26214400, array[
-    'application/pdf','text/plain','text/csv','application/json','application/xml','text/xml',
-    'image/png','image/jpeg','image/webp',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'application/msword','application/vnd.ms-excel','application/vnd.ms-powerpoint',
-    'application/octet-stream'
-  ]::text[]),
-  ('si-mail-quarantine', 'si-mail-quarantine', false, 26214400, null)
-on conflict (id) do update
-set public = excluded.public,
-    file_size_limit = excluded.file_size_limit,
-    allowed_mime_types = excluded.allowed_mime_types;
+do $attachment_buckets$
+begin
+  if to_regclass('storage.buckets') is not null then
+    execute $bucket_sql$
+      insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+      values
+        ('si-mail-attachments', 'si-mail-attachments', false, 26214400, array[
+          'application/pdf','text/plain','text/csv','application/json','application/xml','text/xml',
+          'image/png','image/jpeg','image/webp',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          'application/msword','application/vnd.ms-excel','application/vnd.ms-powerpoint',
+          'application/octet-stream'
+        ]::text[]),
+        ('si-mail-quarantine', 'si-mail-quarantine', false, 26214400, null)
+      on conflict (id) do update
+      set public = excluded.public,
+          file_size_limit = excluded.file_size_limit,
+          allowed_mime_types = excluded.allowed_mime_types
+    $bucket_sql$;
+  end if;
+end
+$attachment_buckets$;
 
 create table if not exists private.ai_mail_attachment_blobs (
   id uuid primary key default gen_random_uuid(),
