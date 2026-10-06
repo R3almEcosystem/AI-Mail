@@ -79,3 +79,20 @@ test("attachment UI exposes vault state, safe download, and Analyze with S.I.", 
   assert.match(css, /\.message-attachments/);
   assert.match(css, /\.message-attachment-analysis/);
 });
+
+
+test("Connected mailboxes manages fail-closed attachment scanning policy and encrypted scanner key", () => {
+  const settingsRoute = read("src/app/api/admin/settings/route.ts");
+  const serviceTest = read("src/app/api/admin/services/test/route.ts");
+  const policy = read("src/lib/attachment-policy.ts");
+  const secrets = read("src/lib/service-secrets.ts");
+
+  assert.match(settingsRoute, /attachmentScanningRequired: z\.boolean\(\)/);
+  assert.match(settingsRoute, /cloudmersiveApiKey/);
+  assert.match(settingsRoute, /ai_mail_cloudmersive_api_key/);
+  assert.match(serviceTest, /"attachment"/);
+  assert.match(serviceTest, /inspectAttachments/);
+  assert.match(policy, /settings\.attachmentScanningRequired/);
+  assert.match(policy, /getServiceSecret\("ai_mail_cloudmersive_api_key"\)/);
+  assert.match(secrets, /cloudmersiveApiKey/);
+});
