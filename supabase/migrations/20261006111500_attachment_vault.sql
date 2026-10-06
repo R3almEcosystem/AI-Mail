@@ -62,6 +62,11 @@ create table if not exists private.ai_mail_message_attachments (
   uid bigint not null check (uid between 1 and 4294967295),
   uid_validity text,
   message_id text,
+  message_subject text,
+  sender_email text,
+  to_emails text[] not null default '{}'::text[],
+  cc_emails text[] not null default '{}'::text[],
+  message_date timestamptz,
   attachment_index integer not null check (attachment_index >= 0 and attachment_index < 100),
   filename text not null,
   mime_type text not null,
@@ -78,6 +83,10 @@ create index if not exists ai_mail_message_attachment_message_idx
   on private.ai_mail_message_attachments(account_id, folder, uid);
 create index if not exists ai_mail_message_attachment_blob_idx
   on private.ai_mail_message_attachments(blob_id);
+create index if not exists ai_mail_message_attachment_sender_idx
+  on private.ai_mail_message_attachments(lower(sender_email), message_date desc);
+create index if not exists ai_mail_message_attachment_date_idx
+  on private.ai_mail_message_attachments(message_date desc);
 
 create table if not exists private.ai_mail_attachment_chunks (
   id bigserial primary key,
