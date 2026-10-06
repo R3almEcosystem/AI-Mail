@@ -8,6 +8,7 @@ import { apiError, privateHeaders } from "@/lib/api-error";
 
 const credentialsSchema = z.object({
   openaiApiKey: z.string().min(20).max(4096).optional(),
+  cloudmersiveApiKey: z.string().min(8).max(4096).optional(),
   imapPassword: z.string().min(1).max(4096).optional(),
   smtpPassword: z.string().min(1).max(4096).optional(),
 }).optional();
@@ -32,6 +33,7 @@ const settingsSchema = z.object({
   smtpFrom: z.string().trim().min(1).max(320),
   mailArchiveFolder: z.string().trim().min(1).max(255).refine((value) => !/[\u0000-\u001f\u007f]/u.test(value), "Invalid archive folder"),
   outboundAllowedDomains: z.string().max(4000).refine((value) => value.split(",").every((entry) => !entry.trim() || /^[a-z0-9.-]+$/i.test(entry.trim())), "Invalid recipient domain list"),
+  attachmentScanningRequired: z.boolean(),
   requireMfa: z.boolean(),
   sessionTimeoutMinutes: z.number().int().min(15).max(10080),
   allowDemoLogin: z.boolean(),
@@ -68,6 +70,10 @@ export async function PATCH(request: Request) {
     if (credentials?.openaiApiKey) {
       await setServiceSecret("ai_mail_openai_api_key", credentials.openaiApiKey, "AI-Mail OpenAI API key");
       changedSecrets.push("OpenAI API key");
+    }
+    if (credentials?.cloudmersiveApiKey) {
+      await setServiceSecret("ai_mail_cloudmersive_api_key", credentials.cloudmersiveApiKey, "S.I.-Mail Cloudmersive attachment scanning API key");
+      changedSecrets.push("Attachment scanning API key");
     }
     if (credentials?.imapPassword) {
       await setServiceSecret("ai_mail_imap_password", credentials.imapPassword, "AI-Mail IMAP password");
