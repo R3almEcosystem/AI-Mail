@@ -594,8 +594,10 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                 {[
                   { icon: MailCheck, label: "Incoming mail", detail: "At least one active IMAP mailbox can be monitored", ready: status?.imap },
                   { icon: MailCheck, label: "Outgoing mail", detail: "At least one connected account can send through SMTP", ready: status?.smtp },
+                  { icon: Database, label: "Attachment vault", detail: status?.attachmentVault?.storageApiConfigured ? "Private Supabase Storage with database provenance" : "Private vault with server-only database fallback", ready: status?.attachmentVault?.bucketsReady },
+                  { icon: ShieldCheck, label: "Attachment scanning", detail: status?.attachmentScanning?.provider ? "Required scan provider: " + status.attachmentScanning.provider : "Required scanning must be enabled before S.I. can analyze files", ready: Boolean(status?.attachmentScanning?.required && status?.attachmentScanning?.configured) },
                 ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
-                <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console.</p>
+                <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account. Attachment bytes remain server-side, are quarantined until eligible, and are never returned through normal message APIs.</p>
               </div>
               <div className="settings-save-bar">
                 <span>{demo ? "Changes are simulated in this preview." : "Global mail policy is stored in the workspace database."}</span>
