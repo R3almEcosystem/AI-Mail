@@ -20,7 +20,7 @@ function accountFailureAlert(account: MailAccountSummary, reason: unknown): Aler
     id: "mailbox-monitor:" + account.id,
     title: "Mailbox monitoring failed",
     summary: account.label + " could not be scanned for Activity Center alerts.",
-    detail: "AI-Mail could not refresh Inbox/Sent alerts for this mailbox. Review the account connection and use Test IMAP. Diagnostic code: " + code.slice(0, 120),
+    detail: "S.I.-Mail could not refresh Inbox/Sent alerts for this mailbox. Review the account connection and use Test IMAP. Diagnostic code: " + code.slice(0, 120),
     source: "Mailbox monitor",
     time: "Now",
     severity: "critical",
