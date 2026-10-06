@@ -27,7 +27,7 @@ export function MessageSecurityPanel({ assessment, inspection, demo = false }: {
       <div className={styles.body}>
         <p>{highRisk ? "Do not open links or attachments until independently reviewed. This message has not been quarantined."
           : "Local indicators and file scans are not a guarantee of safety. Verify unexpected requests through a separate, trusted channel."}</p>
-        {scan?.status === "error" ? <p role="status">Required attachment inspection did not complete. AI processing is withheld; reading this text does not release any attachment.</p> : null}
+        {scan?.status === "error" ? <p role="status">Required attachment inspection did not complete. S.I. processing is withheld; reading this text does not release any attachment.</p> : null}
         {findings.length > 0 ? (
           <details className={styles.findings} open={highRisk}>
             <summary>{findings.length} security {findings.length === 1 ? "finding" : "findings"}</summary>
