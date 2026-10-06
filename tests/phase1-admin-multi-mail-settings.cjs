@@ -26,7 +26,7 @@ test("Admin separates S.I. settings from Connected mailboxes and mail policy", (
   assert.match(admin, /Save &amp; test scanner/);
   assert.match(admin, /<h3>S\.I\. service readiness<\/h3>/);
   assert.match(admin, /Save mail &amp; attachment policy/);
-  assert.match(admin, /Global mail policy saved\./);
+  assert.match(admin, /Mail and attachment policy saved\\./);
   assert.match(admin, /managed above/);
 
   assert.match(admin, /At least one active IMAP mailbox can be monitored/);
