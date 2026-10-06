@@ -50,6 +50,8 @@
   "packageManager": "npm@10.9.2",
   "overrides": {
     "undici": "7.30.0",
-    "ip-address": "10.7.3"
+    "ip-address": "10.7.3",
+    "proxy-addr": "2.0.8",
+    "source-map-js": "1.2.2"
   }
 }
