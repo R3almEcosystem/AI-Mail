@@ -1,8 +1,6 @@
 -- S.I.-Mail attachment vault, quarantine, provenance, analysis, and retrieval index.
 -- Applied live to Supabase project cvrihauikkflnvunmvma on 2026-10-06 before this file was committed.
 
-create extension if not exists vector with schema extensions;
-
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   ('si-mail-attachments', 'si-mail-attachments', false, 26214400, array[
@@ -80,7 +78,6 @@ create table if not exists private.ai_mail_attachment_chunks (
   page_label text,
   content text not null,
   content_tsv tsvector generated always as (to_tsvector('english', content)) stored,
-  embedding extensions.vector(1536),
   created_at timestamptz not null default now(),
   unique(blob_id, chunk_index)
 );
@@ -119,3 +116,13 @@ revoke all on table private.ai_mail_message_attachments from public, anon, authe
 revoke all on table private.ai_mail_attachment_chunks from public, anon, authenticated;
 revoke all on table private.ai_mail_attachment_analysis from public, anon, authenticated;
 revoke all on sequence private.ai_mail_attachment_chunks_id_seq from public, anon, authenticated;
+
+-- pgvector is available in Supabase but not in the repository's bare-Postgres test harness.
+-- Enable the semantic-search column only when the extension exists on the target server.
+do $$
+begin
+  if exists (select 1 from pg_available_extensions where name = 'vector') then
+    execute 'create extension if not exists vector with schema extensions';
+    execute 'alter table private.ai_mail_attachment_chunks add column if not exists embedding extensions.vector(1536)';
+  end if;
+end $$;
