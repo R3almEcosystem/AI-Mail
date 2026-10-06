@@ -19,6 +19,8 @@ test("Admin separates AI settings from Connected mailboxes and mail policy", () 
   assert.match(admin, /section === "mailboxes" && settings/);
   assert.match(admin, /MailAccountsManager onAccountsChanged={refreshServiceState}/);
   assert.match(admin, /<h3>Global mail policy<\/h3>/);
+  assert.match(admin, /<h3>Mailbox readiness<\/h3>/);
+  assert.match(admin, /<h3>AI service readiness<\/h3>/);
   assert.match(admin, /Save mail policy/);
   assert.match(admin, /Global mail policy saved\./);
   assert.match(admin, /managed above/);
@@ -36,6 +38,7 @@ test("Admin separates AI settings from Connected mailboxes and mail policy", () 
   assert.match(css, /\.admin-mail-accounts/);
   assert.match(css, /grid-column: 1 \/ -1/);
   assert.match(css, /\.admin-mailboxes-page \.global-mail-policy-card/);
+  assert.match(css, /\.admin-mailboxes-page \.mailbox-readiness-card/);
 });
 
 test("AI and mailbox policy saves preserve settings owned by the other page", () => {
