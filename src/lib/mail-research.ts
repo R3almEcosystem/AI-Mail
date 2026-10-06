@@ -46,6 +46,10 @@ type ResearchMessage = Awaited<ReturnType<typeof loadMailResearchMessages>>[numb
   ref: string;
 };
 
+type ResearchAttachment = AttachmentKnowledgeHit & {
+  ref: string;
+};
+
 const SENSITIVE_AI_CODES = new Set([
   "private_key",
   "payment_card",
