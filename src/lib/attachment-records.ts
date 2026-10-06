@@ -220,6 +220,11 @@ export async function persistMessageAttachments(input: {
   uid: number;
   uidValidity?: string | null;
   messageId?: string | null;
+  messageSubject?: string | null;
+  senderEmail?: string | null;
+  toEmails?: string[];
+  ccEmails?: string[];
+  messageDate?: string | null;
   sources: AttachmentSource[];
   inspection: AttachmentInspection;
 }): Promise<PersistedMailAttachment[]> {
@@ -254,6 +259,11 @@ export async function persistMessageAttachments(input: {
           UPDATE private.ai_mail_message_attachments
           SET blob_id = ${blob.id}::uuid,
               message_id = ${input.messageId || null},
+              message_subject = ${input.messageSubject?.slice(0, 1000) || null},
+              sender_email = ${input.senderEmail?.slice(0, 320) || null},
+              to_emails = ${(input.toEmails || []).slice(0, 100)}::text[],
+              cc_emails = ${(input.ccEmails || []).slice(0, 100)}::text[],
+              message_date = ${input.messageDate || null}::timestamptz,
               filename = ${filename},
               mime_type = ${mimeType},
               disposition = ${source.disposition || null},
@@ -265,11 +275,17 @@ export async function persistMessageAttachments(input: {
       } else {
         const inserted = await sql`
           INSERT INTO private.ai_mail_message_attachments (
-            blob_id, account_id, folder, uid, uid_validity, message_id, attachment_index,
+            blob_id, account_id, folder, uid, uid_validity, message_id, message_subject,
+            sender_email, to_emails, cc_emails, message_date, attachment_index,
             filename, mime_type, disposition, content_id, analysis_allowed
           ) VALUES (
             ${blob.id}::uuid, ${input.accountId}, ${input.folder}, ${input.uid},
-            ${input.uidValidity || null}, ${input.messageId || null}, ${index},
+            ${input.uidValidity || null}, ${input.messageId || null},
+            ${input.messageSubject?.slice(0, 1000) || null},
+            ${input.senderEmail?.slice(0, 320) || null},
+            ${(input.toEmails || []).slice(0, 100)}::text[],
+            ${(input.ccEmails || []).slice(0, 100)}::text[],
+            ${input.messageDate || null}::timestamptz, ${index},
             ${filename}, ${mimeType}, ${source.disposition || null}, ${source.contentId || null},
             ${analysisAllowed}
           )
