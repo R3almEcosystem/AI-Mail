@@ -569,14 +569,12 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
 
 
   <div className="admin-panel service-config-card">
-    <header><span><ShieldCheck size={18} /></span><div><h3>Private service readiness</h3><p>Workspace readiness now reflects the multi-account mail registry.</p></div></header>
+    <header><span><ShieldCheck size={18} /></span><div><h3>AI service readiness</h3><p>Core services required for workspace AI intelligence.</p></div></header>
     {[
       { icon: Database, label: "Supabase database", detail: "Persistent configuration & Vault", ready: status?.database },
-      { icon: Bot, label: "OpenAI credential", detail: "One governed AI provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
-      { icon: MailCheck, label: "Incoming mail", detail: "At least one active IMAP mailbox can be monitored", ready: status?.imap },
-      { icon: MailCheck, label: "Outgoing mail", detail: "At least one connected account can send through SMTP", ready: status?.smtp },
+      { icon: Bot, label: "OpenAI credential", detail: "Governed AI provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
     ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
-    <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console. OpenAI remains a workspace-wide encrypted credential.</p>
+    <p className="service-secret-note"><ShieldCheck size={14} /> The OpenAI API key is stored as a workspace-wide encrypted credential.</p>
   </div>
 </>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI settings" : "Save settings"}</button></div></section> : null}
           {!loading && section === "mailboxes" && settings ? (
@@ -590,6 +588,14 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                   <label className="field-wide"><span>Allowed recipient domains (optional)</span><input value={settings.outboundAllowedDomains} onChange={(event) => setSettings({ ...settings, outboundAllowedDomains: event.target.value })} placeholder="r3alm.com, example.com" /><small>Comma-separated. This is the workspace-wide maximum. Individual SMTP accounts cannot broaden it beyond the server environment allowlist.</small></label>
                 </div>
                 <div className="setting-row"><div><strong>Per-account connections</strong><small>IMAP/SMTP hosts, ports, TLS modes, folders, usernames, From addresses, and Vault passwords are managed above.</small></div><span className={status?.imap ? "status-text status-text--ready" : "status-text"}>{status?.imap ? "Mail active" : "Setup required"}</span></div>
+              </div>
+              <div className="admin-panel service-config-card mailbox-readiness-card">
+                <header><span><ShieldCheck size={18} /></span><div><h3>Mailbox readiness</h3><p>Connection readiness across the multi-account mail registry.</p></div></header>
+                {[
+                  { icon: MailCheck, label: "Incoming mail", detail: "At least one active IMAP mailbox can be monitored", ready: status?.imap },
+                  { icon: MailCheck, label: "Outgoing mail", detail: "At least one connected account can send through SMTP", ready: status?.smtp },
+                ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
+                <p className="service-secret-note"><ShieldCheck size={14} /> Mail passwords remain in Supabase Vault per account and are never returned to the Admin Console.</p>
               </div>
               <div className="settings-save-bar">
                 <span>{demo ? "Changes are simulated in this preview." : "Global mail policy is stored in the workspace database."}</span>
