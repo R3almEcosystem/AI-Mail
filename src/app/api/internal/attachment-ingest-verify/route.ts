@@ -6,7 +6,7 @@ import { privateHeaders } from "@/lib/api-error";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const EXPECTED_TOKEN_SHA256 = "ba3940caf81aee9151847ec086ed6d395b062c905d69fc836e331de3272bac37";
+const EXPECTED_TOKEN_SHA256 = "ff92f7e7e7eeecec25fccafe2d42c3dcf5a8a2d4af90c6ab4f14708f6872aab9";
 const BERNIE_ACCOUNT_ID = "8c78cf6e-d247-4796-ad65-233c3da01c81";
 const TARGET_SUBJECT = "Bloodline Killer - The Next Chapter Files";
 const RECEIVED_UID = 2577;
