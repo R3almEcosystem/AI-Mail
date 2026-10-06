@@ -323,6 +323,11 @@ export async function getMail(uid: number, folder = "INBOX", accountId = PRIMARY
         uid,
         uidValidity,
         messageId: message.messageId || null,
+        messageSubject: message.subject,
+        senderEmail: message.from[0]?.address || null,
+        toEmails: message.to.map((entry) => entry.address),
+        ccEmails: message.cc.map((entry) => entry.address),
+        messageDate: message.date || null,
         sources: attachmentSources,
         inspection: message.attachmentInspection,
       });
