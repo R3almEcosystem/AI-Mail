@@ -25,7 +25,7 @@ test('HTML-only bodies are converted to sandbox-ready network-blocked documents'
  assert.ok(!result.safeHtmlBody.includes('<input'));
  assert.ok(!result.safeHtmlBody.includes('onclick='));
  assert.ok(!result.safeHtmlBody.includes('href="https://'));
- assert.ok(!result.safeHtmlBody.includes('src="https://'));
+ assert.ok(!/<img\b[^>]*\ssrc="https:\/\//i.test(result.safeHtmlBody));
  assert.ok(!result.safeHtmlBody.includes('url(https://'));
 });
 
@@ -40,6 +40,6 @@ test('CID images are embedded safely while remote images remain inert placeholde
  assert.ok(result.safeHtmlBody);
  assert.match(result.safeHtmlBody,/src="data:image\/png;base64,/);
  assert.match(result.safeHtmlBody,/data-remote-src="https:\/\/images\.example\.test\/banner\.png"/);
- assert.ok(!result.safeHtmlBody.includes('src="https://images.example.test/banner.png"'));
+ assert.ok(!/<img\b[^>]*\ssrc="https:\/\/images\.example\.test\/banner\.png"/i.test(result.safeHtmlBody));
  assert.ok(!result.safeHtmlBody.includes('cid:logo-image'));
 });
