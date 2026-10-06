@@ -38,7 +38,7 @@ const envSchema = z.object({
   OAUTH_RESOURCE: z.string().url().default(DEFAULT_MCP_RESOURCE),
   OAUTH_ALLOWED_EMAILS: z.string().default('key@r3alm.com'),
   MAX_MESSAGE_BODY_CHARS: z.coerce.number().int().min(1000).max(250000).default(50000),
-  MAX_RAW_MESSAGE_BYTES: z.coerce.number().int().min(100000).max(50000000).default(30000000),
+  MAX_RAW_MESSAGE_BYTES: z.coerce.number().int().min(100000).max(50000000).default(50000000),
   MAX_SEARCH_RESULTS: z.coerce.number().int().min(1).max(100).default(50),
   MAX_RECIPIENTS: z.coerce.number().int().min(1).max(100).default(20),
   OUTBOUND_ALLOWED_DOMAINS: z.string().default('')
