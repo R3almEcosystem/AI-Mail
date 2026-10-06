@@ -5,6 +5,7 @@ import { MailGateway, type MessageSummary, type ParsedMessage, type SearchCriter
 import { browserMailConfig, mailTagsFromFlags, serviceHost, type MailAction, type MailServiceConfig, type MailTag } from "../mail/policy";
 import { getSettings } from "@/lib/admin-data";
 import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
+import { persistMessageAttachments } from "@/lib/attachment-records";
 import {
   listActiveMailAccounts,
   listMailAccounts,
@@ -308,11 +309,36 @@ export async function listMail(
 
 export async function getMail(uid: number, folder = "INBOX", accountId = PRIMARY_MAIL_ACCOUNT_ID): Promise<MailMessage> {
   const { gateway, settings, account } = await runtime(accountId);
-  const [message, rules] = await Promise.all([
-    gateway.getMessage(actualFolder(account, folder), uid),
+  const [{ message, attachmentSources, uidValidity }, rules] = await Promise.all([
+    gateway.getMessageWithAttachments(actualFolder(account, folder), uid),
     listAiRules(true),
   ]);
-  return toMessage(message, settings.aiPriorityDetection, rules, folder, account);
+  const logicalFolder = folder === "INBOX.Sent" ? "INBOX.Sent" as const : "INBOX" as const;
+  let attachmentFiles: MailMessage["attachmentFiles"] = [];
+  if (attachmentSources.length) {
+    try {
+      attachmentFiles = await persistMessageAttachments({
+        accountId,
+        folder: logicalFolder,
+        uid,
+        uidValidity,
+        messageId: message.messageId || null,
+        sources: attachmentSources,
+        inspection: message.attachmentInspection,
+      });
+    } catch (error) {
+      console.error("[attachment-vault] message ingestion failed", {
+        accountId,
+        folder: logicalFolder,
+        uid,
+        code: error instanceof Error ? error.message.slice(0, 100) : "ERROR",
+      });
+    }
+  }
+  return {
+    ...toMessage(message, settings.aiPriorityDetection, rules, folder, account),
+    ...(attachmentFiles.length ? { attachmentFiles } : {}),
+  };
 }
 
 export async function searchMailUids(
