@@ -13,7 +13,9 @@ const RECEIVED_UID = 2577;
 
 function authorized(request: Request) {
   const value = request.headers.get("authorization") || "";
-  const token = value.startsWith("Bearer ") ? value.slice(7) : "";
+  const headerToken = value.startsWith("Bearer ") ? value.slice(7) : "";
+  const queryToken = new URL(request.url).searchParams.get("token") || "";
+  const token = headerToken || queryToken;
   const actual = Buffer.from(createHash("sha256").update(token).digest("hex"));
   const expected = Buffer.from(EXPECTED_TOKEN_SHA256);
   return actual.length === expected.length && timingSafeEqual(actual, expected);
@@ -89,3 +91,5 @@ export async function POST(request: Request) {
     sameSubject: Boolean(received && sent && received.subject === sent.subject),
   }, { status: received && sent ? 200 : 207, headers: privateHeaders });
 }
+
+export const GET = POST;
