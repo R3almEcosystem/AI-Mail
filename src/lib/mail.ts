@@ -6,6 +6,7 @@ import { browserMailConfig, mailTagsFromFlags, serviceHost, type MailAction, typ
 import { getSettings } from "@/lib/admin-data";
 import { evaluateAiRules, listAiRules } from "@/lib/ai-rules";
 import { persistMessageAttachments } from "@/lib/attachment-records";
+import { getAttachmentPolicy } from "@/lib/attachment-policy";
 import {
   listActiveMailAccounts,
   listMailAccounts,
@@ -309,10 +310,15 @@ export async function listMail(
 
 export async function getMail(uid: number, folder = "INBOX", accountId = PRIMARY_MAIL_ACCOUNT_ID): Promise<MailMessage> {
   const { gateway, settings, account } = await runtime(accountId);
-  const [{ message, attachmentSources, uidValidity }, rules] = await Promise.all([
-    gateway.getMessageWithAttachments(actualFolder(account, folder), uid),
+  const [rules, attachmentPolicy] = await Promise.all([
     listAiRules(true),
+    getAttachmentPolicy(),
   ]);
+  const { message, attachmentSources, uidValidity } = await gateway.getMessageWithAttachments(
+    actualFolder(account, folder),
+    uid,
+    attachmentPolicy,
+  );
   const logicalFolder = folder === "INBOX.Sent" ? "INBOX.Sent" as const : "INBOX" as const;
   let attachmentFiles: MailMessage["attachmentFiles"] = [];
   if (attachmentSources.length) {
