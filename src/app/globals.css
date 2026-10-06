@@ -2768,7 +2768,7 @@ button[aria-label]:disabled::after {
 }
 
 
-/* Admin multi-account AI & Mail settings */
+/* Admin connected-mailbox settings */
 .admin-mail-accounts {
   grid-column: 1 / -1;
   min-width: 0;
@@ -2778,6 +2778,9 @@ button[aria-label]:disabled::after {
 }
 .admin-mail-accounts .mail-accounts-manager > header {
   min-height: 78px;
+}
+.admin-mailboxes-page .global-mail-policy-card {
+  margin-top: 13px;
 }
 .global-mail-policy-card .setting-row {
   min-height: 72px;
