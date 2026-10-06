@@ -1,0 +1,26 @@
+name: Refresh dependency lockfile
+on:
+  push:
+    branches: [fix/audit-dependency-blocker]
+permissions:
+  contents: write
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/audit-dependency-blocker
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --quiet -- package-lock.json; then
+            git add package-lock.json
+            git commit -m 'chore: refresh lockfile for patched dependencies'
+            git push origin HEAD:fix/audit-dependency-blocker
+          fi
