@@ -7,9 +7,12 @@ import {
   Bot,
   Check,
   ChevronDown,
+  Download,
+  FileText,
   Inbox,
   Mail,
   MailOpen,
+  LoaderCircle,
   MoreHorizontal,
   Paperclip,
   RefreshCw,
@@ -21,6 +24,7 @@ import {
   Tag,
 } from "lucide-react";
 import type { AiAction, MailAccountSummary, MailMessage, MailTag } from "@/lib/types";
+import { webPath } from "@/lib/web-path";
 import { MessageSecurityPanel } from "./message-security-panel";
 
 const MAIL_TAG_OPTIONS: ReadonlyArray<{ id: MailTag; label: string }> = [
@@ -50,6 +54,12 @@ function formatDate(date: string) {
     hour: "numeric",
     minute: "2-digit",
   }).format(parsed);
+}
+
+function formatAttachmentSize(bytes: number) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(bytes < 10 * 1024 ? 1 : 0) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(bytes < 10 * 1024 * 1024 ? 1 : 0) + " MB";
 }
 
 export function InboxWorkspace({
@@ -118,6 +128,7 @@ export function InboxWorkspace({
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [bodyView, setBodyView] = useState<"text" | "html">("text");
+  const [attachmentAnalysis, setAttachmentAnalysis] = useState<Record<string, { loading: boolean; text?: string; error?: string }>>({});
   const mailListRef = useRef<HTMLDivElement | null>(null);
 
   const selectedHasPlainText = Boolean(selected?.hasPlainTextBody ?? selected?.body?.trim());
@@ -128,7 +139,28 @@ export function InboxWorkspace({
     setMoreMenuOpen(false);
     setDetailsOpen(false);
     setBodyView(selectedHasSecureHtmlFallback ? "html" : "text");
+    setAttachmentAnalysis({});
   }, [selected?.accountId, selected?.folder, selected?.uid, selectedHasSecureHtmlFallback]);
+
+  async function analyzeAttachment(id: string) {
+    if (attachmentAnalysis[id]?.loading) return;
+    setAttachmentAnalysis((current) => ({ ...current, [id]: { loading: true } }));
+    try {
+      const response = await fetch(webPath(`/api/attachments/${id}/analyze`), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const payload = (await response.json().catch(() => null)) as { markdown?: string; error?: string } | null;
+      if (!response.ok || !payload?.markdown) throw new Error(payload?.error || "S.I. could not analyze this attachment.");
+      setAttachmentAnalysis((current) => ({ ...current, [id]: { loading: false, text: payload.markdown } }));
+    } catch (error) {
+      setAttachmentAnalysis((current) => ({
+        ...current,
+        [id]: { loading: false, error: error instanceof Error ? error.message : "S.I. could not analyze this attachment." },
+      }));
+    }
+  }
 
   useEffect(() => {
     const list = mailListRef.current;
@@ -402,6 +434,47 @@ export function InboxWorkspace({
                 </div>
               )}
             </div>
+            {selected.attachmentFiles?.length ? (
+              <section className="message-attachments" aria-label="Email attachments">
+                <div className="message-attachments-heading">
+                  <div><Paperclip size={16} /><span><strong>Attachments</strong><small>Stored in the private S.I.-Mail attachment vault</small></span></div>
+                  <b>{selected.attachmentFiles.length}</b>
+                </div>
+                <div className="message-attachment-list">
+                  {selected.attachmentFiles.map((attachment) => {
+                    const analysis = attachmentAnalysis[attachment.id];
+                    const ready = attachment.analysisAllowed && attachment.scanStatus === "clean" && attachment.vaultState === "available";
+                    return (
+                      <article className={ready ? "message-attachment-card message-attachment-card--ready" : "message-attachment-card"} key={attachment.id}>
+                        <div className="message-attachment-main">
+                          <span className="message-attachment-icon"><FileText size={18} /></span>
+                          <div>
+                            <strong>{attachment.filename}</strong>
+                            <small>{attachment.mimeType} · {formatAttachmentSize(attachment.bytes)}</small>
+                            <span>{ready ? "Security scan passed · S.I. analysis available" : attachment.scanStatus === "blocked" ? "Quarantined · security policy blocked this file" : attachment.scanStatus === "error" ? "Quarantined · inspection incomplete" : "Quarantined · attachment scanning not enabled"}</span>
+                          </div>
+                        </div>
+                        <div className="message-attachment-actions">
+                          <a
+                            className={ready ? "secondary-button" : "secondary-button disabled"}
+                            href={ready ? webPath(`/api/attachments/${attachment.id}`) : undefined}
+                            aria-disabled={!ready}
+                            onClick={(event) => { if (!ready) event.preventDefault(); }}
+                          ><Download size={14} /> Download</a>
+                          <button type="button" className="secondary-button" disabled={!ready || !aiConfigured || analysis?.loading} onClick={() => void analyzeAttachment(attachment.id)}>
+                            {analysis?.loading ? <LoaderCircle className="spin" size={14} /> : <Sparkles size={14} />} Analyze with S.I.
+                          </button>
+                        </div>
+                        {analysis?.text ? <pre className="message-attachment-analysis">{analysis.text}</pre> : null}
+                        {analysis?.error ? <p className="message-attachment-error">{analysis.error}</p> : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            ) : selected.attachments ? (
+              <div className="message-attachment-pending"><Paperclip size={15} /><span>Attachment metadata is available, but no vault record was created. Open again after attachment inspection/storage is configured.</span></div>
+            ) : null}
             <div className="message-actions">
               {!sentMode ? <button type="button" className="secondary-button" onClick={onCompose}><Reply size={16} /> Reply</button> : null}
               <button type="button" className="secondary-button" onClick={onCompose}><Send size={16} /> {sentMode ? "New message" : "Forward"}</button>

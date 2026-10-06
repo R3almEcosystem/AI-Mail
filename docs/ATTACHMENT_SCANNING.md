@@ -1,35 +1,181 @@
-# Attachment inspection and AI privacy — phase 2
+# S.I.-Mail attachment security, storage, analysis, and research
 
-September 25, 2026. Code addition only; production activation is separate.
+October 6, 2026.
 
-## Operator-controlled attachment scanning
-The identical `src/security/attachment-scan.ts` module in both applications defines the provider contract, content-hash binding and Cloudmersive Advanced adapter. It adds no package dependency.
+## Production design
 
-`EMAIL_ATTACHMENT_SCANNING` is unset/`disabled` by default. In this mode no file is uploaded to a scanner and no clean verdict is fabricated. A valid `CLOUDMERSIVE_API_KEY` alone does not activate scanning. An operator must explicitly select `EMAIL_ATTACHMENT_SCANNING=required` and provide that server-only key. Unknown mode values fail closed. Never use a `NEXT_PUBLIC_` variable for the key. No environment setting or credential was changed by this increment.
+S.I.-Mail treats every email attachment as untrusted evidence. Attachment bytes remain server-side. A file is never eligible for download or S.I. analysis merely because it arrived by email.
 
-Before enabling, approve external processing/data residency, establish the account's Advanced Scan entitlement and current limits, provide quota/rate-limit controls, and run provider contract tests in staging. This implementation does not claim a free-tier allowance or a successfully exercised live provider connection.
+The attachment pipeline is:
 
-The adapter uses only `https://api.cloudmersive.com/virus/scan/file/advanced`, with redirects forbidden. It uploads a bounded file under the neutral name `attachment.bin`; neither the original filename nor mail headers are submitted. The bytes themselves may contain sensitive information: operator consent to external inspection is essential. The provider response is bounded to 64 KiB and strict JSON. Clean requires a boolean positive result, explicit negative threat flags, an identified format and an empty/null virus list. Missing, malformed or inconsistent evidence never means clean. Executable, macro, encrypted/password-protected, invalid, unsafe-archive and other configured threats are refused. Provider diagnostics and threat filenames are not echoed to clients.
+1. Load the MIME message from the configured IMAP account.
+2. Parse attachment bytes with PostalMime while the mailbox connection is held.
+3. Release the IMAP lock and connection.
+4. Inspect each attachment under the workspace attachment policy.
+5. Compute SHA-256 and persist the file into the private attachment vault.
+6. Keep anything that is not positively clean in quarantine.
+7. Persist message provenance using account, logical folder, IMAP UID, UIDVALIDITY, Message-ID, sender/recipient metadata, date, filename, MIME type, and attachment index.
+8. Extract and index locally readable text.
+9. Allow authenticated download or S.I. analysis only when the file has a clean scan result and an available vault state.
+10. Record external S.I. attachment analysis in the normal S.I. call telemetry and the attachment analysis history.
 
-Local safety limits: 1 MiB per attachment, 4 attachments and 4 MiB total per message; 25 seconds for the complete scan batch. These are application limits, not statements of provider-plan limits. Every successful per-file result includes SHA-256 and byte count of the snapshotted bytes. Caller mutation and provider mutation cannot silently change the assessed object. Results are informational evidence, not signed or persistent release authorizations.
+Attachment bytes are never included in the normal message JSON response.
 
-## Gateway API
-`GET /api/v1/security/attachments/scan` requires bearer authentication with `email.read`. It reports configuration and limits; `health=not_probed` explicitly avoids claiming a successful provider connection.
+## Attachment vault
 
-`POST` at the same path requires `email.send` and server-authorized tenant selections. Send raw `application/octet-stream` bytes, not JSON, a filename, a URL, or a client-provided verdict. The application authenticates before consuming the stream, rejects compressed/oversized/mismatched bodies, and bounds request reading. Responses are private/no-store. Disabled/unavailable service returns 503; provider-policy block returns 422; a completed clean scan returns 200. `releasable=false` is explicit: there is no durable quarantine/release service in this API.
+The production Supabase project contains two private buckets:
 
-## AI-Mail integration
-The MIME reader assesses the complete parsed message before display truncation. Attachment bytes remain server-side; optional scanning begins only after IMAP lock release and connection cleanup. The browser and MCP receive safe inspection metadata, never file bytes. Reads remain available as plain-text review even when inspection blocks or errors; that does not release an attachment or remove mail from a mailbox.
+- `si-mail-attachments` — clean attachment objects.
+- `si-mail-quarantine` — files that are blocked, unscanned, or have incomplete inspection evidence.
 
-The inbox distinguishes not inspected, disabled, no attachments, clean, blocked and error. A completed file scan does not claim sender authenticity, trustworthy links, or safe message content. Live mail is no longer labeled demo merely because an AI key is absent. AI availability has its own status. Delayed message/AI responses cannot overwrite a newer selection; UI tests exercise the actual component with a minimal hook/JSX harness, not a real browser.
+Buckets are private. The application does not expose unrestricted storage URLs.
 
-`POST /api/ai` now accepts `{action, uid, instructions?}`. It rejects client-supplied email bodies, security flags, accounts and folders. The authenticated route checks mail-read permission, loads the current configured INBOX message server-side, then invokes the privacy gate. This preserves the application's existing shared-mailbox access model; it does not implement per-user mailbox ownership or persistent UIDVALIDITY-based identities.
+The canonical metadata lives in server-only private Postgres tables:
 
-Known full-MIME sensitive/high-risk findings remain authoritative even when the displayed body is shorter. The gate also examines all content selected for disclosure, sender fields and optional user direction before taking a 12,000-character excerpt. Detected private-key/card/SSN data, local hard-risk findings, known AI-directed instructions and incomplete required attachment scans prevent model invocation. Attachments are never included in the AI prompt. Generation has a separate system instruction, no tools, zero automatic retries, a 1,000-token output cap and a 20-second cancellation signal. Output is checked before return; uncertain/invalid output is not a successful result. This is defense in depth, not a complete prompt-injection defense or DLP certification.
+- `private.ai_mail_attachment_blobs` — content-addressed SHA-256 blob metadata, scan state, storage location, and extraction state.
+- `private.ai_mail_attachment_blob_data` — server-only bytea fallback when the application does not have a Supabase Storage secret.
+- `private.ai_mail_message_attachments` — message-to-attachment provenance.
+- `private.ai_mail_attachment_chunks` — extracted text chunks, full-text search index, and optional pgvector embedding column.
+- `private.ai_mail_attachment_analysis` — durable S.I. analysis results.
 
-## Validation and release
-Native fixture tests cover configuration/egress, exact-byte hashes, malformed/threat replies, timeout/limit handling, authenticated upload boundaries, MIME cleanup-before-scan, AI input/output blocking, server-loaded requests, independent demo state and stale-response races. New tests are included in normal Vitest through `phase2-gate.test.ts`. Existing transport tests retain their assertions and explicitly disable external scanning in their fixtures.
+Direct `anon` and `authenticated` table access is revoked. RLS is enabled as defense in depth.
 
-Use PR #27 in r3alm-email-gateway and PR #4 in AI-Mail for exact hosted build revisions and verification evidence. AI-Mail PR #4 remains based on the unmerged phase-1 security PR #3. A preview build is not production readiness. Live scanner compatibility, authenticated browser verification, actual mail transport/database validation, rate limits, production configuration, lockfile reproducibility and the remaining dependency advisories require review before activation.
+### Storage fallback
 
-References: Cloudmersive Advanced Virus Scan API, https://api.cloudmersive.com/docs/virus.asp ; Vercel AI SDK generateText, https://ai-sdk.dev/docs/reference/ai-sdk-core/generate-text .
+The preferred object backend is Supabase Storage using a server-only `SUPABASE_SECRET_KEY` or legacy `SUPABASE_SERVICE_ROLE_KEY`.
+
+If that credential is unavailable, S.I.-Mail does not drop the attachment and does not use a public key. It stores the bytes in `private.ai_mail_attachment_blob_data` through the existing server-only Postgres connection. This keeps the feature safe and functional while Storage credentials are being provisioned.
+
+## Scanner policy
+
+Attachment scanning is controlled from **Admin → Connected mailboxes → Attachment security & S.I. analysis**.
+
+Production should keep **Require attachment scanning** enabled.
+
+The Cloudmersive Advanced Scan credential is stored in Supabase Vault under:
+
+`ai_mail_cloudmersive_api_key`
+
+It may also be supplied through the legacy server environment variable `CLOUDMERSIVE_API_KEY`.
+
+When required scanning is enabled but no scanner credential is available, the policy fails closed:
+
+- email text remains readable,
+- attachments are retained in quarantine,
+- download is blocked,
+- S.I. attachment analysis is blocked,
+- attachment-aware research reports the missing/blocked evidence.
+
+The Admin Console provides **Save & test scanner**, which sends a small synthetic text file through the same scanner policy and requires an explicit clean result.
+
+## Current inspection limits
+
+Application safety limits are currently:
+
+- 10 MiB per attachment,
+- 25 MiB total attachment bytes per message,
+- 10 attachments per message,
+- 45 seconds for the complete scan batch,
+- 30 MB default raw MIME message limit, configurable up to 50 MB.
+
+These are S.I.-Mail safety limits, not claims about provider-plan limits.
+
+The Cloudmersive adapter uses only the fixed Advanced Scan endpoint. Redirects are forbidden. Original filenames and mail headers are not sent to the scanner. A clean verdict requires positive clean evidence and explicit negative threat flags. Executables, macros, password-protected files, unsafe archives, embedded active content, and malformed/inconsistent provider responses do not become clean.
+
+## S.I. attachment analysis
+
+Clean eligible attachments can be analyzed from the message attachment panel with **Analyze with S.I.**
+
+The server:
+
+- reloads the attachment from the private vault,
+- verifies clean/available/analysis-allowed state,
+- applies the local disclosure gate to extracted text when available,
+- sends the file to the configured OpenAI model through the Responses API,
+- sets `store: false`,
+- gives the model a developer instruction that the attachment is untrusted evidence and never instructions,
+- forbids tools/actions,
+- validates generated output,
+- records provider, model, usage, estimated cost, response time, and request ID in External S.I. Calls,
+- stores the resulting Markdown analysis in `private.ai_mail_attachment_analysis`.
+
+Supported S.I. analysis types include PDF, common text/data formats, PNG/JPEG/WebP, and common Microsoft Office document formats. Unsupported or unsafe formats remain unavailable for S.I. analysis.
+
+## Extraction and indexing
+
+Local text extraction is currently enabled for UTF-8 text formats such as plain text, CSV, JSON, and XML.
+
+Extracted content is:
+
+- stored against the SHA-256 blob,
+- divided into bounded overlapping chunks,
+- indexed with PostgreSQL full-text search.
+
+The production Supabase project also has pgvector enabled and the migration creates an embedding column when pgvector is available. Embedding generation is deliberately separate from basic ingestion; full-text search works without it.
+
+PDF/Office/image content that does not have local extracted text can be analyzed on demand by S.I.; the resulting durable analysis then becomes reusable attachment knowledge.
+
+## S.I. Mail Research
+
+S.I. Mail Research has an attachment-aware planning flag. The planner enables it only when the user explicitly asks about attachments, attached files, PDFs, spreadsheets, presentations, images, or document contents.
+
+Attachment-aware research:
+
+- searches the matching email set first,
+- opens a bounded number of the newest matching emails to ingest their attachments,
+- reuses existing indexed text and prior S.I. analyses,
+- may analyze a small bounded number of clean attachments that lack usable text,
+- never analyzes quarantined files,
+- cites attachment evidence with references such as `[A1]`,
+- reports attachment coverage and exclusions separately from email-body coverage.
+
+The current automatic research bounds are 12 matching emails ingested and up to 4 clean attachments analyzed on demand per research request. These bounds prevent a broad mailbox query from unexpectedly causing large external-processing cost or long execution time.
+
+## Provenance
+
+Each attachment relationship stores enough context to trace the evidence back to its email, including:
+
+- mailbox/account,
+- Inbox or Sent logical folder,
+- IMAP UID,
+- UIDVALIDITY,
+- Message-ID,
+- sender,
+- To/Cc recipients,
+- message date,
+- subject,
+- attachment index,
+- filename and MIME type,
+- SHA-256 blob identity.
+
+UIDVALIDITY is retained because an IMAP UID alone is not a permanent mailbox identity.
+
+## Security invariants
+
+Do not weaken these rules:
+
+- Raw attachment bytes never enter normal browser message JSON.
+- A scan result is evidence, not a release token.
+- A file that is not explicitly clean stays quarantined.
+- S.I. analysis is blocked for quarantined or incomplete files.
+- Attachment content is always untrusted evidence, never instructions.
+- S.I. has no authority to send mail, open links, call external tools, or execute attachment instructions.
+- Secrets and scanner/API credentials remain server-side.
+- Private storage is never converted to a public bucket.
+- Download routes require authenticated mail-read capability.
+- Analysis routes require both S.I.-use and mail-read capability.
+
+## Operational rollout
+
+Before considering the attachment system fully healthy in production:
+
+1. Keep **Require attachment scanning** enabled.
+2. Save a Cloudmersive Advanced Scan API key in Connected mailboxes.
+3. Run **Save & test scanner** and require a successful clean probe.
+4. Confirm Attachment vault and Attachment scanning show Configured/ready.
+5. Open an email with a known-safe test attachment and verify a vault entry appears.
+6. Confirm the clean attachment can be downloaded through the authenticated route.
+7. Run **Analyze with S.I.** and confirm a new External S.I. Calls telemetry entry.
+8. Test a deliberately unsupported/password-protected fixture and verify it remains quarantined and unavailable to S.I.
+9. Test S.I. Mail Research with an explicit attachment query and verify attachment references appear in coverage/results.
+10. Review Supabase security/performance advisors and production Vercel logs.

@@ -584,6 +584,43 @@ textarea:focus-visible {
   width: 13px;
   height: 13px;
 }
+.message-attachments {
+  flex: 0 0 auto;
+  max-height: 310px;
+  overflow-y: auto;
+  padding: 12px 18px;
+  background: #fbfcfe;
+  border-top: 1px solid var(--line);
+}
+.message-attachments-heading,
+.message-attachments-heading > div,
+.message-attachment-main,
+.message-attachment-actions {
+  display: flex;
+  align-items: center;
+}
+.message-attachments-heading { justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.message-attachments-heading > div { gap: 8px; }
+.message-attachments-heading > div > span { display: flex; flex-direction: column; gap: 2px; }
+.message-attachments-heading strong { color: #344055; font-size: 9px; }
+.message-attachments-heading small { color: #8f9aab; font-size: 7px; }
+.message-attachments-heading > b { min-width: 22px; padding: 3px 7px; color: #536783; background: #eef3f9; border-radius: 999px; font-size: 7px; text-align: center; }
+.message-attachment-list { display: grid; gap: 8px; }
+.message-attachment-card { padding: 11px; background: #fff; border: 1px solid #e2e7ee; border-radius: 10px; }
+.message-attachment-card--ready { border-color: #d5e4da; }
+.message-attachment-main { gap: 9px; min-width: 0; }
+.message-attachment-icon { width: 32px; height: 32px; flex: 0 0 auto; display: grid; place-items: center; color: #586b87; background: #f1f4f8; border-radius: 8px; }
+.message-attachment-main > div { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.message-attachment-main strong { overflow: hidden; color: #344055; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.message-attachment-main small { color: #8b96a5; font-size: 7px; }
+.message-attachment-main span { color: #6d7c91; font-size: 7px; line-height: 1.4; }
+.message-attachment-card--ready .message-attachment-main span { color: #417454; }
+.message-attachment-actions { gap: 6px; margin-top: 9px; }
+.message-attachment-actions .secondary-button { min-height: 29px; padding: 0 9px; font-size: 7px; text-decoration: none; }
+.message-attachment-actions .secondary-button.disabled { opacity: .45; pointer-events: none; }
+.message-attachment-analysis { max-height: 220px; margin: 10px 0 0; padding: 11px; overflow: auto; color: #465267; background: #f7f8fb; border: 1px solid #e4e7ee; border-radius: 8px; font: 8px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; }
+.message-attachment-error { margin: 9px 0 0; color: #a24b4b; font-size: 8px; line-height: 1.45; }
+.message-attachment-pending { display: flex; align-items: center; gap: 8px; padding: 10px 18px; color: #826a3d; background: #fffaf0; border-top: 1px solid #eadfca; font-size: 8px; line-height: 1.4; }
 .empty-message, .empty-state, .ai-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; color: #8c97a6; text-align: center; }
 .empty-message { flex: 1; }
 .empty-message h2 { margin: 12px 0 5px; color: #4c586a; font-size: 15px; }
@@ -2780,6 +2817,7 @@ button[aria-label]:disabled::after {
   min-height: 78px;
 }
 .admin-mailboxes-page .global-mail-policy-card,
+.admin-mailboxes-page .attachment-policy-card,
 .admin-mailboxes-page .mailbox-readiness-card {
   margin-top: 13px;
 }

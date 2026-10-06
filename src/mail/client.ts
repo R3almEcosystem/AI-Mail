@@ -1,7 +1,7 @@
 import { ImapFlow, type SearchObject } from 'imapflow';
 import nodemailer from 'nodemailer';
 import PostalMime from 'postal-mime';
-import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection } from '../security/attachment-scan.js';
+import { inspectAttachments, attachmentPolicyFromEnv, type AttachmentInspection, type AttachmentPolicy } from '../security/attachment-scan.js';
 import { assessEmailSecurity, assertOutboundEmailSecurity, type SecurityAssessment } from '../security/email-security.js';
 import { assertRecipientsAllowed, envelopeAddresses, dedupeAddresses } from './address.js';
 import { normalizeMessageId, subjectForReply, stripHeaderNewlines, clampText } from './sanitize.js';
@@ -19,6 +19,14 @@ export type ParsedMessage = MessageSummary & {
   messageId?: string; inReplyTo?: string; references: string[]; text: string;
   safeHtmlBody?: string;
   attachments: Array<{ filename?: string; mimeType?: string; disposition?: string; related?: boolean; contentId?: string }>;
+};
+export type AttachmentSource = {
+  filename?: string;
+  mimeType?: string;
+  disposition?: string;
+  related?: boolean;
+  contentId?: string;
+  content: Uint8Array | ArrayBuffer;
 };
 export type SearchCriteria = { from?: string; to?: string; cc?: string; subject?: string; text?: string; unreadOnly?: boolean; since?: Date; before?: Date };
 type SendInput = { to: string[]; cc?: string[]; bcc?: string[]; subject: string; text: string; inReplyTo?: string; references?: string[] };
@@ -318,7 +326,11 @@ export class MailGateway {
       return results.sort((a, b) => b.uid - a.uid);
     });
   }
-  async getMessage(folder: string, uid: number): Promise<ParsedMessage> {
+  async getMessageWithAttachments(folder: string, uid: number, policy: AttachmentPolicy = attachmentPolicyFromEnv()): Promise<{
+    message: ParsedMessage;
+    attachmentSources: AttachmentSource[];
+    uidValidity: string | null;
+  }> {
     assertMessageIdentity(folder, uid);
     const loaded = await this.withMailbox(folder, async client => {
       const metadata = await client.fetchOne(uid, { size: true }, { uid: true });
@@ -334,27 +346,49 @@ export class MailGateway {
         from: envelopeAddresses(message.envelope?.from)[0]?.address, replyTo: headers.get('reply-to'),
         attachments: parsed.attachments.map(attachment => ({ filename: attachment.filename ?? undefined, mimeType: attachment.mimeType })),
       });
+      const attachmentSources: AttachmentSource[] = parsed.attachments.map(attachment => ({
+        ...(attachment.filename ? { filename: attachment.filename } : {}),
+        ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
+        ...(attachment.disposition ? { disposition: attachment.disposition } : {}),
+        ...(attachment.related !== undefined ? { related: attachment.related } : {}),
+        ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
+        content: typeof attachment.content === 'string' ? new TextEncoder().encode(attachment.content) : attachment.content,
+      }));
       return {
-        attachmentBytes: parsed.attachments.map(attachment => attachment.content),
+        uidValidity: client.mailbox && client.mailbox.uidValidity ? client.mailbox.uidValidity.toString() : null,
+        attachmentBytes: attachmentSources.map(attachment => attachment.content),
+        attachmentSources,
         message: {
-        security,
-        ...this.toSummary(message), cc: envelopeAddresses(message.envelope?.cc),
-        messageId: normalizeMessageId(parsed.messageId || message.envelope?.messageId),
-        inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
-        references: (headers.get('references') || '').split(/\s+/).slice(0, 100).map(normalizeMessageId).filter((id): id is string => Boolean(id)),
-        text: clampText(parsed.text || '', this.config.limits.maxMessageBodyChars),
-        ...(parsed.html ? { safeHtmlBody: buildSafeEmailHtml(parsed.html) } : {}),
-        attachments: parsed.attachments.map(attachment => ({
-          ...(attachment.filename ? { filename: attachment.filename } : {}), ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
-          ...(attachment.disposition ? { disposition: attachment.disposition } : {}), ...(attachment.related !== undefined ? { related: attachment.related } : {}),
-          ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
-        })),
+          security,
+          ...this.toSummary(message),
+          cc: envelopeAddresses(message.envelope?.cc),
+          messageId: normalizeMessageId(parsed.messageId || message.envelope?.messageId),
+          inReplyTo: normalizeMessageId(headers.get('in-reply-to')),
+          references: (headers.get('references') || '').split(/\s+/).slice(0, 100).map(normalizeMessageId).filter((id): id is string => Boolean(id)),
+          text: clampText(parsed.text || '', this.config.limits.maxMessageBodyChars),
+          ...(parsed.html ? { safeHtmlBody: buildSafeEmailHtml(parsed.html) } : {}),
+          attachments: attachmentSources.map(attachment => ({
+            ...(attachment.filename ? { filename: attachment.filename } : {}),
+            ...(attachment.mimeType ? { mimeType: attachment.mimeType } : {}),
+            ...(attachment.disposition ? { disposition: attachment.disposition } : {}),
+            ...(attachment.related !== undefined ? { related: attachment.related } : {}),
+            ...(attachment.contentId ? { contentId: attachment.contentId } : {}),
+          })),
         },
       };
     });
-    // Release the IMAP lock and connection before any optional third-party scan.
-    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, attachmentPolicyFromEnv());
-    return { ...loaded.message, attachmentInspection };
+
+    // Release the IMAP lock and connection before any third-party inspection or persistence.
+    const attachmentInspection = await inspectAttachments(loaded.attachmentBytes, policy);
+    return {
+      message: { ...loaded.message, attachmentInspection },
+      attachmentSources: loaded.attachmentSources,
+      uidValidity: loaded.uidValidity,
+    };
+  }
+
+  async getMessage(folder: string, uid: number): Promise<ParsedMessage> {
+    return (await this.getMessageWithAttachments(folder, uid)).message;
   }
   async updateMessage(folder: string, uid: number, action: MailAction, archiveFolder = 'Archive', tag?: MailTag) {
     assertMessageIdentity(folder, uid);

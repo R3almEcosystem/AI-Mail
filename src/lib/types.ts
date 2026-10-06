@@ -14,6 +14,18 @@ export type MailAccountSummary = {
   smtpReady: boolean;
 };
 
+export type MailAttachment = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  bytes: number;
+  vaultState: "available" | "quarantine";
+  scanStatus: "clean" | "blocked" | "error" | "not_scanned";
+  scanReason: string | null;
+  analysisAllowed: boolean;
+  extractionStatus: "pending" | "complete" | "unsupported" | "failed";
+};
+
 export type MailMessage = {
   uid: number;
   accountId?: string;
@@ -36,6 +48,7 @@ export type MailMessage = {
   priority: MailPriority;
   category: string;
   attachments?: number;
+  attachmentFiles?: MailAttachment[];
   aiRuleMatches?: string[];
   aiAutoSummary?: boolean;
   aiSuggestReply?: boolean;
@@ -70,6 +83,19 @@ export type AppStatus = {
   aiTone: "concise" | "balanced" | "detailed";
   aiAutoSummarize: boolean;
   aiPriorityDetection: boolean;
+  attachmentVault?: {
+    bucketsReady: boolean;
+    storageApiConfigured: boolean;
+    databaseFallback: boolean;
+  };
+  attachmentScanning?: {
+    required: boolean;
+    configured: boolean;
+    provider: string | null;
+    maxBytes: number;
+    maxTotalBytes: number;
+    maxFiles: number;
+  };
 };
 
 export type AiAction = "summarize" | "draft" | "prioritize" | "extract";
@@ -159,6 +185,7 @@ export type AdminSettings = {
   smtpFrom: string;
   mailArchiveFolder: string;
   outboundAllowedDomains: string;
+  attachmentScanningRequired: boolean;
   requireMfa: boolean;
   sessionTimeoutMinutes: number;
   allowDemoLogin: boolean;
@@ -166,6 +193,7 @@ export type AdminSettings = {
 
 export type ServiceSecretStatus = {
   openaiApiKey: boolean;
+  cloudmersiveApiKey: boolean;
   imapPassword: boolean;
   smtpPassword: boolean;
 };
