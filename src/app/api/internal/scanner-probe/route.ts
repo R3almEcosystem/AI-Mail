@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAttachmentPolicy } from "@/lib/attachment-policy";
-import { inspectAttachments } from "../../../../../security/attachment-scan";
+import { inspectAttachments, type FileInspection } from "@/security/attachment-scan";
 import { privateHeaders } from "@/lib/api-error";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +32,7 @@ export async function GET() {
     provider: result.provider,
     status: result.status,
     reason: result.reason || result.files[0]?.reason || null,
-    files: result.files.map(file => ({
+    files: result.files.map((file: FileInspection) => ({
       status: file.status,
       bytes: file.bytes,
       hasSha256: /^[0-9a-f]{64}$/i.test(file.sha256),
