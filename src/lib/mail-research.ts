@@ -705,6 +705,7 @@ async function analyticalReport(
       model: null as string | null,
       included,
       excluded,
+      attachmentIncluded: 0,
     };
   }
 
