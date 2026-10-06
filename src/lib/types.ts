@@ -14,6 +14,18 @@ export type MailAccountSummary = {
   smtpReady: boolean;
 };
 
+export type MailAttachment = {
+  id: string;
+  filename: string;
+  mimeType: string;
+  bytes: number;
+  vaultState: "available" | "quarantine";
+  scanStatus: "clean" | "blocked" | "error" | "not_scanned";
+  scanReason: string | null;
+  analysisAllowed: boolean;
+  extractionStatus: "pending" | "complete" | "unsupported" | "failed";
+};
+
 export type MailMessage = {
   uid: number;
   accountId?: string;
@@ -36,6 +48,7 @@ export type MailMessage = {
   priority: MailPriority;
   category: string;
   attachments?: number;
+  attachmentFiles?: MailAttachment[];
   aiRuleMatches?: string[];
   aiAutoSummary?: boolean;
   aiSuggestReply?: boolean;
