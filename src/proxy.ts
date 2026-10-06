@@ -4,7 +4,8 @@ import { isSameOriginRequest } from "@/lib/auth-policy";
 import { webPath } from "@/lib/web-path";
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const connectorRoute = pathname === "/mcp" || pathname === "/healthz" || pathname === "/oauth/consent" || pathname.startsWith("/.well-known/oauth-protected-resource");
+  const connectorRoute = pathname === "/mcp" || pathname === "/healthz" || pathname === "/oauth/consent" || pathname.startsWith("/.well-known/oauth-protected-resource")
+    || (process.env.VERCEL_ENV !== "production" && pathname === "/api/internal/scanner-probe");
   if (connectorRoute) return NextResponse.next(); // MCP has its own bearer authorization boundary.
   if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && !isSameOriginRequest(request)) return NextResponse.json({ error: "Cross-origin requests are not allowed." }, { status: 403 });
   if (pathname === "/" || pathname === "/login" || pathname.startsWith("/api/auth/")) return NextResponse.next();
