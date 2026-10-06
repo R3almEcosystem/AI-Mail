@@ -49,7 +49,7 @@ test('malformed and invented verdicts are not clean', async()=>{
   }
 });
 test('oversized files, too many files, invalid content and zero bytes produce no provider calls', async()=>{
-  let calls=0;for(const value of [[new Uint8Array(1048577)],Array(5).fill(bytes),['base64'],[new Uint8Array(0)]]){
+  let calls=0;for(const value of [[new Uint8Array(10485761)],Array(11).fill(bytes),['base64'],[new Uint8Array(0)]]){
     const result=await inspectAttachments(value,policy(async()=>{calls++;return clean();}));assert.equal(result.status,'blocked');
   }assert.equal(calls,0);
 });
