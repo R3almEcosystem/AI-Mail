@@ -5,6 +5,8 @@ import { databaseConfigured } from "@/lib/admin-data";
 import { mailConfiguration } from "@/lib/mail";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
+import { attachmentVaultStatus } from "@/lib/attachment-content";
+import { attachmentCapabilities } from "../../../security/attachment-scan";
 import type { AppStatus } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +14,12 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const user = await requireCapability("mail:read");
-    const [mail, ai] = await Promise.all([mailConfiguration(), aiConfiguration()]);
+    const [mail, ai, attachmentVault] = await Promise.all([
+      mailConfiguration(),
+      aiConfiguration(),
+      attachmentVaultStatus().catch(() => ({ bucketsReady: false, storageApiConfigured: false, databaseFallback: true })),
+    ]);
+    const attachmentScan = attachmentCapabilities();
     const status: AppStatus = {
       mode: mail.imap && !user.demo ? "live" : "demo",
       authentication: authenticationConfigured(),
@@ -25,6 +32,15 @@ export async function GET() {
       aiTone: ai.tone,
       aiAutoSummarize: ai.autoSummarize,
       aiPriorityDetection: ai.priorityDetection,
+      attachmentVault,
+      attachmentScanning: {
+        required: attachmentScan.required,
+        configured: attachmentScan.configured,
+        provider: attachmentScan.provider,
+        maxBytes: attachmentScan.limits.maxBytes,
+        maxTotalBytes: attachmentScan.limits.maxTotalBytes,
+        maxFiles: attachmentScan.limits.maxFiles,
+      },
     };
     return NextResponse.json(status, { headers: privateHeaders });
   } catch (error) {
