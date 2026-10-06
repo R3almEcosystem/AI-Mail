@@ -40,6 +40,8 @@ import type {
   AlertGroupColor,
   AppStatus,
   AuditEvent,
+  AiCallAuditEntry,
+  AiCallAuditSummary,
   ManagedUser,
   SessionUser,
   ServiceSecretStatus,
@@ -84,6 +86,21 @@ function initials(name: string) {
 function dateLabel(value: string | null) {
   if (!value) return "Never";
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+}
+
+function tokenLabel(value: number | null) {
+  return value === null ? "—" : new Intl.NumberFormat("en-US").format(value);
+}
+
+function costLabel(value: number | null) {
+  if (value === null) return "—";
+  if (value === 0) return "$0.00";
+  return "$" + value.toFixed(value < 0.01 ? 6 : 4);
+}
+
+function durationLabel(value: number) {
+  if (value < 1000) return value + " ms";
+  return (value / 1000).toFixed(value < 10000 ? 2 : 1) + " s";
 }
 
 function UserEditor({
@@ -228,6 +245,21 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   const [groups, setGroups] = useState<AlertGroup[]>([]);
   const [settings, setSettings] = useState<AdminSettings | null>(null);
   const [events, setEvents] = useState<AuditEvent[]>([]);
+  const [auditTab, setAuditTab] = useState<"activity" | "ai">("activity");
+  const [aiCalls, setAiCalls] = useState<AiCallAuditEntry[]>([]);
+  const [aiAuditSummary, setAiAuditSummary] = useState<AiCallAuditSummary>({
+    calls: 0,
+    successes: 0,
+    failures: 0,
+    tokenizedCalls: 0,
+    pricedCalls: 0,
+    totalTokens: 0,
+    estimatedCostUsd: 0,
+    averageResponseTimeMs: 0,
+  });
+  const [aiAuditLoading, setAiAuditLoading] = useState(false);
+  const [aiAuditLoaded, setAiAuditLoaded] = useState(false);
+  const [aiAuditError, setAiAuditError] = useState("");
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [secretStatus, setSecretStatus] = useState<ServiceSecretStatus>({ openaiApiKey: false, imapPassword: false, smtpPassword: false });
   const [credentials, setCredentials] = useState({ openaiApiKey: "", imapPassword: "", smtpPassword: "" });
@@ -283,6 +315,11 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
 
   useEffect(() => { if (!toast) return; const timer = window.setTimeout(() => setToast(""), 4200); return () => window.clearTimeout(timer); }, [toast]);
 
+  useEffect(() => {
+    if (section !== "audit" || auditTab !== "ai" || aiAuditLoaded || aiAuditLoading) return;
+    void refreshAiAudit();
+  }, [section, auditTab, aiAuditLoaded, aiAuditLoading]);
+
   const visibleUsers = useMemo(() => {
     const query = deferredSearch.trim().toLowerCase();
     return users.filter((user) => {
@@ -294,6 +331,24 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   async function refreshAudit() {
     const response = await fetch(webPath("/api/admin/audit"), { cache: "no-store" });
     if (response.ok) setEvents(((await response.json()) as { events: AuditEvent[] }).events);
+  }
+
+  async function refreshAiAudit() {
+    setAiAuditLoading(true);
+    setAiAuditError("");
+    try {
+      const response = await fetch(webPath("/api/admin/audit/ai-calls"), { cache: "no-store" });
+      const data = (await response.json().catch(() => null)) as { calls?: AiCallAuditEntry[]; summary?: AiCallAuditSummary; error?: string } | null;
+      if (!response.ok || !data?.calls || !data.summary) throw new Error(data?.error || "External AI call telemetry could not be loaded.");
+      setAiCalls(data.calls);
+      setAiAuditSummary(data.summary);
+      setAiAuditLoaded(true);
+    } catch (error) {
+      setAiAuditError(error instanceof Error ? error.message : "External AI call telemetry could not be loaded.");
+      setAiAuditLoaded(true);
+    } finally {
+      setAiAuditLoading(false);
+    }
   }
 
   async function refreshServiceState() {
@@ -515,7 +570,71 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
   </div>
 </>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI & policy" : "Save settings"}</button></div></section> : null}
           {!loading && section === "rules" ? <section className="admin-ai-rules-page"><AiRulesView onChanged={refreshAudit} editable /></section> : null}
-          {!loading && section === "audit" ? <section className="audit-page"><div className="audit-summary"><span><Activity size={20} /></span><div><h2>Administrative activity</h2><p>Immutable-style records of identity, access, and configuration changes.</p></div><b>{events.length} events</b></div><div className="admin-panel audit-list">{events.map((event) => <article key={event.id}><span><Activity size={15} /></span><div><strong>{event.action}</strong><p><b>{event.actorName}</b> · {event.target}</p></div><time><Clock3 size={13} /> {dateLabel(event.createdAt)}</time></article>)}</div></section> : null}
+          {!loading && section === "audit" ? (
+            <section className="audit-page">
+              <div className="audit-tabs" role="tablist" aria-label="Audit views">
+                <button type="button" role="tab" aria-selected={auditTab === "activity"} className={auditTab === "activity" ? "active" : ""} onClick={() => setAuditTab("activity")}><Activity size={14} /> Administrative activity <span>{events.length}</span></button>
+                <button type="button" role="tab" aria-selected={auditTab === "ai"} className={auditTab === "ai" ? "active" : ""} onClick={() => setAuditTab("ai")}><Bot size={14} /> External AI calls <span>{aiAuditLoaded ? aiAuditSummary.calls : "…"}</span></button>
+              </div>
+
+              {auditTab === "activity" ? (
+                <>
+                  <div className="audit-summary"><span><Activity size={20} /></span><div><h2>Administrative activity</h2><p>Immutable-style records of identity, access, and configuration changes.</p></div><b>{events.length} events</b></div>
+                  <div className="admin-panel audit-list">{events.map((event) => <article key={event.id}><span><Activity size={15} /></span><div><strong>{event.action}</strong><p><b>{event.actorName}</b> · {event.target}</p></div><time><Clock3 size={13} /> {dateLabel(event.createdAt)}</time></article>)}</div>
+                </>
+              ) : (
+                <>
+                  <div className="audit-summary audit-summary--ai">
+                    <span><Bot size={20} /></span>
+                    <div><h2>External AI calls</h2><p>Provider/model usage, tokens, estimated spend, latency, status, and request IDs. Email bodies, prompts, and generated content are never stored here.</p></div>
+                    <button type="button" className="secondary-button audit-refresh-button" onClick={() => void refreshAiAudit()} disabled={aiAuditLoading}><RefreshCw className={aiAuditLoading ? "spin" : ""} size={14} /> Refresh</button>
+                  </div>
+
+                  <div className="ai-audit-metrics">
+                    <article><small>EXTERNAL CALLS</small><strong>{aiAuditSummary.calls.toLocaleString()}</strong><span>{aiAuditSummary.successes.toLocaleString()} succeeded · {aiAuditSummary.failures.toLocaleString()} failed</span></article>
+                    <article><small>RECORDED TOKENS</small><strong>{aiAuditSummary.totalTokens.toLocaleString()}</strong><span>{aiAuditSummary.tokenizedCalls.toLocaleString()} call{aiAuditSummary.tokenizedCalls === 1 ? "" : "s"} reported usage</span></article>
+                    <article><small>ESTIMATED COST</small><strong>{costLabel(aiAuditSummary.pricedCalls ? aiAuditSummary.estimatedCostUsd : null)}</strong><span>{aiAuditSummary.pricedCalls.toLocaleString()} priced call{aiAuditSummary.pricedCalls === 1 ? "" : "s"} · standard token rates</span></article>
+                    <article><small>AVG RESPONSE</small><strong>{durationLabel(aiAuditSummary.averageResponseTimeMs)}</strong><span>Provider round-trip latency</span></article>
+                  </div>
+
+                  <div className="admin-panel ai-audit-list">
+                    {aiAuditLoading && !aiAuditLoaded ? <div className="ai-audit-empty"><LoaderCircle className="spin" size={18} /><strong>Loading external AI telemetry…</strong></div> : null}
+                    {aiAuditError ? <div className="ai-audit-empty ai-audit-empty--error"><CircleAlert size={18} /><strong>{aiAuditError}</strong><button type="button" className="secondary-button" onClick={() => void refreshAiAudit()}>Retry</button></div> : null}
+                    {!aiAuditLoading && !aiAuditError && aiCalls.length === 0 ? <div className="ai-audit-empty"><Bot size={20} /><strong>No external AI calls have been recorded yet.</strong><span>New provider requests will appear here automatically.</span></div> : null}
+                    {!aiAuditError ? aiCalls.map((call) => (
+                      <details className={"ai-call-row ai-call-row--" + call.status} key={call.id}>
+                        <summary>
+                          <span className="ai-call-icon"><Bot size={15} /></span>
+                          <div className="ai-call-copy"><strong>{call.operation}</strong><p>{call.provider.toUpperCase()} · {call.model || "Model not reported"}{call.actorName ? " · " + call.actorName : ""}</p></div>
+                          <div className="ai-call-metrics">
+                            <span><b>{tokenLabel(call.totalTokens)}</b><small>tokens</small></span>
+                            <span><b>{costLabel(call.estimatedCostUsd)}</b><small>est. cost</small></span>
+                            <span><b>{durationLabel(call.responseTimeMs)}</b><small>response</small></span>
+                          </div>
+                          <div className="ai-call-end"><em>{call.status}</em><time><Clock3 size={12} /> {dateLabel(call.createdAt)}</time><ChevronRight className="ai-call-chevron" size={14} /></div>
+                        </summary>
+                        <dl className="ai-call-detail-grid">
+                          <div><dt>Input tokens</dt><dd>{tokenLabel(call.inputTokens)}</dd></div>
+                          <div><dt>Cached input</dt><dd>{tokenLabel(call.cachedInputTokens)}</dd></div>
+                          <div><dt>Cache writes</dt><dd>{tokenLabel(call.cacheWriteTokens)}</dd></div>
+                          <div><dt>Output tokens</dt><dd>{tokenLabel(call.outputTokens)}</dd></div>
+                          <div><dt>Total tokens</dt><dd>{tokenLabel(call.totalTokens)}</dd></div>
+                          <div><dt>Estimated cost</dt><dd>{costLabel(call.estimatedCostUsd)}</dd></div>
+                          <div><dt>Response time</dt><dd>{durationLabel(call.responseTimeMs)}</dd></div>
+                          <div><dt>Mailbox / account</dt><dd>{call.accountId || "Workspace-wide"}</dd></div>
+                          <div><dt>Endpoint</dt><dd>{call.endpoint}</dd></div>
+                          <div><dt>Provider request ID</dt><dd>{call.providerRequestId || "Not reported"}</dd></div>
+                          <div><dt>Status</dt><dd>{call.status}</dd></div>
+                          <div><dt>Error code</dt><dd>{call.errorCode || "None"}</dd></div>
+                        </dl>
+                      </details>
+                    )) : null}
+                  </div>
+                  <p className="admin-table-footnote">All-time totals are shown above; the list displays the latest {aiCalls.length.toLocaleString()} calls (up to 250). Cost is an estimate from reported token usage and the built-in OpenAI standard-rate table; provider billing remains authoritative.</p>
+                </>
+              )}
+            </section>
+          ) : null}
         </div>
       </div>
       {editor ? <UserEditor key={editor === "new" ? "new" : editor.id} user={editor === "new" ? null : editor} currentUser={initialUser} onClose={() => setEditor(null)} onSave={(data) => void saveUser(data)} onDelete={editor !== "new" && editor.id !== initialUser.id ? () => void deleteUser() : null} saving={saving} /> : null}

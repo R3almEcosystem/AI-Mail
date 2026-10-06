@@ -12,13 +12,13 @@ export const maxDuration = 60;
 export async function POST(request: NextRequest) {
   let service: "imap" | "smtp" | "openai" | null = null;
   try {
-    await requireCapability("admin:manage", request);
+    const user = await requireCapability("admin:manage", request);
     const parsed = testSchema.safeParse(await request.json().catch(() => null));
     if (!parsed.success) return NextResponse.json({ error: "Select a valid service to test." }, { status: 400, headers: privateHeaders });
     service = parsed.data.service;
 
     if (service === "openai") {
-      const result = await testAiConnection();
+      const result = await testAiConnection({ actorId: user.id, actorName: user.name });
       return NextResponse.json({
         ok: result.ok,
         service: "openai",

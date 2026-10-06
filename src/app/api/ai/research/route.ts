@@ -3,6 +3,7 @@ import { z } from "zod";
 import { listActiveMailAccounts, resolveMailAccount } from "@/lib/mail-accounts";
 import { mailConfiguration } from "@/lib/mail";
 import { runMailResearch } from "@/lib/mail-research";
+import type { AiTelemetryContext } from "@/lib/ai-telemetry";
 import { saveResearchHistory } from "@/lib/mail-research-history";
 import { requireCapability } from "@/lib/session";
 import { apiError, privateHeaders } from "@/lib/api-error";
@@ -23,7 +24,7 @@ export const maxDuration = 300;
 
 type ResearchResult = Awaited<ReturnType<typeof runMailResearch>>;
 
-async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both") {
+async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both", context: AiTelemetryContext) {
   const accounts = await listActiveMailAccounts();
   if (!accounts.length) throw new Error("MAIL_ACCOUNT_NOT_CONFIGURED");
 
@@ -33,7 +34,7 @@ async function runForAllAccounts(query: string, scope: "inbox" | "sent" | "both"
     const batch = accounts.slice(index, index + concurrency);
     const results = await Promise.all(batch.map(async (account) => ({
       account,
-      result: await runMailResearch(query, scope, account.id),
+      result: await runMailResearch(query, scope, account.id, context),
     })));
     completed.push(...results);
   }
@@ -105,11 +106,11 @@ export async function POST(request: NextRequest) {
 
     let result;
     if (accountId === "all") {
-      result = await runForAllAccounts(parsed.data.query, parsed.data.scope);
+      result = await runForAllAccounts(parsed.data.query, parsed.data.scope, { actorId: user.id, actorName: user.name });
     } else {
       const account = await resolveMailAccount(accountId);
       result = {
-        ...(await runMailResearch(parsed.data.query, parsed.data.scope, accountId)),
+        ...(await runMailResearch(parsed.data.query, parsed.data.scope, accountId, { actorId: user.id, actorName: user.name })),
         accountId,
         accountLabel: account.label,
       };

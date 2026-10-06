@@ -4,6 +4,11 @@ const { loadModule } = require('./module-loader.cjs');
 
 const research = loadModule('src/lib/mail-research.ts', {
   '@/lib/ai': { aiConfiguration: async () => ({ configured: false, apiKey: '', model: null }) },
+  '@/lib/ai-telemetry': {
+    normalizeAiUsage: () => ({ inputTokens: null, cachedInputTokens: null, cacheWriteTokens: null, outputTokens: null, totalTokens: null }),
+    recordAiCall: async () => {},
+    aiErrorCode: () => 'ERROR',
+  },
   '@/lib/mail': { loadMailResearchMessages: async () => [], searchMailUids: async () => [] },
 });
 
