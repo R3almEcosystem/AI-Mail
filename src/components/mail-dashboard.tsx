@@ -170,8 +170,11 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
   }, []);
 
   useEffect(() => {
-    void loadData("INBOX", "all");
-    void loadAlerts();
+    let cancelled = false;
+    void loadData("INBOX", "all").then(() => {
+      if (!cancelled) return loadAlerts();
+    });
+    return () => { cancelled = true; };
   }, [loadAlerts, loadData]);
 
   const loadMore = useCallback(async () => {
