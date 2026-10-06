@@ -4,14 +4,14 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Audit workspace has administrative and external AI call tabs", () => {
+test("Audit workspace has administrative and external S.I. call tabs", () => {
   const admin = read("src/components/admin-console.tsx");
   const route = read("src/app/api/admin/audit/ai-calls/route.ts");
   const telemetry = read("src/lib/ai-telemetry.ts");
   const css = read("src/app/globals.css");
 
   assert.match(admin, /Administrative activity/);
-  assert.match(admin, /External AI calls/);
+  assert.match(admin, /External S\.I\. calls/);
   assert.match(admin, /aiAuditSummary/);
   assert.match(admin, /\/api\/admin\/audit\/ai-calls/);
   assert.match(route, /requireAdminUser/);

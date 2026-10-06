@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) return NextResponse.json({ error: "Review the mail account settings and try again." }, { status: 400, headers: privateHeaders });
     const accounts = await listMailAccounts(true);
     if (accounts.filter((account) => !account.primary).length >= 20) {
-      return NextResponse.json({ error: "AI-Mail currently supports up to 20 additional mail accounts." }, { status: 409, headers: privateHeaders });
+      return NextResponse.json({ error: "S.I.-Mail currently supports up to 20 additional mail accounts." }, { status: 409, headers: privateHeaders });
     }
     const account = await createMailAccount(parsed.data, actor);
     await addAudit(actor, "Added mail account", account.email);

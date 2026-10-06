@@ -4,7 +4,7 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Admin AI Rules provide a complete editor", () => {
+test("Admin S.I. Rules provide a complete editor", () => {
   const ui = read("src/components/settings-views.tsx");
   const admin = read("src/components/admin-console.tsx");
   const css = read("src/app/globals.css");
@@ -13,7 +13,7 @@ test("Admin AI Rules provide a complete editor", () => {
   assert.match(ui, /function AiRuleEditor/);
   assert.match(ui, /Rule name/);
   assert.match(ui, /Match conditions/);
-  assert.match(ui, /AI actions/);
+  assert.match(ui, /S\.I\. actions/);
   assert.match(ui, /Sender domains/);
   assert.match(ui, /Sender addresses/);
   assert.match(ui, /Recipient terms/);
@@ -27,7 +27,7 @@ test("Admin AI Rules provide a complete editor", () => {
   assert.match(css, /\.rule-action-grid/);
 });
 
-test("full AI rule updates are validated, persisted, and audited", () => {
+test("full S.I. rule updates are validated, persisted, and audited", () => {
   const route = read("src/app/api/ai-rules/route.ts");
   const store = read("src/lib/ai-rules.ts");
 
@@ -36,7 +36,7 @@ test("full AI rule updates are validated, persisted, and audited", () => {
   assert.match(route, /direction: z\.enum\(\["inbound", "outbound", "both"\]\)/);
   assert.match(route, /actions: actionSchema/);
   assert.match(route, /await updateAiRule/);
-  assert.match(route, /"Updated AI rule"/);
+  assert.match(route, /"Updated S\.I\. rule"/);
 
   assert.match(store, /export async function updateAiRule/);
   assert.match(store, /sender_domains =/);

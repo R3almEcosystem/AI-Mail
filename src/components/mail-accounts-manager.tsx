@@ -219,7 +219,7 @@ export function MailAccountsManager({ onAccountsChanged }: { onAccountsChanged?:
       setMessage(
         editing
           ? saved.label + " was updated. Mailbox monitoring and research will use the new settings immediately."
-          : saved.label + " was added. Inbox, Sent, Compose, and AI Mail Research can now use it.",
+          : saved.label + " was added. Inbox, Sent, Compose, and S.I. Mail Research can now use it.",
       );
       await loadAccounts();
       await onAccountsChanged?.();
@@ -253,7 +253,7 @@ export function MailAccountsManager({ onAccountsChanged }: { onAccountsChanged?:
 
   async function removeAccount(account: MailAccountSummary) {
     if (account.primary || deleting) return;
-    if (!window.confirm("Remove " + account.label + " from AI-Mail? Messages stay on the mail server, but this account will no longer be monitored.")) return;
+    if (!window.confirm("Remove " + account.label + " from S.I.-Mail? Messages stay on the mail server, but this account will no longer be monitored.")) return;
     setDeleting(account.id);
     setError("");
     setMessage("");
@@ -262,7 +262,7 @@ export function MailAccountsManager({ onAccountsChanged }: { onAccountsChanged?:
       const payload = (await response.json().catch(() => null)) as { error?: string } | null;
       if (!response.ok) throw new Error(payload?.error || "Unable to remove the mail account.");
       if (editingId === account.id) closeEditor();
-      setMessage(account.label + " was removed from AI-Mail.");
+      setMessage(account.label + " was removed from S.I.-Mail.");
       await loadAccounts();
       await onAccountsChanged?.();
     } catch (reason) {
@@ -315,7 +315,7 @@ export function MailAccountsManager({ onAccountsChanged }: { onAccountsChanged?:
                   </label>
                 ) : null}
 
-                <div className="mail-account-form-section"><strong>Incoming mail (IMAP)</strong><small>Used for Inbox, Sent, message actions, and AI research.</small></div>
+                <div className="mail-account-form-section"><strong>Incoming mail (IMAP)</strong><small>Used for Inbox, Sent, message actions, and S.I. research.</small></div>
                 <label><span>IMAP host</span><input value={form.imapHost} onChange={(e) => setField("imapHost", e.target.value)} required /></label>
                 <label><span>IMAP port</span><input type="number" min="1" max="65535" value={form.imapPort} onChange={(e) => setField("imapPort", e.target.value)} required /></label>
                 <label><span>IMAP username</span><input value={form.imapUser} onChange={(e) => setField("imapUser", e.target.value)} required /></label>

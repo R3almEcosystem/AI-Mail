@@ -21,7 +21,7 @@ test("research history is private and scoped to the authenticated user", () => {
   assert.ok(store.includes("JSON.stringify(result.warnings)"));
 });
 
-test("AI Mail Research exposes a History tab and authenticated history APIs", () => {
+test("S.I. Mail Research exposes a History tab and authenticated history APIs", () => {
   const component = read("src/components/mail-research-modal.tsx");
   const route = read("src/app/api/ai/research/history/route.ts");
   const detail = read("src/app/api/ai/research/history/[id]/route.ts");
@@ -60,7 +60,7 @@ test("Markdown report formatting renders headings and separators between include
 });
 
 
-test("AI Mail Research supports full panel expansion for current and saved reports", () => {
+test("S.I. Mail Research supports full panel expansion for current and saved reports", () => {
   const component = read("src/components/mail-research-modal.tsx");
   const css = read("src/app/globals.css");
 

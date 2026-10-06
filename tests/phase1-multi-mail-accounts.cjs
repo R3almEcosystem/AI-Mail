@@ -30,7 +30,7 @@ test("mailbox APIs support all accounts and individual account IDs", () => {
   assert.match(mail, /const concurrency = 4/);
 });
 
-test("AI Mail Research can search all accounts or one account", () => {
+test("S.I. Mail Research can search all accounts or one account", () => {
   const route = read("src/app/api/ai/research/route.ts");
   const research = read("src/lib/mail-research.ts");
   const ui = read("src/components/mail-research-modal.tsx");

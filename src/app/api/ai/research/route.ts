@@ -151,7 +151,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "OpenAI could not complete the mailbox research step. Retry the request or choose another configured model." }, { status: 502, headers: privateHeaders });
     }
     if (message.includes("safe mailbox search")) {
-      return NextResponse.json({ error: "The AI could not interpret this mailbox query reliably. Try naming the people, addresses, phrase, or date range more explicitly." }, { status: 422, headers: privateHeaders });
+      return NextResponse.json({ error: "The S.I. could not interpret this mailbox query reliably. Try naming the people, addresses, phrase, or date range more explicitly." }, { status: 422, headers: privateHeaders });
     }
     return apiError(error, "Mailbox research could not be completed.");
   }

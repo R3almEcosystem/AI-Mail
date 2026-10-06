@@ -77,7 +77,7 @@ export const initialAlerts: AlertRecord[] = [
   },
   {
     id: "preview-ready",
-    title: "AI-Mail preview deployed",
+    title: "S.I.-Mail preview deployed",
     summary: "Version 0.2.0 passed build, route, and browser verification.",
     detail: "The landing page, Bernie demo access, dashboard, Admin Console, user-management forms, settings, and audit views are available in the isolated preview deployment.",
     source: "Deployment",
@@ -118,9 +118,9 @@ export function buildMailAlerts(messages: MailMessage[]): AlertRecord[] {
       const accountId = message.accountId || "primary";
       const accountLabel = message.accountLabel || "Primary mailbox";
       const folder = message.folder === "INBOX.Sent" || message.direction === "outbound" ? "INBOX.Sent" : "INBOX";
-      const matchedRules = message.aiRuleMatches?.length ? " Matched AI rules: " + message.aiRuleMatches.join(", ") + "." : "";
+      const matchedRules = message.aiRuleMatches?.length ? " Matched S.I. rules: " + message.aiRuleMatches.join(", ") + "." : "";
       const priorityReason = message.aiEscalate
-        ? "AI escalation policy matched this message."
+        ? "S.I. escalation policy matched this message."
         : message.priority === "urgent"
           ? "Detected as urgent."
           : message.priority === "important"

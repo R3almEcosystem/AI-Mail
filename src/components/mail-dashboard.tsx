@@ -43,8 +43,8 @@ const sectionTitles: Record<DashboardSection, { kicker: string; title: string }>
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
   inbox: { kicker: "COMMUNICATIONS", title: "Executive inbox" },
   sent: { kicker: "OUTBOUND", title: "Sent messages" },
-  research: { kicker: "MAILBOX INTELLIGENCE", title: "AI Mail Research" },
-  ai: { kicker: "INTELLIGENCE", title: "AI automation" },
+  research: { kicker: "MAILBOX INTELLIGENCE", title: "S.I. Mail Research" },
+  ai: { kicker: "INTELLIGENCE", title: "S.I. automation" },
   accounts: { kicker: "INFRASTRUCTURE", title: "Connected services" },
   settings: { kicker: "ADMINISTRATION", title: "System settings" },
 };
@@ -163,7 +163,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
         return mailData.messages.find((message) => message.uid === current.uid && (message.accountId || "primary") === (current.accountId || "primary")) || mailData.messages[0] || null;
       });
     } catch (error) {
-      setToast(error instanceof Error ? error.message : "Unable to load AI-Mail.");
+      setToast(error instanceof Error ? error.message : "Unable to load S.I.-Mail.");
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }
@@ -359,12 +359,12 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
       });
       const result = (await response.json().catch(() => null)) as { text?: string; error?: string; demo?: boolean; uid?: number; truncated?: boolean } | null;
       if (version !== aiVersion.current || selectionAtStart !== selectionVersion.current) return;
-      if (!response.ok) throw new Error(result?.error || "AI processing failed.");
-      if (result?.uid !== uid) throw new Error("The AI response could not be matched to this message.");
-      setAiResult((result?.truncated ? "Analysis uses an excerpt of this message.\n\n" : "") + (result?.text || "No AI response was returned."));
+      if (!response.ok) throw new Error(result?.error || "S.I. processing failed.");
+      if (result?.uid !== uid) throw new Error("The S.I. response could not be matched to this message.");
+      setAiResult((result?.truncated ? "Analysis uses an excerpt of this message.\n\n" : "") + (result?.text || "No S.I. response was returned."));
       if (result?.demo) setToast("OpenAI preview shown. Add API credentials for live analysis.");
     } catch (error) {
-      if (version === aiVersion.current && selectionAtStart === selectionVersion.current) setAiResult(error instanceof Error ? error.message : "AI processing failed.");
+      if (version === aiVersion.current && selectionAtStart === selectionVersion.current) setAiResult(error instanceof Error ? error.message : "S.I. processing failed.");
     } finally {
       if (version === aiVersion.current) setAiLoading(false);
     }
@@ -466,7 +466,7 @@ export function MailDashboard({ initialUser }: { initialUser: SessionUser }) {
             <div><p className="eyebrow">{heading.kicker}</p><h1>{heading.title}</h1></div>
           </div>
           <div className="topbar-actions">
-            <label className="global-search"><Search size={16} /><input placeholder="Search AI-Mail" aria-label="Search AI-Mail" /></label>
+            <label className="global-search"><Search size={16} /><input placeholder="Search S.I.-Mail" aria-label="Search S.I.-Mail" /></label>
             <span className={status?.mode === "live" ? "live-status" : "live-status live-status--demo"}>
               <i />{status?.mode === "live" ? "Live mail" : "Demo data"}
             </span>

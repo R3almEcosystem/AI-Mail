@@ -358,15 +358,15 @@ function MailResearchSurface({
         <span className="research-modal-icon"><Sparkles size={18} /></span>
         <div>
           <p className="eyebrow">FULL MAILBOX INTELLIGENCE</p>
-          <h2 id={titleId}>AI Mail Research</h2>
+          <h2 id={titleId}>S.I. Mail Research</h2>
         </div>
         {!panel && onClose ? (
-          <button type="button" className="icon-button" onClick={onClose} disabled={loading} aria-label="Close AI Mail Research"><X size={18} /></button>
+          <button type="button" className="icon-button" onClick={onClose} disabled={loading} aria-label="Close S.I. Mail Research"><X size={18} /></button>
         ) : null}
       </header>
 
       {panel && !expandedResearch && !expandedHistory ? (
-        <div className="research-workspace-tabs" role="tablist" aria-label="AI Mail Research views">
+        <div className="research-workspace-tabs" role="tablist" aria-label="S.I. Mail Research views">
           <button type="button" role="tab" aria-selected={activeTab === "research"} className={activeTab === "research" ? "active" : ""} onClick={() => setActiveTab("research")}>
             <Sparkles size={15} /> Research
           </button>
@@ -421,7 +421,7 @@ function MailResearchSurface({
       ) : !showingHistory ? (
         <div className="research-modal-body">
           <div className="research-scope-row">
-            <span><strong>Search scope</strong><small>The AI searches the complete server mailbox, not just messages currently loaded on screen.</small></span>
+            <span><strong>Search scope</strong><small>The S.I. searches the complete server mailbox, not just messages currently loaded on screen.</small></span>
             <div className="research-scope-tabs" role="group" aria-label="Research mailbox scope">
               {(["inbox", "sent", "both"] as const).map((item) => (
                 <button
@@ -502,7 +502,7 @@ function MailResearchSurface({
           <div className="research-history-heading">
             <span>
               <strong>Saved research</strong>
-              <small>Queries and generated Markdown reports are retained for your AI-Mail account.</small>
+              <small>Queries and generated Markdown reports are retained for your S.I.-Mail account.</small>
             </span>
             <button type="button" className="secondary-button" onClick={() => void loadHistory(true)} disabled={historyLoading}>
               <RefreshCw size={14} className={historyLoading ? "spin" : ""} /> Refresh

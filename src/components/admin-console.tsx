@@ -65,7 +65,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminSection; label: string; icon: Icon }> }> = [
   { label: "CONTROL CENTER", items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users }, { id: "groups", label: "Alert groups", icon: UsersRound }, { id: "roles", label: "Roles & access", icon: ShieldCheck }] },
-  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "AI", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "AI Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
+  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "S.I.", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "S.I. Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
 ];
 
 const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail: string }> = {
@@ -74,9 +74,9 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   groups: { eyebrow: "ESCALATION", title: "Alert groups", detail: "Define the teams that can receive and own escalated alerts." },
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
-  services: { eyebrow: "INTELLIGENCE", title: "AI settings", detail: "Configure workspace-wide AI intelligence, models, and response policy." },
+  services: { eyebrow: "INTELLIGENCE", title: "S.I. settings", detail: "Configure workspace-wide S.I. intelligence, models, and response policy." },
   mailboxes: { eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes", detail: "Manage mailbox connections, monitoring, and workspace-wide mail policy." },
-  rules: { eyebrow: "AUTOMATION", title: "AI Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
+  rules: { eyebrow: "AUTOMATION", title: "S.I. Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
 
@@ -221,7 +221,7 @@ function Overview({ users, groups, events, status, demo, onNavigate }: { users: 
         <article><span className="admin-stat-icon amber"><BellRing size={19} /></span><div><small>ALERT GROUPS</small><strong>{groups.filter((group) => group.active).length}</strong><em>{groups.length} defined</em></div></article>
       </section>
       <section className="admin-panel admin-member-panel"><header><div><p className="eyebrow">ACCESS SNAPSHOT</p><h3>Workspace members</h3></div><button onClick={() => onNavigate("users")}>View all <ChevronRight size={14} /></button></header><div>{users.slice(0, 5).map((user) => <button type="button" key={user.id} onClick={() => onNavigate("users")}><span className="admin-user-avatar">{initials(user.name)}</span><span><strong>{user.name}</strong><small>{user.email}</small></span><em className={`role-badge role-badge--${user.role}`}>{roleLabels[user.role]}</em><i className={`status-dot status-dot--${user.status}`} /></button>)}</div></section>
-      <section className="admin-panel admin-readiness"><header><div><p className="eyebrow">SYSTEM READINESS</p><h3>Private connections</h3></div><Settings size={17} /></header>{[{ label: "User database", ready: status?.database }, { label: "Incoming mail", ready: status?.imap }, { label: "Outgoing mail", ready: status?.smtp }, { label: "OpenAI intelligence", ready: status?.openai }].map((item) => <div key={item.label}><span className={item.ready ? "ready-check ready-check--on" : "ready-check"}>{item.ready ? <Check size={13} /> : <CircleAlert size={13} />}</span><strong>{item.label}</strong><em>{item.ready ? "Connected" : "Setup required"}</em></div>)}<button type="button" onClick={() => onNavigate("services")}>Open configuration</button></section>
+      <section className="admin-panel admin-readiness"><header><div><p className="eyebrow">SYSTEM READINESS</p><h3>Private connections</h3></div><Settings size={17} /></header>{[{ label: "User database", ready: status?.database }, { label: "Incoming mail", ready: status?.imap }, { label: "Outgoing mail", ready: status?.smtp }, { label: "OpenAI provider", ready: status?.openai }].map((item) => <div key={item.label}><span className={item.ready ? "ready-check ready-check--on" : "ready-check"}>{item.ready ? <Check size={13} /> : <CircleAlert size={13} />}</span><strong>{item.label}</strong><em>{item.ready ? "Connected" : "Setup required"}</em></div>)}<button type="button" onClick={() => onNavigate("services")}>Open configuration</button></section>
       <section className="admin-panel admin-audit-preview"><header><div><p className="eyebrow">RECENT ACTIVITY</p><h3>Audit trail</h3></div><button onClick={() => onNavigate("audit")}>Full log <ChevronRight size={14} /></button></header>{events.slice(0, 4).map((event) => <div key={event.id}><span><Activity size={14} /></span><p><strong>{event.actorName}</strong> {event.action.toLowerCase()}<small>{event.target} · {dateLabel(event.createdAt)}</small></p></div>)}</section>
     </div>
   );
@@ -230,14 +230,14 @@ function Overview({ users, groups, events, status, demo, onNavigate }: { users: 
 const permissions = [
   { label: "Read messages", roles: [true, true, true, true, true] },
   { label: "Compose and send", roles: [true, true, true, true, false] },
-  { label: "Use AI assistance", roles: [true, true, true, true, false] },
+  { label: "Use S.I. assistance", roles: [true, true, true, true, false] },
   { label: "Escalate alerts", roles: [true, true, true, true, false] },
   { label: "Manage team workflows", roles: [true, true, true, false, false] },
   { label: "Manage escalation groups", roles: [true, true, false, false, false] },
   { label: "Manage users", roles: [true, true, false, false, false] },
   { label: "Assign administrator roles", roles: [true, false, false, false, false] },
   { label: "Configure security & services", roles: [true, true, false, false, false] },
-  { label: "Manage AI rules", roles: [true, true, false, false, false] },
+  { label: "Manage S.I. rules", roles: [true, true, false, false, false] },
 ];
 
 export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
@@ -340,12 +340,12 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     try {
       const response = await fetch(webPath("/api/admin/audit/ai-calls"), { cache: "no-store" });
       const data = (await response.json().catch(() => null)) as { calls?: AiCallAuditEntry[]; summary?: AiCallAuditSummary; error?: string } | null;
-      if (!response.ok || !data?.calls || !data.summary) throw new Error(data?.error || "External AI call telemetry could not be loaded.");
+      if (!response.ok || !data?.calls || !data.summary) throw new Error(data?.error || "External S.I. call telemetry could not be loaded.");
       setAiCalls(data.calls);
       setAiAuditSummary(data.summary);
       setAiAuditLoaded(true);
     } catch (error) {
-      setAiAuditError(error instanceof Error ? error.message : "External AI call telemetry could not be loaded.");
+      setAiAuditError(error instanceof Error ? error.message : "External S.I. call telemetry could not be loaded.");
       setAiAuditLoaded(true);
     } finally {
       setAiAuditLoading(false);
@@ -439,7 +439,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
     if (section === "services") {
       const currentResponse = await fetch(webPath("/api/admin/settings"), { cache: "no-store" });
       if (!currentResponse.ok) {
-        setToast("Unable to refresh the current workspace configuration before saving AI settings.");
+        setToast("Unable to refresh the current workspace configuration before saving S.I. settings.");
         setSaving(false);
         return false;
       }
@@ -490,7 +490,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
       setToast(demo
         ? "Settings updated for this demo session."
         : section === "services"
-          ? "AI settings saved."
+          ? "S.I. settings saved."
           : section === "mailboxes"
             ? "Global mail policy saved."
             : "Settings saved.");
@@ -530,7 +530,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
         <button className="admin-sidebar-close" onClick={() => setMobileNav(false)} aria-label="Close navigation"><X size={18} /></button>
         <Link href={webPath("/inbox")} className="brand-lockup admin-brand"><span className="brand-mark" aria-hidden="true">r3</span><span><strong>r3alm</strong><small>ADMIN CONSOLE</small></span></Link>
         <nav>{navGroups.map((group) => <div key={group.label}><p>{group.label}</p>{group.items.map((item) => { const ItemIcon = item.icon; return <button key={item.id} className={section === item.id ? "active" : ""} type="button" onClick={() => { setSection(item.id); setMobileNav(false); }}><ItemIcon size={17} strokeWidth={1.8} /><span>{item.label}</span>{item.id === "users" ? <b>{users.length}</b> : item.id === "groups" ? <b>{groups.filter((alertGroup) => alertGroup.active).length}</b> : null}</button>; })}</div>)}</nav>
-        <div className="admin-sidebar-bottom"><Link href={webPath("/inbox")}><ArrowLeft size={17} /> Back to AI-Mail</Link><button onClick={logout}><LogOut size={17} /> Sign out</button><div><span>{initials(initialUser.name)}</span><p><strong>{initialUser.name}</strong><small>{roleLabels[initialUser.role]}</small></p></div></div>
+        <div className="admin-sidebar-bottom"><Link href={webPath("/inbox")}><ArrowLeft size={17} /> Back to S.I.-Mail</Link><button onClick={logout}><LogOut size={17} /> Sign out</button><div><span>{initials(initialUser.name)}</span><p><strong>{initialUser.name}</strong><small>{roleLabels[initialUser.role]}</small></p></div></div>
       </aside>
 
       <div className="admin-main">
@@ -553,30 +553,30 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
               {groups.length === 0 ? <div className="admin-empty group-empty"><UsersRound size={25} /><strong>No escalation groups defined</strong><span>Create the first group to enable alert escalation.</span></div> : null}
             </section>
           ) : null}
-          {!loading && section === "roles" ? <section className="roles-page"><div className="roles-intro"><span><KeyRound size={21} /></span><div><h2>Principle of least privilege</h2><p>Roles grant a predictable set of workspace abilities. Super Admin is the only role that can assign or manage privileged administrators.</p></div></div><div className="permission-table-wrap"><table className="permission-table"><thead><tr><th>Capability</th>{Object.values(roleLabels).map((role) => <th key={role}>{role}</th>)}</tr></thead><tbody>{permissions.map((permission) => <tr key={permission.label}><td>{permission.label}</td>{permission.roles.map((allowed, index) => <td key={`${permission.label}-${index}`}>{allowed ? <span className="permission-yes"><Check size={14} /></span> : <span className="permission-no">—</span>}</td>)}</tr>)}</tbody></table></div><div className="role-cards">{Object.entries(roleLabels).map(([role, label], index) => <article key={role}><span className={`role-number role-number--${role}`}>{index + 1}</span><h3>{label}</h3><p>{["Owns all security, identity, and workspace controls.", "Manages users, policies, and operational configuration.", "Coordinates team workflows without changing system access.", "Works with mail and AI assistance in the assigned workspace.", "Reviews permitted mail and reports without making changes."][index]}</p><b>{users.filter((user) => user.role === role).length} assigned</b></article>)}</div></section> : null}
+          {!loading && section === "roles" ? <section className="roles-page"><div className="roles-intro"><span><KeyRound size={21} /></span><div><h2>Principle of least privilege</h2><p>Roles grant a predictable set of workspace abilities. Super Admin is the only role that can assign or manage privileged administrators.</p></div></div><div className="permission-table-wrap"><table className="permission-table"><thead><tr><th>Capability</th>{Object.values(roleLabels).map((role) => <th key={role}>{role}</th>)}</tr></thead><tbody>{permissions.map((permission) => <tr key={permission.label}><td>{permission.label}</td>{permission.roles.map((allowed, index) => <td key={`${permission.label}-${index}`}>{allowed ? <span className="permission-yes"><Check size={14} /></span> : <span className="permission-no">—</span>}</td>)}</tr>)}</tbody></table></div><div className="role-cards">{Object.entries(roleLabels).map(([role, label], index) => <article key={role}><span className={`role-number role-number--${role}`}>{index + 1}</span><h3>{label}</h3><p>{["Owns all security, identity, and workspace controls.", "Manages users, policies, and operational configuration.", "Coordinates team workflows without changing system access.", "Works with mail and S.I. assistance in the assigned workspace.", "Reviews permitted mail and reports without making changes."][index]}</p><b>{users.filter((user) => user.role === role).length} assigned</b></article>)}</div></section> : null}
           {!loading && (section === "organization" || section === "services") && settings ? <section className="admin-settings-page"><div className="settings-section-grid">{section === "organization" ? <><div className="admin-panel settings-form-card"><header><span><Building2 size={18} /></span><div><h3>Organization profile</h3><p>Names shown throughout the workspace.</p></div></header><div className="admin-form-grid"><label><span>Organization name</span><input value={settings.organizationName} onChange={(event) => setSettings({ ...settings, organizationName: event.target.value })} /></label><label><span>Workspace name</span><input value={settings.workspaceName} onChange={(event) => setSettings({ ...settings, workspaceName: event.target.value })} /></label><label><span>Default sender name</span><input value={settings.defaultSenderName} onChange={(event) => setSettings({ ...settings, defaultSenderName: event.target.value })} /></label><label><span>Support email</span><input type="email" value={settings.supportEmail} onChange={(event) => setSettings({ ...settings, supportEmail: event.target.value })} /></label></div></div><div className="admin-panel settings-form-card"><header><span><ShieldCheck size={18} /></span><div><h3>Access policy</h3><p>Session and workspace authentication controls.</p></div></header><div className="setting-row"><div><strong>Require multi-factor authentication</strong><small>Policy flag for the production identity provider.</small></div><button className={settings.requireMfa ? "toggle toggle--active" : "toggle"} onClick={() => setSettings({ ...settings, requireMfa: !settings.requireMfa })} aria-pressed={settings.requireMfa}><span /></button></div><div className="setting-row"><div><strong>Allow demo login</strong><small>Keep disabled on the production environment.</small></div><button className={settings.allowDemoLogin ? "toggle toggle--active" : "toggle"} onClick={() => setSettings({ ...settings, allowDemoLogin: !settings.allowDemoLogin })} aria-pressed={settings.allowDemoLogin}><span /></button></div><label className="settings-select"><span>Session timeout</span><select value={settings.sessionTimeoutMinutes} onChange={(event) => setSettings({ ...settings, sessionTimeoutMinutes: Number(event.target.value) })}><option value={60}>1 hour</option><option value={240}>4 hours</option><option value={720}>12 hours</option><option value={1440}>24 hours</option><option value={10080}>7 days</option></select></label></div></> : <>
   <div className="admin-panel settings-form-card">
-    <header><span><Bot size={18} /></span><div><h3>OpenAI intelligence</h3><p>Workspace-wide model, response policy, and encrypted API access.</p></div></header>
+    <header><span><Bot size={18} /></span><div><h3>OpenAI provider</h3><p>Workspace-wide model, response policy, and encrypted API access.</p></div></header>
     <div className="admin-form-grid">
       <label><span>Preferred model</span><div className="model-picker"><select value={settings.aiModel} onChange={(event) => setSettings({ ...settings, aiModel: event.target.value })} disabled={modelsLoading}>{[...new Set([settings.aiModel, ...openAiModels].filter(Boolean))].map((model) => <option key={model} value={model}>{model}</option>)}</select><button type="button" className="model-refresh-button" onClick={() => void loadOpenAiModels(settings.aiModel)} disabled={modelsLoading || !secretStatus.openaiApiKey} aria-label="Refresh available OpenAI models">{modelsLoading ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}</button></div><small>{modelLoadError || (secretStatus.openaiApiKey ? "Models available to the connected OpenAI API key." : "Add an OpenAI API key to load available models.")}</small></label>
       <label><span>Response style</span><select value={settings.aiTone} onChange={(event) => setSettings({ ...settings, aiTone: event.target.value as AdminSettings["aiTone"] })}><option value="concise">Concise</option><option value="balanced">Balanced</option><option value="detailed">Detailed</option></select></label>
-      <label className="field-wide"><span>OpenAI API key</span><input type="password" autoComplete="new-password" value={credentials.openaiApiKey} onChange={(event) => setCredentials({ ...credentials, openaiApiKey: event.target.value })} placeholder={secretStatus.openaiApiKey ? "Configured — leave blank to keep current key" : "Enter API key"} /><small>{secretStatus.openaiApiKey ? "A private key is already configured." : "Required for live AI analysis."} New values are encrypted in Supabase Vault.</small></label>
+      <label className="field-wide"><span>OpenAI API key</span><input type="password" autoComplete="new-password" value={credentials.openaiApiKey} onChange={(event) => setCredentials({ ...credentials, openaiApiKey: event.target.value })} placeholder={secretStatus.openaiApiKey ? "Configured — leave blank to keep current key" : "Enter API key"} /><small>{secretStatus.openaiApiKey ? "A private key is already configured." : "Required for live S.I. analysis."} New values are encrypted in Supabase Vault.</small></label>
     </div>
     <div className="setting-row"><div><strong>Automatic summaries</strong><small>Automatically prepare a brief when a long message is opened, regardless of which mailbox it came from.</small></div><button className={settings.aiAutoSummarize ? "toggle toggle--active" : "toggle"} onClick={() => setSettings({ ...settings, aiAutoSummarize: !settings.aiAutoSummarize })} aria-pressed={settings.aiAutoSummarize}><span /></button></div>
     <div className="setting-row"><div><strong>Priority detection</strong><small>Apply the same governed triage policy across every connected mailbox.</small></div><button className={settings.aiPriorityDetection ? "toggle toggle--active" : "toggle"} onClick={() => setSettings({ ...settings, aiPriorityDetection: !settings.aiPriorityDetection })} aria-pressed={settings.aiPriorityDetection}><span /></button></div>
-    <div className="service-test-row"><span>{status?.openai ? "OpenAI is ready across all connected mailboxes" : "Save credentials and model to enable AI"}</span><button type="button" className="secondary-button" disabled={saving || testingService !== null} onClick={() => void testService("openai")}>{testingService === "openai" ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} Save & test AI</button></div>
+    <div className="service-test-row"><span>{status?.openai ? "OpenAI is ready across all connected mailboxes" : "Save credentials and model to enable S.I."}</span><button type="button" className="secondary-button" disabled={saving || testingService !== null} onClick={() => void testService("openai")}>{testingService === "openai" ? <LoaderCircle className="spin" size={14} /> : <Check size={14} />} Save & test S.I.</button></div>
   </div>
 
 
   <div className="admin-panel service-config-card">
-    <header><span><ShieldCheck size={18} /></span><div><h3>AI service readiness</h3><p>Core services required for workspace AI intelligence.</p></div></header>
+    <header><span><ShieldCheck size={18} /></span><div><h3>S.I. service readiness</h3><p>Core services required for workspace S.I. intelligence.</p></div></header>
     {[
       { icon: Database, label: "Supabase database", detail: "Persistent configuration & Vault", ready: status?.database },
-      { icon: Bot, label: "OpenAI credential", detail: "Governed AI provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
+      { icon: Bot, label: "OpenAI credential", detail: "Governed S.I. provider configuration for all mailboxes", ready: secretStatus.openaiApiKey },
     ].map((service) => { const ServiceIcon = service.icon; return <div className="service-config-row" key={service.label}><span><ServiceIcon size={17} /></span><p><strong>{service.label}</strong><small>{service.detail}</small></p><em className={service.ready ? "ready" : ""}>{service.ready ? "Configured" : "Required"}</em></div>; })}
     <p className="service-secret-note"><ShieldCheck size={14} /> The OpenAI API key is stored as a workspace-wide encrypted credential.</p>
   </div>
-</>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save AI settings" : "Save settings"}</button></div></section> : null}
+</>}</div><div className="settings-save-bar"><span>{demo ? "Changes are simulated in this preview." : "Changes are stored in the workspace database."}</span><button className="primary-button" onClick={() => void saveSettings()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />} {section === "services" ? "Save S.I. settings" : "Save settings"}</button></div></section> : null}
           {!loading && section === "mailboxes" && settings ? (
             <section className="admin-mailboxes-page">
               <div className="admin-mail-accounts">
@@ -608,7 +608,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
             <section className="audit-page">
               <div className="audit-tabs" role="tablist" aria-label="Audit views">
                 <button type="button" role="tab" aria-selected={auditTab === "activity"} className={auditTab === "activity" ? "active" : ""} onClick={() => setAuditTab("activity")}><Activity size={14} /> Administrative activity <span>{events.length}</span></button>
-                <button type="button" role="tab" aria-selected={auditTab === "ai"} className={auditTab === "ai" ? "active" : ""} onClick={() => setAuditTab("ai")}><Bot size={14} /> External AI calls <span>{aiAuditLoaded ? aiAuditSummary.calls : "…"}</span></button>
+                <button type="button" role="tab" aria-selected={auditTab === "ai"} className={auditTab === "ai" ? "active" : ""} onClick={() => setAuditTab("ai")}><Bot size={14} /> External S.I. calls <span>{aiAuditLoaded ? aiAuditSummary.calls : "…"}</span></button>
               </div>
 
               {auditTab === "activity" ? (
@@ -620,7 +620,7 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                 <>
                   <div className="audit-summary audit-summary--ai">
                     <span><Bot size={20} /></span>
-                    <div><h2>External AI calls</h2><p>Provider/model usage, tokens, estimated spend, latency, status, and request IDs. Email bodies, prompts, and generated content are never stored here.</p></div>
+                    <div><h2>External S.I. calls</h2><p>Provider/model usage, tokens, estimated spend, latency, status, and request IDs. Email bodies, prompts, and generated content are never stored here.</p></div>
                     <button type="button" className="secondary-button audit-refresh-button" onClick={() => void refreshAiAudit()} disabled={aiAuditLoading}><RefreshCw className={aiAuditLoading ? "spin" : ""} size={14} /> Refresh</button>
                   </div>
 
@@ -632,9 +632,9 @@ export function AdminConsole({ initialUser }: { initialUser: SessionUser }) {
                   </div>
 
                   <div className="admin-panel ai-audit-list">
-                    {aiAuditLoading && !aiAuditLoaded ? <div className="ai-audit-empty"><LoaderCircle className="spin" size={18} /><strong>Loading external AI telemetry…</strong></div> : null}
+                    {aiAuditLoading && !aiAuditLoaded ? <div className="ai-audit-empty"><LoaderCircle className="spin" size={18} /><strong>Loading external S.I. telemetry…</strong></div> : null}
                     {aiAuditError ? <div className="ai-audit-empty ai-audit-empty--error"><CircleAlert size={18} /><strong>{aiAuditError}</strong><button type="button" className="secondary-button" onClick={() => void refreshAiAudit()}>Retry</button></div> : null}
-                    {!aiAuditLoading && !aiAuditError && aiCalls.length === 0 ? <div className="ai-audit-empty"><Bot size={20} /><strong>No external AI calls have been recorded yet.</strong><span>New provider requests will appear here automatically.</span></div> : null}
+                    {!aiAuditLoading && !aiAuditError && aiCalls.length === 0 ? <div className="ai-audit-empty"><Bot size={20} /><strong>No external S.I. calls have been recorded yet.</strong><span>New provider requests will appear here automatically.</span></div> : null}
                     {!aiAuditError ? aiCalls.map((call) => (
                       <details className={"ai-call-row ai-call-row--" + call.status} key={call.id}>
                         <summary>

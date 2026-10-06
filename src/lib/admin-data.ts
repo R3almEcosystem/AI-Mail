@@ -22,7 +22,7 @@ let initializationPromise: Promise<void> | null = null;
 
 const defaultSettings: AdminSettings = {
   organizationName: "r3alm",
-  workspaceName: "AI-Mail Executive Workspace",
+  workspaceName: "S.I.-Mail Executive Workspace",
   defaultSenderName: "Bernie O’Neill",
   supportEmail: "support@r3alm.com",
   aiModel: "gpt-5.2",
@@ -62,9 +62,9 @@ let demoAlertGroups: AlertGroup[] = [
 
 let demoSettings = { ...defaultSettings };
 let demoAudit: AuditEvent[] = [
-  { id: "audit-1", actorName: "Bernie O’Neill", action: "Signed in with demo access", target: "AI-Mail Console", createdAt: "2026-08-19T13:52:00.000Z" },
+  { id: "audit-1", actorName: "Bernie O’Neill", action: "Signed in with demo access", target: "S.I.-Mail Console", createdAt: "2026-08-19T13:52:00.000Z" },
   { id: "audit-2", actorName: "Maya Chen", action: "Changed role to Manager", target: "Jordan Ellis", createdAt: "2026-08-19T12:07:00.000Z" },
-  { id: "audit-3", actorName: "Bernie O’Neill", action: "Updated AI policy", target: "Executive triage", createdAt: "2026-08-18T21:16:00.000Z" },
+  { id: "audit-3", actorName: "Bernie O’Neill", action: "Updated S.I. policy", target: "Executive triage", createdAt: "2026-08-18T21:16:00.000Z" },
   { id: "audit-4", actorName: "Maya Chen", action: "Invited user", target: "Alex Rivera", createdAt: "2026-08-17T16:30:00.000Z" },
   { id: "audit-5", actorName: "Bernie O’Neill", action: "Reviewed mail connection", target: "Primary mailbox", createdAt: "2026-08-16T18:40:00.000Z" },
 ];
@@ -113,6 +113,11 @@ async function initializeDatabase(sql: SqlClient) {
       ) ON CONFLICT (id) DO NOTHING
     `;
     await sql`
+      UPDATE ai_mail_settings
+      SET workspace_name = ${defaultSettings.workspaceName}, updated_at = NOW()
+      WHERE id = 'default' AND workspace_name = 'AI-Mail Executive Workspace'
+    `;
+    await sql`
       INSERT INTO ai_mail_alert_groups (id, name, description, color, member_ids, active)
       VALUES
         ('group-executive', 'Executive Response', 'Time-sensitive decisions, approvals, and executive follow-up.', 'violet', '[]'::jsonb, TRUE),
@@ -133,7 +138,7 @@ async function initializeDatabase(sql: SqlClient) {
     `;
     await sql`
       INSERT INTO ai_mail_users (id, name, email, title, role, status, password_hash)
-      SELECT id::text, 'r3alm Administrator', LOWER(email), 'AI Mail Administrator', 'admin', 'active', NULL
+      SELECT id::text, 'r3alm Administrator', LOWER(email), 'S.I. Mail Administrator', 'admin', 'active', NULL
       FROM auth.users
       WHERE LOWER(email) = 'admin@r3alm.com'
       ON CONFLICT (email) DO UPDATE SET
@@ -251,7 +256,7 @@ export async function recordLogin(user: SessionUser) {
   await initializeDatabase(sql);
   await Promise.all([
     sql`UPDATE ai_mail_users SET last_login_at = NOW(), updated_at = NOW() WHERE id = ${user.id}`,
-    addAudit(user, "Signed in", "AI-Mail Console"),
+    addAudit(user, "Signed in", "S.I.-Mail Console"),
   ]);
 }
 

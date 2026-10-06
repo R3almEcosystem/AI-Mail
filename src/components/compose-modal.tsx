@@ -89,7 +89,7 @@ export function ComposeModal({
         <footer>
           <button className="primary-button" type="submit" disabled={sending}><Send size={15} />{sending ? "Sending…" : "Send"}</button>
           <button type="button" className="compose-tool" aria-label="Attach file"><Paperclip size={17} /></button>
-          <button type="button" className="compose-tool compose-tool--ai" aria-label="Write with AI"><Sparkles size={17} /></button>
+          <button type="button" className="compose-tool compose-tool--ai" aria-label="Write with S.I."><Sparkles size={17} /></button>
         </footer>
       </form>
     </div>

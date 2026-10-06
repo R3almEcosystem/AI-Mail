@@ -143,7 +143,7 @@ export function InboxWorkspace({
         <div className="mail-list-heading">
           <div><p className="eyebrow">{mailboxEyebrow}</p><h2>{mailboxLabel} <span>{loadedCount < totalCount ? `${loadedCount} of ${totalCount}` : totalCount}</span></h2></div>
           <div className="mail-list-heading-actions">
-            <button type="button" className="icon-button research-launch-button" onClick={onOpenResearch} aria-label={`Open AI research for ${mailboxLabel}`} title="AI Mail Research">
+            <button type="button" className="icon-button research-launch-button" onClick={onOpenResearch} aria-label={`Open S.I. research for ${mailboxLabel}`} title="S.I. Mail Research">
               <Sparkles size={17} />
             </button>
             <button type="button" className="icon-button" onClick={onRefresh} aria-label={`Refresh ${mailboxLabel.toLowerCase()}`}>
@@ -415,10 +415,10 @@ export function InboxWorkspace({
       <aside className="ai-panel">
         <div className="ai-panel-heading">
           <span className="ai-orb"><Sparkles size={17} /></span>
-          <div><p className="eyebrow">OPENAI COPILOT</p><h3>Mail intelligence</h3></div>
+          <div><p className="eyebrow">S.I. COPILOT · OPENAI</p><h3>Mail intelligence</h3></div>
           <span className={demo ? "mode-badge mode-badge--demo" : "mode-badge"}>{demo ? "Demo" : aiConfigured ? "Available" : "Not configured"}</span>
         </div>
-        {!demo && !aiConfigured ? <p className="ai-empty">AI is not configured. Email-security inspection remains independent and available.</p> : null}
+        {!demo && !aiConfigured ? <p className="ai-empty">S.I. is not configured. Email-security inspection remains independent and available.</p> : null}
         {selected ? (
           <>
             <div className="ai-actions-grid">
@@ -428,11 +428,11 @@ export function InboxWorkspace({
               <button type="button" onClick={() => onAiAction("prioritize")} disabled={aiLoading || (!demo && !aiConfigured)}><Tag size={16} /><span><strong>Prioritize</strong><small>Assess urgency</small></span></button>
             </div>
             <div className="ai-result">
-              <div><strong>{aiLoading ? "Thinking…" : aiResult ? "AI result" : "Ready to assist"}</strong><Sparkles size={14} /></div>
+              <div><strong>{aiLoading ? "Thinking…" : aiResult ? "S.I. result" : "Ready to assist"}</strong><Sparkles size={14} /></div>
               {aiLoading ? (
                 <div className="ai-loading"><span /><span /><span /></div>
               ) : (
-                <p>{aiResult || "Choose an AI action to summarize, draft, extract, or prioritize this message."}</p>
+                <p>{aiResult || "Choose an S.I. action to summarize, draft, extract, or prioritize this message."}</p>
               )}
             </div>
             <div className="ai-context-card">
@@ -447,7 +447,7 @@ export function InboxWorkspace({
             </div>
           </>
         ) : (
-          <div className="ai-empty"><Bot size={22} /><p>Select a message to activate AI assistance.</p></div>
+          <div className="ai-empty"><Bot size={22} /><p>Select a message to activate S.I. assistance.</p></div>
         )}
       </aside>
     </section>

@@ -64,11 +64,11 @@ export function OverviewView({
     <div className="overview-grid">
       <section className="welcome-card">
         <div>
-          <span className="welcome-kicker"><Sparkles size={15} /> AI-MAIL BRIEFING</span>
+          <span className="welcome-kicker"><Sparkles size={15} /> S.I.-MAIL BRIEFING</span>
           <h2>Welcome back, {userName.split(" ")[0]}.</h2>
           <p>
             You have <strong>{unread} unread messages</strong> and {important} items that may
-            need attention. AI triage is ready to help you move through them.
+            need attention. S.I. triage is ready to help you move through them.
           </p>
           <button type="button" className="light-button" onClick={onOpenInbox}>
             Review priority inbox <ArrowRight size={16} />
@@ -92,7 +92,7 @@ export function OverviewView({
         </article>
         <article className="metric-card">
           <span className="metric-icon metric-icon--violet"><Bot size={19} /></span>
-          <div><small>AI ASSIST</small><strong>{status?.openai ? "Live" : "Demo"}</strong><span>{status?.model || "Preview mode"}</span></div>
+          <div><small>S.I. ASSIST</small><strong>{status?.openai ? "Live" : "Demo"}</strong><span>{status?.model || "Preview mode"}</span></div>
         </article>
         <article className="metric-card">
           <span className="metric-icon metric-icon--green"><ShieldCheck size={19} /></span>
@@ -122,7 +122,7 @@ export function OverviewView({
 
       <aside className="panel intelligence-panel">
         <div className="panel-heading">
-          <div><p className="eyebrow">TODAY</p><h3>AI intelligence</h3></div>
+          <div><p className="eyebrow">TODAY</p><h3>S.I. intelligence</h3></div>
           <span className="spark-icon"><Sparkles size={17} /></span>
         </div>
         <div className="intelligence-score">
@@ -161,7 +161,7 @@ export function OverviewView({
                 <span className="time-sensitive-preview">{message.preview}</span>
                 <span className="time-sensitive-context">
                   <small>{message.unread ? "Unread" : "Read"}</small>
-                  <small>{message.aiRuleMatches?.length ? `${message.aiRuleMatches.length} AI rule${message.aiRuleMatches.length === 1 ? "" : "s"} matched` : "Priority detection"}</small>
+                  <small>{message.aiRuleMatches?.length ? `${message.aiRuleMatches.length} S.I. rule${message.aiRuleMatches.length === 1 ? "" : "s"} matched` : "Priority detection"}</small>
                 </span>
               </button>
             )) : (
