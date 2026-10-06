@@ -26,6 +26,9 @@ begin
 end
 $attachment_buckets$;
 
+alter table public.ai_mail_settings
+  add column if not exists attachment_scanning_required boolean not null default true;
+
 create table if not exists private.ai_mail_attachment_blobs (
   id uuid primary key default gen_random_uuid(),
   sha256 text not null unique check (sha256 ~ '^[0-9a-f]{64}$'),
