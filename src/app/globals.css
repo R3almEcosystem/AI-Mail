@@ -2779,7 +2779,8 @@ button[aria-label]:disabled::after {
 .admin-mail-accounts .mail-accounts-manager > header {
   min-height: 78px;
 }
-.admin-mailboxes-page .global-mail-policy-card {
+.admin-mailboxes-page .global-mail-policy-card,
+.admin-mailboxes-page .mailbox-readiness-card {
   margin-top: 13px;
 }
 .global-mail-policy-card .setting-row {
