@@ -25,8 +25,8 @@ const navItems: Array<{ id: DashboardSection; label: string; icon: IconComponent
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "inbox", label: "Inbox", icon: Inbox },
   { id: "sent", label: "Sent Messages", icon: Send },
-  { id: "research", label: "S.I. Mail Research", icon: Sparkles },
-  { id: "ai", label: "S.I. Rules", icon: Bot },
+  { id: "research", label: "S.I.A. Mail Research", icon: Sparkles },
+  { id: "ai", label: "S.I.A. Rules", icon: Bot },
   { id: "accounts", label: "Accounts", icon: Boxes },
   { id: "settings", label: "Settings", icon: Settings },
 ];
@@ -50,10 +50,10 @@ export function Sidebar({
   return (
     <aside className="sidebar">
       <div className="brand-lockup">
-        <span className="brand-mark" aria-hidden="true">r3</span>
+        <span className="brand-mark" aria-hidden="true">SI</span>
         <span>
-          <strong>r3alm</strong>
-          <small>S.I.-MAIL</small>
+          <strong>ASSIST</strong>
+          <small>MAIL</small>
         </span>
       </div>
 
