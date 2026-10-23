@@ -5,7 +5,7 @@ import { webPath } from "@/lib/web-path";
 import { safeReturnPath } from "@/lib/auth-policy";
 
 export function LoginPanel({ compact = false }: { compact?: boolean }) {
-  const [email, setEmail] = useState("bernie@r3alm.com");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState<"credentials" | "demo" | null>(null);
@@ -34,7 +34,7 @@ export function LoginPanel({ compact = false }: { compact?: boolean }) {
   return (
     <div className={compact ? "login-card login-card--compact" : "login-card"}>
       <div className="login-icon"><KeyRound size={21} /></div>
-      <p className="eyebrow">SECURE WORKSPACE</p><h2>Welcome back</h2>
+      <p className="eyebrow">ASSIST MAIL · SECURE WORKSPACE</p><h2>Welcome back</h2>
       <p className="muted">Sign in with your individual workspace account.</p>
       <form onSubmit={signIn}>
         <label htmlFor={compact ? "landing-email" : "email"}>Work email</label>
