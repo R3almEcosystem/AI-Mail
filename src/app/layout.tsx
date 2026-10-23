@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "r3alm S.I.-Mail — Executive Inbox Intelligence",
-  description: "A secure, S.I.-powered email command center with team governance and human-controlled workflows.",
+  title: "ASSIST Mail — Intelligent Communications",
+  description: "ASSIST Mail by Sovereign Super-Intelligence: secure intelligent communications, connected mailboxes, and human-controlled workflows.",
   robots: { index: false, follow: false },
 };
 
