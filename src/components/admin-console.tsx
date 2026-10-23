@@ -65,7 +65,7 @@ const roleLabels: Record<UserRole, string> = {
 
 const navGroups: Array<{ label: string; items: Array<{ id: AdminSection; label: string; icon: Icon }> }> = [
   { label: "CONTROL CENTER", items: [{ id: "overview", label: "Overview", icon: LayoutDashboard }, { id: "users", label: "Users", icon: Users }, { id: "groups", label: "Alert groups", icon: UsersRound }, { id: "roles", label: "Roles & access", icon: ShieldCheck }] },
-  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "S.I.", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "S.I. Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
+  { label: "CONFIGURATION", items: [{ id: "organization", label: "Organization", icon: Building2 }, { id: "services", label: "S.I.A.", icon: SlidersHorizontal }, { id: "mailboxes", label: "Connected mailboxes", icon: MailCheck }, { id: "rules", label: "S.I.A. Rules", icon: Bot }, { id: "audit", label: "Audit log", icon: Activity }] },
 ];
 
 const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail: string }> = {
@@ -74,9 +74,9 @@ const sectionMeta: Record<AdminSection, { eyebrow: string; title: string; detail
   groups: { eyebrow: "ESCALATION", title: "Alert groups", detail: "Define the teams that can receive and own escalated alerts." },
   roles: { eyebrow: "GOVERNANCE", title: "Roles & access", detail: "Review exactly what each workspace role can do." },
   organization: { eyebrow: "WORKSPACE", title: "Organization settings", detail: "Configure identity, security, and session policy." },
-  services: { eyebrow: "INTELLIGENCE", title: "S.I. settings", detail: "Configure workspace-wide S.I. intelligence, models, and response policy." },
+  services: { eyebrow: "INTELLIGENCE", title: "S.I.A. settings", detail: "Configure workspace-wide S.I. intelligence, models, and response policy." },
   mailboxes: { eyebrow: "MAIL INFRASTRUCTURE", title: "Connected mailboxes", detail: "Manage mailbox connections, monitoring, and workspace-wide mail policy." },
-  rules: { eyebrow: "AUTOMATION", title: "S.I. Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
+  rules: { eyebrow: "AUTOMATION", title: "S.I.A. Rules", detail: "Govern persistent classification, priority, summary, and action-detection rules across all mailboxes." },
   audit: { eyebrow: "SECURITY", title: "Audit log", detail: "Trace administrative activity across the workspace." },
 };
 
