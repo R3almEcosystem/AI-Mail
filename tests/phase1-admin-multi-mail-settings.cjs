@@ -9,9 +9,9 @@ test("Admin separates S.I. settings from Connected mailboxes and mail policy", (
   const manager = read("src/components/mail-accounts-manager.tsx");
   const css = read("src/app/globals.css");
 
-  assert.match(admin, /id: "services", label: "S\.I\."/);
+  assert.match(admin, /id: "services", label: "S\.I\.A\."/);
   assert.doesNotMatch(admin, /id: "services", label: "AI & mail"/);
-  assert.match(admin, /services: \{ eyebrow: "INTELLIGENCE", title: "S\.I\. settings"/);
+  assert.match(admin, /services: \{ eyebrow: "INTELLIGENCE", title: "S\.I\.A\. settings"/);
   assert.doesNotMatch(admin, /title: "AI & mail settings"/);
 
   assert.match(admin, /id: "mailboxes", label: "Connected mailboxes"/);
