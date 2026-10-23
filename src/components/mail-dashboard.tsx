@@ -43,8 +43,8 @@ const sectionTitles: Record<DashboardSection, { kicker: string; title: string }>
   overview: { kicker: "COMMAND CENTER", title: "Mail overview" },
   inbox: { kicker: "COMMUNICATIONS", title: "Executive inbox" },
   sent: { kicker: "OUTBOUND", title: "Sent messages" },
-  research: { kicker: "MAILBOX INTELLIGENCE", title: "S.I. Mail Research" },
-  ai: { kicker: "INTELLIGENCE", title: "S.I. automation" },
+  research: { kicker: "MAILBOX INTELLIGENCE", title: "S.I.A. Mail Research" },
+  ai: { kicker: "INTELLIGENCE", title: "S.I.A. automation" },
   accounts: { kicker: "INFRASTRUCTURE", title: "Connected services" },
   settings: { kicker: "ADMINISTRATION", title: "System settings" },
 };
