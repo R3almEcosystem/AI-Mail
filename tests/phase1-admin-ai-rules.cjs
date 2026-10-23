@@ -4,15 +4,15 @@ const fs = require("node:fs");
 
 const read = (path) => fs.readFileSync(path, "utf8");
 
-test("Admin Console exposes the shared S.I. Rules workspace", () => {
+test("Admin Console exposes the shared S.I.A. Rules workspace", () => {
   const admin = read("src/components/admin-console.tsx");
   const rules = read("src/components/settings-views.tsx");
   const route = read("src/app/api/ai-rules/route.ts");
   const css = read("src/app/globals.css");
 
   assert.match(admin, /type AdminSection = .*"rules"/);
-  assert.match(admin, /id: "rules", label: "S\.I\. Rules"/);
-  assert.match(admin, /rules: \{ eyebrow: "AUTOMATION", title: "S\.I\. Rules"/);
+  assert.match(admin, /id: "rules", label: "S\.I\.A\. Rules"/);
+  assert.match(admin, /rules: \{ eyebrow: "AUTOMATION", title: "S\.I\.A\. Rules"/);
   assert.match(admin, /section === "rules"/);
   assert.match(admin, /<AiRulesView onChanged={refreshAudit} editable \/>/);
   assert.match(admin, /Manage S\.I\. rules/);
