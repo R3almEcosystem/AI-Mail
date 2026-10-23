@@ -1,0 +1,36 @@
+name: ASSIST Mail Vite Portal CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "portal/**"
+      - ".github/workflows/assist-mail-vite.yml"
+  pull_request:
+    paths:
+      - "portal/**"
+      - ".github/workflows/assist-mail-vite.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  portal-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Set up Node 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Install portal dependencies
+        working-directory: portal
+        run: npm install --no-audit --no-fund
+      - name: Typecheck and build Vite portal
+        working-directory: portal
+        run: npm run build
+      - name: Ensure output exists
+        run: test -s portal/dist/index.html
