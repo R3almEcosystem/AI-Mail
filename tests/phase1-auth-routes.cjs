@@ -7,21 +7,18 @@ const next={'next/server':{NextResponse},zod:{z:schema}};
 const user={id:'user',name:'Synthetic',email:'synthetic@example.test',role:'member',demo:false};
 function setup(options={}){
  let issued=0;
- const route=loadModule('src/app/api/auth/login/route.ts',{...next,
-  '@/lib/auth':{authenticationConfigured:()=>true,createSessionToken:async()=>{issued++;return 'signed';},SESSION_NAME:'session'},
-  '@/lib/admin-data':{findUserForLogin:async()=>options.missing?null:{user,status:options.status||'active',passwordHash:null},getSettings:async()=>({requireMfa:Boolean(options.mfa),sessionTimeoutMinutes:60}),recordLogin:async()=>{}},
-  '@/lib/supabase-auth':{supabasePasswordAuthConfigured:()=>true,verifySupabasePassword:async()=>options.badPassword?null:{id:user.id,email:user.email}},
-  '@/lib/session-store':{consumeLoginAttempt:async()=>!options.limited,createDatabaseSession:async()=>{if(options.databaseDown)throw Error('DB down');return 'session-id';}}
+ const route=loadModule('src/app/api/auth/sovsi-session/route.ts',{...next,
+ '@/lib/auth':{createSessionToken:async()=>{issued++;return 'signed';},SESSION_NAME:'session'},
+ '@/lib/sovsi-server':{verifySovsiAccess:async()=>{if(options.denied)throw Error('UNAUTHORIZED');return {subject:'central-id'};}},
+ '@/lib/session-store':{consumeLoginAttempt:async()=>!options.limited,createFederatedSession:async()=>{if(options.databaseDown||options.unlinked)throw Error('FORBIDDEN');return {user,duration:3600,sessionId:'test'};}}
  });
- const request=new Request('https://ai-mail.r3alm.com/api/auth/login',{method:'POST',headers:{Origin:'https://ai-mail.r3alm.com'},body:JSON.stringify({email:user.email,password:'shared-test-password'})});
+ const request=new Request('https://ai-mail.sovsi.xyz/api/auth/sovsi-session',{method:'POST',headers:{Origin:options.foreign?'https://evil.example':'https://ai-mail.sovsi.xyz'},body:JSON.stringify({access_token:'central-access',refresh_token:'central-refresh'})});
  return {route,request,issued:()=>issued};
 }
-for(const state of ['suspended','deleted','invited'])test(`${state} account cannot obtain a browser session`,async()=>{const t=setup({status:state});assert.equal((await t.route.POST(t.request)).status,401);assert.equal(t.issued(),0);});
-test('invalid Supabase password cannot override application authorization',async()=>{const old=process.env.APP_ACCESS_PASSWORD;process.env.APP_ACCESS_PASSWORD='shared-test-password';try{const t=setup({badPassword:true});assert.equal((await t.route.POST(t.request)).status,401);assert.equal(t.issued(),0);}finally{if(old===undefined)delete process.env.APP_ACCESS_PASSWORD;else process.env.APP_ACCESS_PASSWORD=old;}});
-test('MFA-required password login fails closed',async()=>{const t=setup({mfa:true});const r=await t.route.POST(t.request);assert.equal(r.status,403);assert.equal((await r.json()).code,'MFA_REQUIRED');assert.equal(t.issued(),0);});
-test('rate-limited login does not create a session',async()=>{const t=setup({limited:true});assert.equal((await t.route.POST(t.request)).status,429);assert.equal(t.issued(),0);});
-test('storage failure issues no cookie',async()=>{const t=setup({databaseDown:true});const r=await t.route.POST(t.request);assert.equal(r.status,503);assert.equal(r.cookieWrites.length,0);});
-test('active individual account receives a cookie only after session creation',async()=>{const t=setup();const r=await t.route.POST(t.request);assert.equal(r.status,200);assert.equal(t.issued(),1);assert.equal(r.cookieWrites.length,1);});
+test('local password endpoint cannot issue a session',async()=>{const r=await loadModule('src/app/api/auth/login/route.ts',next).POST();assert.equal(r.status,410);assert.equal((await r.json()).code,'SOVSI_ID_REQUIRED');});
+for(const option of ['denied','unlinked','databaseDown','foreign'])test(`${option} issues no cookie`,async()=>{const t=setup({[option]:true});const r=await t.route.POST(t.request);assert.equal(r.status,403);assert.equal(r.cookieWrites.length,0);assert.equal(t.issued(),0);});
+test('rate limit denies federated session issuance',async()=>{const t=setup({limited:true});assert.equal((await t.route.POST(t.request)).status,429);assert.equal(t.issued(),0);});
+test('verified linked account receives only an HttpOnly local session cookie',async()=>{const t=setup();const r=await t.route.POST(t.request);assert.equal(r.status,200);assert.equal(t.issued(),1);assert.equal(r.cookieWrites[0][2].httpOnly,true);assert.equal(r.cookieWrites[0][1],'signed');});
 for(const fail of [false,true])test(`logout ${fail?'preserves retry credential on storage failure':'revokes the database session before clearing cookie'}`,async()=>{
  const events=[];
  const route=loadModule('src/app/api/auth/logout/route.ts',{...next,'next/headers':{cookies:async()=>({get:()=>({value:'cookie'})})},'@/lib/auth':{SESSION_NAME:'session',verifySessionToken:async()=>({...user,sessionId:'test'})},'@/lib/session-store':{revokeDatabaseSession:async()=>{events.push('revoke');if(fail)throw Error('DB down');}}});

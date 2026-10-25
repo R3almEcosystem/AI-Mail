@@ -9,6 +9,8 @@ const { loadModule } = require('./module-loader.cjs');
 let db;
 let store;
 let sequence = 0;
+let live=true;
+const token=(identity)=>'header.'+Buffer.from(JSON.stringify({...identity,exp:Math.floor(Date.now()/1000)+3600})).toString('base64url')+'.signature';
 const previousUrl = process.env.AI_MAIL_DATABASE_URL;
 const previousSecret = process.env.AUTH_SECRET;
 const testUrl = 'postgres://synthetic.invalid/in-memory-only';
@@ -24,12 +26,14 @@ before(async () => {
   process.env.AUTH_SECRET = 'synthetic-test-secret-32-bytes-minimum';
   // Replace only the wire adapter: all queries/conditions come from production code.
   store = loadModule('src/lib/session-store.ts', {
+    '@/lib/sovsi-server':{verifySovsiAccess:async accessToken=>{if(!live)throw Error('UNAUTHORIZED');const c=JSON.parse(Buffer.from(accessToken.split('.')[1],'base64url'));return {subject:c.sub,sessionId:c.session_id,claims:c};},refreshSovsiSession:async()=>{throw Error('unexpected refresh');}},
     postgres: (url) => {
       assert.equal(url, testUrl);
-      return async (strings, ...values) => {
+      const tagged=async (strings, ...values) => {
         const query = strings.map((part, index) => part + (index < values.length ? `$${index + 1}` : '')).join('');
         return (await db.query(query, values)).rows;
       };
+      tagged.begin=async callback=>db.transaction(async tx=>callback(async(strings,...values)=>{const query=strings.map((part,index)=>part+(index<values.length?`$${index+1}`:'')).join('');return (await tx.query(query,values)).rows;}));return tagged;
     },
   });
 });
@@ -47,8 +51,12 @@ async function fixture() {
   const user = { id, name: 'Synthetic User', email: `${id}@example.test`, role: 'admin', demo: false };
   await db.query('INSERT INTO auth.users(id,email,email_confirmed_at) VALUES($1,$2,NOW())', [id, user.email]);
   await db.query('INSERT INTO public.ai_mail_users(id,name,email,role,status,password_hash) VALUES($1,$2,$3,$4,$5,$6)', [id, user.name, user.email, user.role, 'active', 'synthetic-hash']);
-  const sessionId = await store.createDatabaseSession(user, 3600);
-  return { user, claims: { ...user, sessionId } };
+  const subject=`00000000-0000-4000-8000-${String(sequence).padStart(12,'0')}`,sessionIdCentral='10000000-0000-4000-8000-000000000001';
+  await db.query('INSERT INTO ai_mail_sovsi_identity_links(subject,user_id,verified_by) VALUES($1,$2,$3)',[subject,id,'synthetic-test']);
+  const identity={subject,sessionId:sessionIdCentral},tokens={access_token:token({sub:subject,session_id:sessionIdCentral}),refresh_token:'synthetic-refresh-token'};
+  const session=await store.createFederatedSession(identity,tokens);
+  assert.equal(session.user.id,id);assert.equal(session.user.role,user.role);
+  return { user,identity,tokens,claims: { ...user, sessionId:session.sessionId } };
 }
 
 test('the exact migrations support the existing bootstrap ON CONFLICT(email)', async () => {
@@ -103,21 +111,23 @@ test('the database refuses an expired session', async () => {
   assert.equal(await store.findActiveSession(claims), null);
 });
 
-test('Supabase identity changes between password verification and session creation are rejected', async () => {
-  const { user } = await fixture();
-  await db.query("UPDATE auth.users SET email=$1 WHERE id=$2", [`changed-${user.email}`, user.id]);
-  await assert.rejects(store.createDatabaseSession(user, 3600), /UNAUTHORIZED/);
+test('disabled explicit identity links reject new and existing sessions',async()=>{
+ const {identity,tokens,claims,user}=await fixture();await db.query('UPDATE ai_mail_sovsi_identity_links SET enabled=false WHERE user_id=$1',[user.id]);
+ assert.equal(await store.findActiveSession(claims),null);await assert.rejects(store.createFederatedSession(identity,tokens),/FORBIDDEN/);
 });
-
-test('MFA-required policy refuses password-only sessions', async () => {
-  const { user, claims } = await fixture();
-  await db.exec("UPDATE public.ai_mail_settings SET require_mfa=TRUE WHERE id='default'");
-  try {
-    assert.equal(await store.findActiveSession(claims), null);
-    await assert.rejects(store.createDatabaseSession(user, 3600), /UNAUTHORIZED/);
-  } finally {
-    await db.exec("UPDATE public.ai_mail_settings SET require_mfa=FALSE WHERE id='default'");
-  }
+test('MFA-required settings accepts the centrally verified session without changing roles',async()=>{
+ await db.exec("UPDATE ai_mail_settings SET require_mfa=true WHERE id='default'");
+ const {user,claims}=await fixture();assert.deepEqual(await store.findActiveSession(claims),user);
+});
+test('central session revocation rejects even a current local cookie',async()=>{
+ const {claims}=await fixture();live=false;try{await assert.rejects(store.findActiveSession(claims),/UNAUTHORIZED/);}finally{live=true;}
+});
+test('central tokens are encrypted and bound to the local session hash',async()=>{
+ const first=await fixture(),second=await fixture();
+ const row=(await db.query('SELECT sovsi_tokens FROM ai_mail_sessions WHERE user_id=$1',[first.user.id])).rows[0];
+ assert.ok(!row.sovsi_tokens.includes(first.tokens.refresh_token));assert.ok(!row.sovsi_tokens.includes(first.tokens.access_token));
+ await db.query('UPDATE ai_mail_sessions SET sovsi_tokens=$1 WHERE user_id=$2',[row.sovsi_tokens,second.user.id]);
+ await assert.rejects(store.findActiveSession(second.claims));
 });
 
 test('login rate limits enforce the boundary and renew an expired window', async () => {
@@ -136,7 +146,7 @@ test('session identifiers are stored only as digests', async () => {
 });
 
 test('public API roles cannot read or write the session and login-limit tables', async () => {
-  for (const table of ['ai_mail_sessions', 'ai_mail_login_limits']) {
+  for (const table of ['ai_mail_sessions', 'ai_mail_login_limits','ai_mail_sovsi_identity_links']) {
     assert.equal((await db.query('SELECT relrowsecurity FROM pg_class WHERE oid=$1::regclass', [`public.${table}`])).rows[0].relrowsecurity, true);
     for (const role of ['anon', 'authenticated']) {
       for (const operation of ['SELECT', 'INSERT', 'UPDATE', 'DELETE']) {

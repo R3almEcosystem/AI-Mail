@@ -29,13 +29,13 @@
     "jose": "6.1.0",
     "lucide-react": "1.39.0",
     "next": "16.4.3",
-    "nodemailer": "10.0.10",
+    "nodemailer": "10.2.1",
     "postal-mime": "2.7.5",
     "postgres": "3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "0.0.1",
-    "zod": "4.4.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.4.0",
@@ -49,7 +49,7 @@
   },
   "packageManager": "npm@10.9.2",
   "overrides": {
-    "undici": "7.30.0",
+    "undici": "7.30.1",
     "ip-address": "10.7.4",
     "proxy-addr": "2.0.8",
     "source-map-js": "1.2.2",
