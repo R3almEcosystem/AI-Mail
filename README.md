@@ -316,3 +316,7 @@ CI runs those checks for pull requests and pushes to `main`. The repository's cu
 - Auditable outbound-message event logging without storing message bodies.
 - Optional scoped attachment retrieval with strict content/size policies.
 - Per-user authorization scopes (`mail:read`, `mail:send`, `mail:manage`).
+
+## SPIRE capability recovery engineering backlog · 2026-10-26
+
+The [module engineering plan, operator runbook and 30 proposed tasks](docs/spire-capability-recovery/README.md) mirror [ASSIST-V2 engineering PR #159](https://github.com/R3almEcosystem/ASSIST-V2/pull/159) and do not authorize operations.
