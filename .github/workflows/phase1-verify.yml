@@ -70,5 +70,8 @@ jobs:
           PGDATABASE: aimail_phase1_test
         run: |
           psql -v ON_ERROR_STOP=1 -c 'CREATE ROLE anon; CREATE ROLE authenticated;'
+          # CI-only stub; Supabase Auth-managed tables exist in production automatically.
+          # Guarded fixture refuses non-test databases and inserts no real identities.
+          psql -v ON_ERROR_STOP=1 -f tests/fixtures/ci_auth_schema.sql
           for migration in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -f "$migration"; done
           psql -v ON_ERROR_STOP=1 -f tests/session-revocation.sql
