@@ -1,0 +1,61 @@
+import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+const file=(path:string)=>readFileSync(join(process.cwd(),path),"utf8");
+const login=file("src/app/login/page.tsx");
+const panel=file("src/components/login-panel.tsx");
+const shell=file("src/components/sovsi-auth-shell.tsx");
+const styles=file("src/components/sovsi-auth.module.css");
+const callback=file("src/app/identity/oauth/callback/page.tsx");
+const consumer=file("src/lib/sovsi-browser.ts");
+const boundary=file("src/app/api/auth/sovsi-session/route.ts");
+const server=file("src/lib/sovsi-server.ts");
+const proxy=file("src/proxy.ts");
+describe("SOVSI ID / AI-Mail sign-in presentation and trust boundary",()=>{
+  it("uses SOVSI login styling instead of the old r3alm password form",()=>{
+    expect(login).toContain("SovsiAuthShell");
+    expect(login).toContain("<LoginPanel");
+    expect(login).toContain("ASSIST Mail · SOVSI ID");
+    expect(login).not.toContain("r3alm");
+    expect(shell).toContain("SOVSI <em>ID</em>");
+    expect(shell).toContain("Intelligence in");
+    expect(shell).toContain("every exchange.");
+    expect(shell).toContain("IDENTITY IS NOT AUTHORIZATION");
+    expect(panel).toContain("Continue with SOVSI ID");
+    expect(panel).not.toContain('type="password"');
+    expect(panel).not.toContain("signInWithPassword");
+    expect(panel).not.toContain("service_role");
+  });
+  it("uses the current central OAuth PKCE client with allowlisted return routes",()=>{
+    expect(panel).toContain("mailIdentity.begin(destination)");
+    expect(panel).toContain('requested==="/admin"?"/admin":"/inbox"');
+    expect(panel).toContain("window.location.origin!==SOVSI_MAIL_ORIGIN");
+    expect(panel).toContain('SOVSI_MAIL_ORIGIN+"/login?next="');
+    expect(consumer).toContain("portalKey:'ai-mail'");
+    expect(consumer).toContain("canonicalOrigin:'https://ai-mail.sovsi.xyz'");
+    expect(proxy).toContain("request.nextUrl.hostname==='ai-mail.r3alm.com'");
+    expect(proxy).toContain("NextResponse.redirect(canonical,308)");
+  });
+  it("retains verified callback and independent linked-mailbox session",()=>{
+    expect(callback).toContain("mailIdentity.complete()");
+    expect(callback).toContain("establishMailSession(result.session)");
+    expect(callback).toContain("challenge.verify(code)");
+    expect(callback).toContain("useRef(false)");
+    expect(callback).toContain("SovsiAuthShell");
+    expect(callback).toContain('role="alert"');
+    expect(boundary).toContain("verifySovsiAccess(input.access_token,'ai-mail')");
+    expect(boundary).toContain("createFederatedSession(identity,input)");
+    expect(server).toContain("createRemoteJWKSet");
+    expect(server).toContain("payload.aal!=='aal2'");
+  });
+  it("has responsive and accessible layout, error and reduced-motion states",()=>{
+    for(const name of [".page",".topbar",".story",".identityArea",".card",".cardLead",".cta",".codeInput",".alert",".compactCard"])expect(styles).toContain(name);
+    expect(styles).toContain("@media (max-width: 850px)");
+    expect(styles).toContain("@media (max-width: 530px)");
+    expect(styles).toContain("@media (prefers-reduced-motion: reduce)");
+    expect(styles).toContain(":focus-visible");
+    expect(panel).toContain('role="alert"');
+    expect(panel).toContain("aria-busy={busy}");
+    expect(callback).toContain('autoComplete="one-time-code"');
+  });
+});
