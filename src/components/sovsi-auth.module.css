@@ -133,6 +133,12 @@
   .verifiedPill { font-size: 9px; padding: 7px 8px; }
   .footer { padding: 14px 20px; align-items: flex-start; flex-direction: column; }
 }
+.compactCard { max-width: 445px; padding: 29px; box-shadow: 0 15px 48px rgba(19, 49, 67, .085); }
+.compactCard .cardHeader { margin-bottom: 17px; }
+.compactCard .identitySummary { margin: 18px 0; padding: 12px; }
+.compactCard .summaryRow { font-size: 11px; }
+.compactCard .cardLead { font-size: 12px; }
+.compactCard h2 { font-size: 25px; }
 @media (prefers-reduced-motion: reduce) {
   .cta { transition: none; }
   .cta:hover { transform: none; }
