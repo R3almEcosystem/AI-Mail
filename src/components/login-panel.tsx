@@ -32,7 +32,7 @@ export function LoginPanel({compact=false}:{compact?:boolean}){
     }
   }
 
-  return <div className={styles.card} data-testid="sovsi-mail-login">
+  return <div className={compact ? `${styles.card} ${styles.compactCard}` : styles.card} data-testid="sovsi-mail-login">
     <div className={styles.cardHeader}>
       <span className={styles.cardIcon}><KeyRound size={25} aria-hidden="true"/></span>
       <span className={styles.verifiedPill}><span aria-hidden="true"/> CENTRAL SOVSI ID</span>
