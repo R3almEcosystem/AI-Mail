@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Fingerprint, LockKeyhole, MailCheck2, ShieldCheck } from "lucide-react";
+import { Fingerprint, LockKeyhole, MailCheck, ShieldCheck } from "lucide-react";
 import styles from "./sovsi-auth.module.css";
 
 export const SOVSI_MAIL_ORIGIN = "https://ai-mail.sovsi.xyz";
@@ -47,7 +47,7 @@ export function SovsiAuthShell({ children }: { children: ReactNode }) {
           <div className={styles.storySteps} aria-label="Secure access process">
             <div className={styles.step}><span className={styles.stepIcon}><Fingerprint size={19}/></span><div><b>01 / ONE IDENTITY</b><small>Use your existing SOVSI account</small></div></div>
             <div className={styles.step}><span className={styles.stepIcon}><ShieldCheck size={19}/></span><div><b>02 / VERIFIED ASSURANCE</b><small>Complete your enrolled authenticator check</small></div></div>
-            <div className={styles.step}><span className={styles.stepIcon}><MailCheck2 size={19}/></span><div><b>03 / GOVERNED ACCESS</b><small>Keep independent mailbox and role permissions</small></div></div>
+            <div className={styles.step}><span className={styles.stepIcon}><MailCheck size={19}/></span><div><b>03 / GOVERNED ACCESS</b><small>Keep independent mailbox and role permissions</small></div></div>
           </div>
         </div>
         <div className={styles.storyBottom}>
